@@ -1,0 +1,270 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<root>
+	<xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+		<xsd:import namespace="http://www.w3.org/XML/1998/namespace" />
+		<xsd:element name="root" msdata:IsDataSet="true">
+			<xsd:complexType>
+				<xsd:choice maxOccurs="unbounded">
+					<xsd:element name="metadata">
+						<xsd:complexType>
+							<xsd:sequence>
+								<xsd:element name="value" type="xsd:string" minOccurs="0" />
+							</xsd:sequence>
+							<xsd:attribute name="name" use="required" type="xsd:string" />
+							<xsd:attribute name="type" type="xsd:string" />
+							<xsd:attribute name="mimetype" type="xsd:string" />
+							<xsd:attribute ref="xml:space" />
+						</xsd:complexType>
+					</xsd:element>
+					<xsd:element name="assembly">
+						<xsd:complexType>
+							<xsd:attribute name="alias" type="xsd:string" />
+							<xsd:attribute name="name" type="xsd:string" />
+						</xsd:complexType>
+					</xsd:element>
+					<xsd:element name="data">
+						<xsd:complexType>
+							<xsd:sequence>
+								<xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+								<xsd:element name="comment" type="xsd:string" minOccurs="0" msdata:Ordinal="2" />
+							</xsd:sequence>
+							<xsd:attribute name="name" type="xsd:string" use="required" msdata:Ordinal="1" />
+							<xsd:attribute name="type" type="xsd:string" msdata:Ordinal="3" />
+							<xsd:attribute name="mimetype" type="xsd:string" msdata:Ordinal="4" />
+							<xsd:attribute ref="xml:space" msdata:Ordinal="5" />
+						</xsd:complexType>
+					</xsd:element>
+					<xsd:element name="resheader">
+						<xsd:complexType>
+							<xsd:sequence>
+								<xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+							</xsd:sequence>
+							<xsd:attribute name="name" type="xsd:string" use="required" />
+						</xsd:complexType>
+					</xsd:element>
+				</xsd:choice>
+			</xsd:complexType>
+		</xsd:element>
+	</xsd:schema>
+	<resheader name="resmimetype">
+		<value>text/microsoft-resx</value>
+	</resheader>
+	<resheader name="version">
+		<value>2.0</value>
+	</resheader>
+	<resheader name="reader">
+		<value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+	</resheader>
+	<resheader name="writer">
+		<value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+	</resheader>
+
+	<data name="AppTitle.Text" xml:space="preserve"><value>SAVIUM DRIVE</value></data>
+	<data name="Loading.Text" xml:space="preserve"><value>Starting engines...</value></data>
+	<data name="LoginTitle.Text" xml:space="preserve"><value>Welcome</value></data>
+	<data name="LoginDesc.Text" xml:space="preserve"><value>Connect your account to sync your backups.</value></data>
+	<data name="Login_Button_Start" xml:space="preserve"><value>Sign in with Gmail</value></data>
+	<data name="Login_Button_Cancel" xml:space="preserve"><value>Cancel</value></data>
+	<data name="Login_Button_Cancelling" xml:space="preserve"><value>Cancelling...</value></data>
+	<data name="Login_Error_Title" xml:space="preserve"><value>Connection Error</value></data>
+	<data name="Login_Error_Timeout" xml:space="preserve"><value>Connection timed out</value></data>
+	<data name="Login_Error_Generic" xml:space="preserve"><value>Could not log in. Please try again.</value></data>
+	<data name="Login_Wait_Message" xml:space="preserve"><value>Too many attempts. Wait {0} minute(s).</value></data>
+	<data name="NavHome.Text" xml:space="preserve"><value>Home</value></data>
+	<data name="NavLib.Text" xml:space="preserve"><value>My Backups</value></data>
+	<data name="NavSettings.Text" xml:space="preserve"><value>Settings</value></data>
+	<data name="NavAbout.Text" xml:space="preserve"><value>About</value></data>
+	<data name="SetTitle.Text" xml:space="preserve"><value>Settings</value></data>
+	<data name="SetGeneral.Text" xml:space="preserve"><value>General</value></data>
+	<data name="SetStartWin.Text" xml:space="preserve"><value>Start with Windows</value></data>
+	<data name="SetStartWinDesc.Text" xml:space="preserve">
+  <value>The app will automatically start when you turn on your PC</value>
+</data>
+	<data name="SetTray.Text" xml:space="preserve"><value>Minimize to tray</value></data>
+	<data name="SetTrayDesc.Text" xml:space="preserve">
+  <value>When closing the window, the app will remain in the notification tray</value>
+</data>
+	<data name="SetDark.Text" xml:space="preserve"><value>Dark Mode</value></data>
+	<data name="SetLang.Header" xml:space="preserve"><value>Language</value></data>
+	<data name="SetAccount.Text" xml:space="preserve"><value>Account &amp; Data</value></data>
+	<data name="SetLogout.Content" xml:space="preserve"><value>Log Out</value></data>
+	<data name="SetLogoutDesc.Text" xml:space="preserve"><value>Local access token will be removed.</value></data>
+	<data name="SetAboutLink.Text" xml:space="preserve"><value>About Savium Drive</value></data>
+	<data name="AbtBack.Text" xml:space="preserve"><value>Back</value></data>
+	<data name="AbtDesc.Text" xml:space="preserve"><value>Created to protect your backups.</value></data>
+	<data name="AbtUpdate" xml:space="preserve"><value>Check for Updates</value></data>
+	<data name="AbtSearching" xml:space="preserve"><value>Searching...</value></data>
+	<data name="AbtUpToDate" xml:space="preserve"><value>You are up to date!</value></data>
+	<data name="HomeTitle.Text" xml:space="preserve"><value>Home</value></data>
+	<data name="CloudStatus.Text" xml:space="preserve"><value>Cloud Status</value></data>
+	
+	<!-- Connection states for XAML -->
+	<data name="Connected.Text" xml:space="preserve"><value>Connected</value></data>
+	<data name="SyncReady.Text" xml:space="preserve"><value>Sync ready</value></data>
+	
+	<!-- Connection states for C# -->
+	<data name="StatusConnected" xml:space="preserve"><value>Connected</value></data>
+	<data name="StatusSyncReady" xml:space="preserve"><value>Sync ready</value></data>
+	<data name="StatusDisconnected" xml:space="preserve"><value>Disconnected</value></data>
+	<data name="StatusNoConnection" xml:space="preserve"><value>No Internet connection</value></data>
+	
+	<!-- Internet InfoBar -->
+	<data name="NoInternetBar.Title" xml:space="preserve"><value>No connection</value></data>
+	<data name="NoInternetBar.Message" xml:space="preserve"><value>No Internet connection. Some features may be unavailable.</value></data>
+	
+	<data name="SavedGames.Text" xml:space="preserve"><value>Saved Games</value></data>
+	<data name="InLib.Text" xml:space="preserve"><value>In your library</value></data>
+	<data name="LastActivity.Text" xml:space="preserve"><value>Last Backup Performed</value></data>
+	<data name="NoActivity.Text" xml:space="preserve"><value>No recent activity</value></data>
+	<data name="LibTitle.Text" xml:space="preserve"><value>My Backups</value></data>
+	<data name="LibAddBtn.Text" xml:space="preserve"><value>Add Backup</value></data>
+	<data name="LibSyncing.Text" xml:space="preserve"><value>Syncing with cloud...</value></data>
+	<data name="LibEmptyTitle.Text" xml:space="preserve"><value>No backups in library</value></data>
+	<data name="LibEmptyDesc.Text" xml:space="preserve"><value>Add your first game top right</value></data>
+	<data name="AlertSuccess" xml:space="preserve"><value>Success!</value></data>
+	<data name="AlertError" xml:space="preserve"><value>Error</value></data>
+	<data name="AlertCancel" xml:space="preserve"><value>Cancelled</value></data>
+	<data name="AlertRestoreSuccess" xml:space="preserve"><value>Files restored successfully.</value></data>
+	<data name="AlertOpCancelled" xml:space="preserve"><value>Operation cancelled.</value></data>
+	<data name="ConfirmDeleteTitle" xml:space="preserve"><value>Delete {0}?</value></data>
+	<data name="ConfirmDeleteMsg" xml:space="preserve"><value>This will delete the backup from Google Drive and this list. Files on your PC will NOT be touched.</value></data>
+	<data name="ConfirmDeleteBtn" xml:space="preserve"><value>Delete</value></data>
+	<data name="ConfirmRestoreTitle" xml:space="preserve"><value>Apply Backup</value></data>
+	<data name="ConfirmRestoreMsg" xml:space="preserve"><value>Files will be downloaded from the cloud and overwritten in:\n\n{0}\n\nAre you sure?</value></data>
+	<data name="ConfirmRestoreBtn" xml:space="preserve"><value>Apply Backup</value></data>
+	<data name="ConfirmCancelBtn" xml:space="preserve"><value>Cancel</value></data>
+	<data name="DlgAddTitle.Title" xml:space="preserve"><value>Add New Game</value></data>
+	<data name="DlgAddTitle.PrimaryButtonText" xml:space="preserve"><value>Save</value></data>
+	<data name="DlgAddTitle.CloseButtonText" xml:space="preserve"><value>Cancel</value></data>
+	<data name="DlgGameName.Header" xml:space="preserve"><value>Game Name</value></data>
+	<data name="DlgGameName.PlaceholderText" xml:space="preserve"><value>Ex: Cyberpunk 2077</value></data>
+	<data name="DlgPath.Header" xml:space="preserve"><value>Save Folder</value></data>
+	<data name="DlgBrowseBtn.Content" xml:space="preserve"><value>Select Folder...</value></data>
+	<data name="DlgGamePath.PlaceholderText" xml:space="preserve"><value>C:\...</value></data>
+	<data name="DlgCoverHint.Text" xml:space="preserve"><value>Cover</value></data>
+	<data name="BtnAddGame" xml:space="preserve"><value>Add Game</value></data>
+	<data name="BtnCancel" xml:space="preserve"><value>Cancel</value></data>
+	<data name="MsgSyncing" xml:space="preserve"><value>Syncing with cloud...</value></data>
+	<data name="MsgPreparing" xml:space="preserve"><value>Preparing upload...</value></data>
+	<data name="MsgConnecting" xml:space="preserve"><value>Connecting...</value></data>
+	<data name="MsgGamesCount" xml:space="preserve"><value>{0} Games</value></data>
+	<data name="MsgUpdated" xml:space="preserve"><value>Updated</value></data>
+	<data name="RestartTitle" xml:space="preserve"><value>Restart Required</value></data>
+	<data name="RestartMsg" xml:space="preserve"><value>To change the language, the application needs to restart.</value></data>
+	<data name="RestartNow" xml:space="preserve"><value>Restart Now</value></data>
+	<data name="RestartLater" xml:space="preserve"><value>Later</value></data>
+	<data name="DlgLogoutTitle" xml:space="preserve"><value>Log Out</value></data>
+	<data name="DlgLogoutMsg" xml:space="preserve"><value>Are you sure?</value></data>
+	<data name="DlgYes" xml:space="preserve"><value>Yes</value></data>
+	<data name="DlgNo" xml:space="preserve"><value>Cancel</value></data>
+	<data name="ConfirmUpdateTitle" xml:space="preserve"><value>Update Backup</value></data>
+	<data name="ConfirmUpdateMsg" xml:space="preserve"><value>This will overwrite the cloud backup for "{0}" with the current files from your PC.\n\nDo you want to continue?</value></data>
+	<data name="ConfirmUpdateBtn" xml:space="preserve"><value>Update</value></data>
+	<data name="AlertUpdateSuccess" xml:space="preserve"><value>Backup successfully updated in the cloud.</value></data>
+	<data name="MsgUpdating" xml:space="preserve"><value>Uploading changes...</value></data>
+	<data name="AlertDuplicateName" xml:space="preserve"><value>A game with this name already exists in your library. Please use a different name.</value></data>
+	<data name="DlgCloseBtn" xml:space="preserve"><value>Ok</value></data>
+
+	<data name="BtnItemUpdate.ToolTipService.ToolTip" xml:space="preserve"><value>Update backup</value></data>
+	<data name="BtnItemRestore.ToolTipService.ToolTip" xml:space="preserve"><value>Restore backup</value></data>
+	<data name="BtnItemDelete.ToolTipService.ToolTip" xml:space="preserve"><value>Delete backup</value></data>
+
+	<data name="MsgScanning" xml:space="preserve"><value>Scanning files...</value></data>
+	<data name="MsgUploading" xml:space="preserve"><value>Uploading ({0}/{1}): {2}</value></data>
+	<data name="MsgDownloadingSize" xml:space="preserve"><value>{0} ({1})</value></data>
+	<data name="MsgConnectingDrive" xml:space="preserve"><value>Connecting to Drive...</value></data>
+	<data name="MsgPrepUpdate" xml:space="preserve"><value>Preparing update...</value></data>
+	<data name="MsgUploadingSize" xml:space="preserve"><value>Uploading: {0} ({1})</value></data>
+
+	<data name="StatusUploading" xml:space="preserve"><value>Uploading...</value></data>
+	<data name="StatusDownloading" xml:space="preserve"><value>Downloading...</value></data>
+
+	<data name="AlertWarning" xml:space="preserve"><value>⚠️ Warning</value></data>
+	<data name="MsgDeletingIn" xml:space="preserve"><value>Backup will be deleted in {0} seconds...</value></data>
+	<data name="AlertDeleteSuccess" xml:space="preserve"><value>Backup deleted successfully</value></data>
+	<data name="AlertBackupCreated" xml:space="preserve"><value>Backup created successfully</value></data>
+
+	<data name="StatusDeleting" xml:space="preserve"><value>Deleting...</value></data>
+	<data name="MsgDeleting" xml:space="preserve"><value>Deleting from cloud...</value></data>
+
+	<data name="SetBackups.Text" xml:space="preserve"><value>Backups</value></data>
+	<data name="SetAutoDetect.Header" xml:space="preserve"><value>Auto-detect games for backups</value></data>
+	<data name="TagExperimental.Text" xml:space="preserve"><value>Experimental</value></data>
+
+	<data name="DetectorTitle.Text" xml:space="preserve"><value>Game Detected</value></data>
+	<data name="DetectorMsg.Text" xml:space="preserve"><value>We detected that you finished playing.</value></data>
+	<data name="DetectorSubMsg.Text" xml:space="preserve"><value>Do you want to configure automatic backup now?</value></data>
+	<data name="BtnConfig.Content" xml:space="preserve"><value>Configure</value></data>
+	<data name="BtnNoConfig.Content" xml:space="preserve"><value>Not now</value></data>
+
+	<data name="DriveStorage.Text" xml:space="preserve"><value>Drive Storage</value></data>
+	<data name="StorageRemaining" xml:space="preserve">
+		<value>{0} remaining of {1}</value>
+		<comment>{0} = remaining space, {1} = total space</comment>
+	</data>
+	<data name="StorageUnavailable" xml:space="preserve"><value>Unavailable</value></data>
+
+	<data name="BtnQuickAddBackup.Text" xml:space="preserve"><value>Create New Backup</value></data>
+
+	<data name="RecentBackups.Text" xml:space="preserve"><value>Recent Backups</value></data>
+
+
+	<!-- Agregar estos textos al archivo Resources.resw existente -->
+
+	<!-- Textos de actualización -->
+	<data name="UpdateAvailable.Text" xml:space="preserve">
+    <value>New Update Available!</value>
+</data>
+	<data name="UpdateNewVersion" xml:space="preserve">
+    <value>Version {0} is ready to install</value>
+    <comment>{0} = version number</comment>
+</data>
+	<data name="UpdateFileSize" xml:space="preserve">
+    <value>Download size: {0}</value>
+    <comment>{0} = file size</comment>
+</data>
+	<data name="BtnDownloadUpdate.Text" xml:space="preserve">
+    <value>Download Update</value>
+</data>
+	<data name="UpdateCheckError" xml:space="preserve">
+    <value>Could not check for updates. Please verify your internet connection and try again.</value>
+</data>
+	<data name="UpdateDownloadComplete" xml:space="preserve">
+    <value>Update Downloaded</value>
+</data>
+	<data name="UpdateInstallPrompt" xml:space="preserve">
+    <value>The update has been downloaded successfully. Do you want to install it now?</value>
+</data>
+	<data name="UpdateInstallNow" xml:space="preserve">
+    <value>Install Now</value>
+</data>
+	<data name="UpdateDownloadError" xml:space="preserve">
+    <value>An error occurred while downloading the update. Please try again later.</value>
+</data>
+
+	<!-- Ventana de Changelog -->
+	<data name="ChangelogTitle.Text" xml:space="preserve">
+    <value>What's New</value>
+</data>
+	<data name="ChangelogVersionInfo" xml:space="preserve">
+    <value>You just updated to version {0}</value>
+    <comment>{0} = version number</comment>
+</data>
+	<data name="ChangelogWelcome.Text" xml:space="preserve">
+    <value>Thank you for updating Savium Drive! Here's what's new:</value>
+</data>
+	<data name="ChangelogCloseBtn.Text" xml:space="preserve">
+    <value>Got it!</value>
+</data>
+	<data name="ChangelogNoInfo" xml:space="preserve">
+    <value>No changelog information available for this version.</value>
+</data>
+
+	<!-- Agregar estas líneas en tu archivo de recursos en inglés -->
+	<data name="SetMinimizeStartup.Text" xml:space="preserve">
+  <value>Minimize on Windows startup</value>
+</data>
+	<data name="SetMinimizeStartupDesc.Text" xml:space="preserve">
+  <value>Start the app in the background when Windows starts</value>
+</data>
+</root>

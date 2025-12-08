@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "SaviumDrive (Package)": {
+      "commandName": "MsixPackage"
+    },
+    "SaviumDrive (Unpackaged)": {
+      "commandName": "Project"
+    }
+  }
+}

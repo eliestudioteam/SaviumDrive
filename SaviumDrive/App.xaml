@@ -1,0 +1,120 @@
+<Application
+    x:Class="SaviumDrive.App"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:SaviumDrive"
+    xmlns:controls="using:Microsoft.UI.Xaml.Controls">
+
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <XamlControlsResources xmlns="using:Microsoft.UI.Xaml.Controls" />
+                <ResourceDictionary Source="ms-appx:///Themes/ThemeResources.xaml"/>
+                
+                
+            </ResourceDictionary.MergedDictionaries>
+
+            <!-- ========================================================
+                 ESTILO BOTONES ESTÁNDAR (Gris/Blanco)
+                 ======================================================== -->
+            <Style x:Key="StandardBtnStyle" TargetType="Button">
+                <Setter Property="Background" Value="{ThemeResource StandardButtonBackground}"/>
+                <Setter Property="Foreground" Value="{ThemeResource StandardButtonText}"/>
+                <Setter Property="BorderBrush" Value="{ThemeResource StandardButtonBorder}"/>
+                <Setter Property="BorderThickness" Value="1"/>
+
+                <!-- 🔥 CORRECCIÓN TAMAÑO: MinWidth para uniformidad y Padding ajustado -->
+                <Setter Property="Padding" Value="10,6"/>
+                <Setter Property="MinWidth" Value="90"/>
+
+                <Setter Property="CornerRadius" Value="4"/>
+                <Setter Property="HorizontalAlignment" Value="Stretch"/>
+
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="Button">
+                            <Grid x:Name="RootGrid" 
+                                  Background="{TemplateBinding Background}" 
+                                  BorderBrush="{TemplateBinding BorderBrush}" 
+                                  BorderThickness="{TemplateBinding BorderThickness}" 
+                                  CornerRadius="{TemplateBinding CornerRadius}">
+                                <VisualStateManager.VisualStateGroups>
+                                    <VisualStateGroup x:Name="CommonStates">
+                                        <VisualState x:Name="Normal"/>
+                                        <VisualState x:Name="PointerOver">
+                                            <VisualState.Setters>
+                                                <Setter Target="RootGrid.Background" Value="{ThemeResource StandardButtonHover}"/>
+                                            </VisualState.Setters>
+                                        </VisualState>
+                                        <VisualState x:Name="Pressed">
+                                            <VisualState.Setters>
+                                                <Setter Target="RootGrid.Background" Value="{ThemeResource StandardButtonHover}"/>
+                                                <Setter Target="ContentPresenter.Opacity" Value="0.8"/>
+                                            </VisualState.Setters>
+                                        </VisualState>
+                                        <VisualState x:Name="Disabled">
+                                            <VisualState.Setters>
+                                                <Setter Target="RootGrid.Opacity" Value="0.6"/>
+                                            </VisualState.Setters>
+                                        </VisualState>
+                                    </VisualStateGroup>
+                                </VisualStateManager.VisualStateGroups>
+                                <ContentPresenter x:Name="ContentPresenter" Content="{TemplateBinding Content}" ContentTemplate="{TemplateBinding ContentTemplate}" ContentTransitions="{TemplateBinding ContentTransitions}" Foreground="{TemplateBinding Foreground}" HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" VerticalAlignment="{TemplateBinding VerticalContentAlignment}" Padding="{TemplateBinding Padding}"/>
+                            </Grid>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+
+            <!-- ========================================================
+                 ESTILO ICONOS LISTA (Transparent -> Hover)
+                 ======================================================== -->
+            <Style x:Key="ListIconBtnStyle" TargetType="Button">
+                <Setter Property="Background" Value="Transparent"/>
+                <Setter Property="BorderThickness" Value="0"/>
+                <Setter Property="Padding" Value="8"/>
+                <Setter Property="CornerRadius" Value="4"/>
+                <Setter Property="HorizontalAlignment" Value="Stretch"/>
+
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="Button">
+                            <Grid x:Name="RootGrid" Background="{TemplateBinding Background}" CornerRadius="{TemplateBinding CornerRadius}">
+                                <VisualStateManager.VisualStateGroups>
+                                    <VisualStateGroup x:Name="CommonStates">
+                                        <VisualState x:Name="Normal"/>
+                                        <!-- Hover se pone del color definido en ListButtonHover -->
+                                        <VisualState x:Name="PointerOver">
+                                            <VisualState.Setters>
+                                                <Setter Target="RootGrid.Background" Value="{ThemeResource ListButtonHover}"/>
+                                            </VisualState.Setters>
+                                        </VisualState>
+                                        <VisualState x:Name="Pressed">
+                                            <VisualState.Setters>
+                                                <Setter Target="RootGrid.Background" Value="{ThemeResource ListButtonHover}"/>
+                                                <Setter Target="ContentPresenter.Opacity" Value="0.7"/>
+                                            </VisualState.Setters>
+                                        </VisualState>
+                                        <VisualState x:Name="Disabled">
+                                            <VisualState.Setters>
+                                                <Setter Target="RootGrid.Opacity" Value="0.5"/>
+                                            </VisualState.Setters>
+                                        </VisualState>
+                                    </VisualStateGroup>
+                                </VisualStateManager.VisualStateGroups>
+                                <ContentPresenter x:Name="ContentPresenter" Content="{TemplateBinding Content}" ContentTemplate="{TemplateBinding ContentTemplate}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Grid>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+
+            <Style x:Key="MenuFlyoutPresenterStyle" TargetType="controls:MenuFlyoutPresenter">
+                <Setter Property="Background" Value="{ThemeResource SystemControlBackgroundBaseLowBrush}" />
+                <Setter Property="BorderThickness" Value="0" />
+                <Setter Property="Padding" Value="6" />
+            </Style>
+            <controls:BitmapIcon x:Key="TrayIconResource" ShowAsMonochrome="False" UriSource="ms-appx:///Assets/tray-icon1024x1024.ico" />
+        </ResourceDictionary>
+    </Application.Resources>
+</Application>

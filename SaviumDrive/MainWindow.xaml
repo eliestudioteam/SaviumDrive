@@ -1,0 +1,154 @@
+<Window
+    x:Class="SaviumDrive.MainWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:SaviumDrive"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d">
+
+    <Grid Background="{ThemeResource AppBackground}" MinWidth="1100" MinHeight="600">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <Grid x:Name="AppTitleBar" Height="32" Background="Transparent">
+            <TextBlock x:Name="TxtAppTitle" x:Uid="AppTitle" Foreground="{ThemeResource TextSecondary}" FontSize="10" FontWeight="Bold" VerticalAlignment="Center" Margin="15,0,0,0" CharacterSpacing="200"/>
+        </Grid>
+
+        <!-- 🔥 INFOBAR DE CONEXIÓN -->
+        <InfoBar x:Name="NoInternetBar"
+         Grid.Row="1"
+         Severity="Error"
+         IsOpen="False"
+         IsClosable="False"
+         Title="Sin conexión a Internet"
+         Message="Savium Drive necesita internet para sincronizar tus partidas."
+         x:Uid="NoInternetBar"
+         Margin="10,0,10,10">
+            <InfoBar.IconSource>
+                <SymbolIconSource Symbol="Globe" />
+            </InfoBar.IconSource>
+        </InfoBar>
+
+        <Grid Grid.Row="2">
+            <!-- SPLASH -->
+            <Grid x:Name="SplashGrid" Visibility="Visible">
+                <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="10">
+
+                    <Image Source="ms-appx:///Assets/logo-home.png"
+                   Height="200" 
+                   HorizontalAlignment="Center"/>
+
+                    <ProgressRing IsActive="True" Width="50" Height="50" Foreground="{ThemeResource AccentColor}"/>
+                    <TextBlock x:Name="TxtLoading" x:Uid="Loading" Foreground="{ThemeResource TextTertiary}" HorizontalAlignment="Center"/>
+                </StackPanel>
+            </Grid>
+
+            <!-- LOGIN -->
+            <Grid x:Name="LoginGrid" Visibility="Collapsed">
+                <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="30">
+                    <TextBlock x:Name="TxtLoginTitle" x:Uid="LoginTitle" FontSize="28" Foreground="{ThemeResource TextPrimary}" FontWeight="SemiBold" HorizontalAlignment="Center"/>
+                    <TextBlock x:Name="TxtLoginDesc" x:Uid="LoginDesc" Foreground="{ThemeResource TextSecondary}" HorizontalAlignment="Center"/>
+                    <Button x:Name="btnLogin" Click="btnLogin_Click" Background="{ThemeResource CardBackground}" Foreground="{ThemeResource TextPrimary}" CornerRadius="20" Padding="40,10" HorizontalAlignment="Center">
+                        <StackPanel Orientation="Horizontal" Spacing="10">
+                            <FontIcon Glyph="&#xE77B;" FontFamily="Segoe MDL2 Assets"/>
+                            <TextBlock x:Name="TxtLoginBtn" x:Uid="LoginBtn" FontWeight="Bold"/>
+                        </StackPanel>
+                    </Button>
+                </StackPanel>
+            </Grid>
+
+            <!-- MAIN GRID -->
+            <Grid x:Name="MainGrid" Visibility="Collapsed">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="250"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- BARRA LATERAL -->
+                <Grid Grid.Column="0" Background="{ThemeResource NavBackground}">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="10" Margin="20,20,20,30">
+                            <PersonPicture x:Name="UserAvatar" Width="40" Height="40" Initials="U"/>
+                            <StackPanel VerticalAlignment="Center">
+                                <TextBlock x:Name="TxtUserName" Text="Cargando..." Foreground="{ThemeResource TextPrimary}" FontWeight="Bold"/>
+                                <TextBlock x:Name="TxtUserEmail" Text="..." Foreground="{ThemeResource TextTertiary}" FontSize="11"/>
+                            </StackPanel>
+                        </StackPanel>
+
+                        <StackPanel Grid.Row="1" Spacing="5" Padding="20,0">
+                            <Button x:Name="NavHome" Click="Nav_Click" Tag="Home" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Background="Transparent" BorderThickness="0" Foreground="{ThemeResource TextPrimary}">
+                                <StackPanel Orientation="Horizontal" Spacing="15">
+                                    <FontIcon Glyph="&#xE80F;" FontFamily="Segoe MDL2 Assets"/>
+                                    <TextBlock x:Name="TxtNavHome" x:Uid="NavHome"/>
+                                </StackPanel>
+                            </Button>
+                            <Button x:Name="NavLibrary" Click="Nav_Click" Tag="Library" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Background="Transparent" BorderThickness="0" Foreground="{ThemeResource TextSecondary}">
+                                <StackPanel Orientation="Horizontal" Spacing="15">
+                                    <FontIcon Glyph="&#xE8F1;" FontFamily="Segoe MDL2 Assets"/>
+                                    <TextBlock x:Name="TxtNavLib" x:Uid="NavLib"/>
+                                </StackPanel>
+                            </Button>
+                            <Button x:Name="NavSettings" Click="Nav_Click" Tag="Settings" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Background="Transparent" BorderThickness="0" Foreground="{ThemeResource TextSecondary}">
+                                <StackPanel Orientation="Horizontal" Spacing="15">
+                                    <FontIcon Glyph="&#xE713;" FontFamily="Segoe MDL2 Assets"/>
+                                    <TextBlock x:Name="TxtNavSettings" x:Uid="NavSettings"/>
+                                </StackPanel>
+                            </Button>
+                        </StackPanel>
+
+                        <StackPanel Grid.Row="2" Padding="20,20">
+                            <Button x:Name="NavAbout" Click="Nav_Click" Tag="About" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Background="Transparent" BorderThickness="0" Foreground="{ThemeResource TextTertiary}">
+                                <StackPanel Orientation="Horizontal" Spacing="15">
+                                    <FontIcon Glyph="&#xE946;" FontFamily="Segoe MDL2 Assets"/>
+                                    <TextBlock x:Name="TxtNavAbout" x:Uid="NavAbout"/>
+                                </StackPanel>
+                            </Button>
+                        </StackPanel>
+                    </Grid>
+                </Grid>
+
+                <Grid Grid.Column="1" Background="{ThemeResource AppBackground}" Padding="20">
+                    <Frame x:Name="ContentFrame"/>
+                </Grid>
+
+                <!-- 🔥 INDICADOR FLOTANTE -->
+                <Grid x:Name="GlobalUploadIndicator" 
+                      Grid.Column="1" 
+                      Translation="0,0,10"
+                      HorizontalAlignment="Right" VerticalAlignment="Bottom"
+                      Margin="20" Padding="15,10"
+                      Background="{ThemeResource CardBackground}" CornerRadius="30"
+                      BorderBrush="{ThemeResource DividerColor}" BorderThickness="1"
+                      Visibility="Collapsed">
+
+                    <StackPanel Orientation="Horizontal" Spacing="15">
+                        <Grid Width="45" Height="45">
+                            <ProgressRing x:Name="GlobalRing" IsActive="True" Width="40" Height="40" Value="0" IsIndeterminate="False" Foreground="{ThemeResource AccentColor}"/>
+                            <TextBlock x:Name="GlobalPercentText" Text="0%" FontSize="10" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{ThemeResource TextPrimary}"/>
+                        </Grid>
+
+                        <StackPanel VerticalAlignment="Center">
+                            <TextBlock x:Name="GlobalStatusText" Text="Subiendo..." FontSize="11" Foreground="{ThemeResource TextSecondary}"/>
+                            <TextBlock x:Name="GlobalGameName" Text="Game Name" FontSize="13" FontWeight="Bold" Foreground="{ThemeResource TextPrimary}"/>
+                        </StackPanel>
+                    </StackPanel>
+
+                    <Grid.Shadow>
+                        <ThemeShadow/>
+                    </Grid.Shadow>
+                </Grid>
+
+            </Grid>
+        </Grid>
+    </Grid>
+</Window>

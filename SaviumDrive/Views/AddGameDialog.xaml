@@ -1,0 +1,80 @@
+﻿<ContentDialog
+    x:Class="SaviumDrive.Views.AddGameDialog"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d"
+    x:Uid="DlgAddTitle"
+    PrimaryButtonText="Guardar"
+    CloseButtonText="Cancelar"
+    DefaultButton="Primary">
+
+    <ContentDialog.PrimaryButtonStyle>
+        <Style TargetType="Button" BasedOn="{StaticResource StandardBtnStyle}"/>
+    </ContentDialog.PrimaryButtonStyle>
+
+    <ContentDialog.CloseButtonStyle>
+        <Style TargetType="Button" BasedOn="{StaticResource StandardBtnStyle}"/>
+    </ContentDialog.CloseButtonStyle>
+
+    <StackPanel Spacing="15" MinWidth="350">
+        <TextBox x:Name="TxtGameName" 
+                 x:Uid="DlgGameName"
+                 TextChanged="TxtGameName_TextChanged"/>
+
+        <!-- Contenedor de la Imagen con Botones de Navegación -->
+        <Grid Height="225" Width="150" Background="{ThemeResource CardBackground}" CornerRadius="8" HorizontalAlignment="Center">
+
+            <Image x:Name="ImgCoverPreview" Stretch="UniformToFill"/>
+
+            <!-- Botones de Navegación (Flechas) -->
+            <Button x:Name="BtnPrevCover" Click="BtnPrevCover_Click"
+                    VerticalAlignment="Center" HorizontalAlignment="Left"
+                    Background="#7F000000" BorderThickness="0" CornerRadius="4" Padding="4,8" Margin="5,0,0,0"
+                    Visibility="Collapsed">
+                <FontIcon Glyph="&#xE76B;" FontSize="12" Foreground="White"/>
+            </Button>
+
+            <Button x:Name="BtnNextCover" Click="BtnNextCover_Click"
+                    VerticalAlignment="Center" HorizontalAlignment="Right"
+                    Background="#7F000000" BorderThickness="0" CornerRadius="4" Padding="4,8" Margin="0,0,5,0"
+                    Visibility="Collapsed">
+                <FontIcon Glyph="&#xE76C;" FontSize="12" Foreground="White"/>
+            </Button>
+
+            <!-- Textos de estado -->
+            <TextBlock x:Name="TxtCoverHint" 
+                       x:Uid="DlgCoverHint"
+                       HorizontalAlignment="Center" 
+                       VerticalAlignment="Center" 
+                       Foreground="{ThemeResource TextSecondary}"
+                       IsHitTestVisible="False"/>
+
+            <ProgressRing x:Name="LoadingRing" 
+                          IsActive="False" 
+                          HorizontalAlignment="Center" 
+                          VerticalAlignment="Center"/>
+
+            <!-- 🔥 CORRECCIÓN: Usamos un Border en vez de Effect para el contraste -->
+            <Border x:Name="IndexBadge"
+                    VerticalAlignment="Bottom" HorizontalAlignment="Center" 
+                    Margin="0,0,0,8"
+                    Background="#99000000" CornerRadius="10" Padding="8,2"
+                    Visibility="Collapsed">
+                <TextBlock x:Name="TxtIndexIndicator" 
+                           Text="" FontSize="10" Foreground="White" FontWeight="SemiBold"/>
+            </Border>
+        </Grid>
+
+        <TextBox x:Name="TxtGamePath" 
+                 x:Uid="DlgGamePath"
+                 IsReadOnly="True"/>
+
+        <Button x:Name="BtnBrowse"
+                x:Uid="DlgBrowseBtn"
+                Click="BtnBrowse_Click" 
+                Style="{StaticResource StandardBtnStyle}"
+                HorizontalAlignment="Stretch"/>
+    </StackPanel>
+</ContentDialog>

@@ -1,0 +1,148 @@
+<Page
+    x:Class="SaviumDrive.Views.SettingsPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d"
+    Background="Transparent">
+
+    <Grid>
+        <ScrollViewer VerticalScrollBarVisibility="Auto" VerticalScrollMode="Auto">
+
+            <StackPanel Spacing="20" MaxWidth="600" HorizontalAlignment="Left" Padding="0,0,20,50">
+
+                <TextBlock x:Uid="SetTitle" FontSize="28" FontWeight="Bold" Foreground="{ThemeResource TextPrimaryBrush}"/>
+
+                <TextBlock x:Uid="SetGeneral" FontSize="18" FontWeight="SemiBold" Foreground="{ThemeResource AccentTextBrush}" Margin="0,10,0,0"/>
+                <StackPanel Spacing="10" Background="{ThemeResource CardBackgroundBrush}" Padding="20" CornerRadius="8">
+
+                    <!-- Iniciar con Windows -->
+                    <StackPanel>
+                        <ToggleSwitch x:Name="TglWindowsStart" 
+                                      OffContent="No" 
+                                      OnContent="Si" 
+                                      IsOn="False" 
+                                      Toggled="SettingChanged">
+                            <ToggleSwitch.Header>
+                                <StackPanel>
+                                    <TextBlock x:Uid="SetStartWin" FontWeight="SemiBold"/>
+                                    <TextBlock x:Uid="SetStartWinDesc"
+                                               Foreground="{ThemeResource TextSecondaryBrush}" 
+                                               FontSize="12" 
+                                               TextWrapping="Wrap"
+                                               Margin="0,4,0,0"/>
+                                </StackPanel>
+                            </ToggleSwitch.Header>
+                        </ToggleSwitch>
+                    </StackPanel>
+                    
+                    <!-- Minimizar al iniciar con Windows -->
+                    <StackPanel Margin="0,8,0,0">
+                        <ToggleSwitch x:Name="TglMinimizeOnStartup" 
+                                  OffContent="No" 
+                                  OnContent="Si" 
+                                  IsOn="True" 
+                                  Toggled="SettingChanged">
+                            <ToggleSwitch.Header>
+                                <StackPanel>
+                                    <TextBlock x:Uid="SetMinimizeStartup" FontWeight="SemiBold"/>
+                                    <TextBlock x:Uid="SetMinimizeStartupDesc"
+                                           Foreground="{ThemeResource TextSecondaryBrush}" 
+                                           FontSize="12" 
+                                           TextWrapping="Wrap"
+                                           Margin="0,4,0,0"/>
+                                </StackPanel>
+                            </ToggleSwitch.Header>
+                        </ToggleSwitch>
+                    </StackPanel>
+
+                    <!-- Minimizar a bandeja del sistema -->
+                    <StackPanel Margin="0,8,0,0">
+                        <ToggleSwitch x:Name="TglTray" 
+                                      OffContent="No" 
+                                      OnContent="Si" 
+                                      IsOn="False" 
+                                      Toggled="SettingChanged">
+                            <ToggleSwitch.Header>
+                                <StackPanel>
+                                    <TextBlock x:Uid="SetTray" FontWeight="SemiBold"/>
+                                    <TextBlock x:Uid="SetTrayDesc"
+                                               Foreground="{ThemeResource TextSecondaryBrush}" 
+                                               FontSize="12" 
+                                               TextWrapping="Wrap"
+                                               Margin="0,4,0,0"/>
+                                </StackPanel>
+                            </ToggleSwitch.Header>
+                        </ToggleSwitch>
+                    </StackPanel>
+
+                    <!-- Modo oscuro -->
+                    <StackPanel Margin="0,8,0,0">
+                        <ToggleSwitch x:Name="TglDarkMode" 
+                                      OffContent="No" 
+                                      OnContent="Si" 
+                                      IsOn="True" 
+                                      Toggled="SettingChanged">
+                            <ToggleSwitch.Header>
+                                <TextBlock x:Uid="SetDark" FontWeight="SemiBold"/>
+                            </ToggleSwitch.Header>
+                        </ToggleSwitch>
+                    </StackPanel>
+
+    
+            
+
+                 
+
+                    <ComboBox x:Name="CmbLanguage" x:Uid="SetLang" Width="200" SelectionChanged="CmbLanguage_SelectionChanged">
+                        <ComboBoxItem Content="Español" Tag="es-ES"/>
+                        <ComboBoxItem Content="English" Tag="en-US"/>
+                    </ComboBox>
+                </StackPanel>
+
+                <TextBlock x:Uid="SetBackups" FontSize="18" FontWeight="SemiBold" Foreground="{ThemeResource AccentTextBrush}" Margin="0,10,0,0"/>
+
+                <StackPanel Spacing="10" Background="{ThemeResource CardBackgroundBrush}" Padding="20" CornerRadius="8">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <ToggleSwitch x:Name="TglAutoDetect" x:Uid="SetAutoDetect" OffContent="No" OnContent="Si" IsOn="False" Toggled="SettingChanged"/>
+
+                        <Border Grid.Column="1" Background="{ThemeResource ActionBackground}" CornerRadius="4" Padding="6,2" VerticalAlignment="Top" HorizontalAlignment="Left" Margin="10,0,0,0">
+                            <TextBlock x:Uid="TagExperimental" Foreground="{ThemeResource ActionText}" FontSize="10" FontWeight="Bold"/>
+                        </Border>
+                    </Grid>
+                </StackPanel>
+
+                <TextBlock x:Uid="SetAccount" FontSize="18" FontWeight="SemiBold" Foreground="{ThemeResource AccentTextBrush}" Margin="0,10,0,0"/>
+
+                <StackPanel Spacing="10" Background="{ThemeResource CardBackgroundBrush}" Padding="10" CornerRadius="8">
+                    <StackPanel Orientation="Horizontal" Spacing="15" Margin="0,0,0,15">
+                        <PersonPicture x:Name="UserAvatarSettings" Width="60" Height="60" Initials="U"/>
+                        <StackPanel VerticalAlignment="Center" Spacing="4">
+                            <TextBlock x:Name="TxtUserNameSettings" Text="Cargando..." 
+                                       Foreground="{ThemeResource TextPrimaryBrush}" 
+                                       FontWeight="SemiBold" 
+                                       FontSize="16"/>
+                            <TextBlock x:Name="TxtUserEmailSettings" Text="..." 
+                                       Foreground="{ThemeResource TextSecondaryBrush}" 
+                                       FontSize="12"/>
+                        </StackPanel>
+                    </StackPanel>
+
+                    <Button x:Name="BtnLogout" Click="BtnLogout_Click" x:Uid="SetLogout" 
+                            Background="{ThemeResource ErrorBrush}" 
+                            Foreground="White" 
+                            HorizontalAlignment="Stretch"/>
+                    <TextBlock x:Uid="SetLogoutDesc" FontSize="11" 
+                               Foreground="{ThemeResource TextSecondaryBrush}" 
+                               TextWrapping="Wrap"/>
+                </StackPanel>
+            </StackPanel>
+        </ScrollViewer>
+    </Grid>
+</Page>

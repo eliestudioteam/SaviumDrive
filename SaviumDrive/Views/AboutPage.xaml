@@ -1,0 +1,111 @@
+<Page
+    x:Class="SaviumDrive.Views.AboutPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d"
+    Background="Transparent">
+
+    <Grid>
+        <Button Click="BtnBack_Click" VerticalAlignment="Top" HorizontalAlignment="Left" Background="Transparent" BorderThickness="0">
+            <StackPanel Orientation="Horizontal" Spacing="5">
+                <FontIcon Glyph="&#xE72B;" FontFamily="Segoe MDL2 Assets" Foreground="{ThemeResource TextSecondary}"/>
+                <TextBlock x:Uid="AbtBack" Foreground="{ThemeResource TextSecondary}"/>
+            </StackPanel>
+        </Button>
+
+        <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="8">
+
+            <Image Source="ms-appx:///Assets/logo-about.png"
+                   Height="200" 
+                   HorizontalAlignment="Center"
+                   Margin="0,0,0,-60"/>
+
+            <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Center">
+                <Border Background="{ThemeResource CardBackground}" CornerRadius="4" Padding="8,4">
+                    <TextBlock x:Name="TxtVersion" Text="v1.0.0 Beta" FontSize="12" Foreground="{ThemeResource TextPrimary}"/>
+                </Border>
+
+                <Border Background="{ThemeResource ActionBackground}" CornerRadius="4" Padding="8,4">
+                    <TextBlock Text="Elie Studio" FontSize="12" Foreground="{ThemeResource ActionText}" />
+                </Border>
+            </StackPanel>
+
+            <TextBlock x:Uid="AbtDesc" Foreground="{ThemeResource TextSecondary}" HorizontalAlignment="Center"/>
+
+            <StackPanel x:Name="UpdatePanel" Spacing="15" HorizontalAlignment="Center" Margin="0,30,0,0">
+
+                <!-- En el botón de actualización -->
+                <Button x:Name="BtnUpdate" 
+                        Click="BtnUpdate_Click" 
+                        Background="{ThemeResource ActionBackground}" 
+                        Foreground="{ThemeResource UpdateBtnText}" 
+                        Padding="20,10" 
+                        CornerRadius="20"
+                        HorizontalAlignment="Center">
+
+                    <Button.Resources>
+                        <SolidColorBrush x:Key="ButtonForegroundPointerOver" Color="{ThemeResource UpdateBtnHoverTextColor}"/>
+                        <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="{ThemeResource UpdateBtnHoverBackgroundColor}"/>
+                    </Button.Resources>
+                    <StackPanel Orientation="Horizontal" Spacing="10">
+                        <FontIcon x:Name="IconUpdate" Glyph="&#xE896;" FontFamily="Segoe MDL2 Assets"/>
+                        <TextBlock x:Name="TxtUpdate" FontWeight="Bold"/>
+                    </StackPanel>
+                </Button>
+
+                <Border x:Name="UpdateInfoCard" 
+                        Visibility="Collapsed"
+                        Background="{ThemeResource CardBackground}"
+                        CornerRadius="12"
+                        Padding="20"
+                        MaxWidth="500"
+                        BorderBrush="{ThemeResource AccentColor}"
+                        BorderThickness="2">
+                    <StackPanel Spacing="12">
+                        <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Center">
+                            <FontIcon Glyph="&#xE73E;" FontFamily="Segoe MDL2 Assets" Foreground="{ThemeResource AccentColor}" FontSize="20"/>
+                            <TextBlock x:Uid="UpdateAvailable" FontSize="16" FontWeight="SemiBold" Foreground="{ThemeResource TextPrimary}"/>
+                        </StackPanel>
+
+                        <StackPanel Spacing="8">
+                            <TextBlock x:Name="TxtNewVersion" Foreground="{ThemeResource TextSecondary}" HorizontalAlignment="Center"/>
+                            <TextBlock x:Name="TxtFileSize" Foreground="{ThemeResource TextTertiary}" FontSize="11" HorizontalAlignment="Center"/>
+                        </StackPanel>
+
+                        <StackPanel x:Name="DownloadProgress" Visibility="Collapsed" Spacing="8">
+                            <ProgressBar x:Name="ProgressBar" 
+                                       Value="0" 
+                                       Maximum="100"
+                                       Height="8"
+                                       CornerRadius="4"
+                                       Foreground="{ThemeResource AccentColor}"/>
+                            <TextBlock x:Name="TxtProgress" 
+                                     Text="0%" 
+                                     FontSize="12" 
+                                     Foreground="{ThemeResource TextSecondary}"
+                                     HorizontalAlignment="Center"/>
+                        </StackPanel>
+
+                        <Button x:Name="BtnDownload"
+                                Click="BtnDownload_Click"
+                                Background="{ThemeResource AccentColor}"
+                                Foreground="White"
+                                Padding="30,10"
+                                CornerRadius="20"
+                                HorizontalAlignment="Center"
+                                Margin="0,8,0,0">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <FontIcon Glyph="&#xE896;" FontFamily="Segoe MDL2 Assets" FontSize="16"/>
+                                <TextBlock x:Uid="BtnDownloadUpdate" FontWeight="Bold"/>
+                            </StackPanel>
+                        </Button>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+
+            <TextBlock Text="© 2025 Elie Studio™. All rights reserved." FontSize="10" Foreground="{ThemeResource TextTertiary}" HorizontalAlignment="Center" Margin="0,30,0,0"/>
+        </StackPanel>
+    </Grid>
+</Page>
