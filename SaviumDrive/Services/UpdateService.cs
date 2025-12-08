@@ -20,7 +20,7 @@ namespace SaviumDrive.Services
 
     public class UpdateService
     {
-        private const string GITHUB_API_URL = "https://api.github.com/repos/TU_USUARIO/TU_REPO/releases/latest";
+        private const string GITHUB_API_URL = "https://github.com/eliestudioteam/SaviumDrive/releases/latest";
         private const string CURRENT_VERSION = "1.0.0"; // Actualiza esto con cada release
         private static readonly HttpClient _httpClient = new HttpClient();
 
