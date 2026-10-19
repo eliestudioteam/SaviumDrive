@@ -319,23 +319,31 @@ namespace SaviumDrive
         {
             this.DispatcherQueue.TryEnqueue(() =>
             {
-                // Abrir ventana de recordatorio independiente
-                var reminderWindow = new BackupReminderWindow(); // Mensaje genérico
-
-                reminderWindow.Closed += (s, args) =>
+                // Un fallo al crear el recordatorio no debe tumbar la app entera
+                try
                 {
-                    if (reminderWindow.Result)
+                    // Abrir ventana de recordatorio independiente
+                    var reminderWindow = new BackupReminderWindow(); // Mensaje genérico
+
+                    reminderWindow.Closed += (s, args) =>
                     {
-                        // Si el usuario dijo "SÍ":
-                        RestaurarYMostrarApp();
+                        if (reminderWindow.Result)
+                        {
+                            // Si el usuario dijo "SÍ":
+                            RestaurarYMostrarApp();
 
-                        // Navegar a la librería pasando los datos del juego detectado
-                        ContentFrame.Navigate(typeof(LibraryPage), session);
-                        ActualizarEstiloBotones("Library");
-                    }
-                };
+                            // Navegar a la librería pasando los datos del juego detectado
+                            ContentFrame.Navigate(typeof(LibraryPage), session);
+                            ActualizarEstiloBotones("Library");
+                        }
+                    };
 
-                reminderWindow.Activate();
+                    reminderWindow.Activate();
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"❌ Error mostrando el recordatorio de backup: {ex}");
+                }
             });
         }
 
