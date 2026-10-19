@@ -7,7 +7,7 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using Windows.ApplicationModel.Resources;
+using SaviumDrive.Helpers;
 
 namespace SaviumDrive.Services
 {
@@ -31,7 +31,6 @@ namespace SaviumDrive.Services
         private readonly string _localFilePath;
         private DriveManager _driveManager;
         private const string CLOUD_CONFIG_FILE = "savium_config.json";
-        private readonly ResourceLoader _loader;
 
         public bool IsBusy { get; private set; } = false;
 
@@ -48,10 +47,9 @@ namespace SaviumDrive.Services
 
             _localFilePath = Path.Combine(folder, "games.json");
             _driveManager = new DriveManager(driveService);
-            _loader = ResourceLoader.GetForViewIndependentUse();
         }
 
-        private string GetStr(string key) => _loader.GetString(key);
+        private string GetStr(string key) => ResourceHelper.GetString(key);
 
         // Notificar a la UI
         private void NotifyProgress(string gameName, int percent, string opKey, string detail, bool active)
@@ -266,7 +264,13 @@ namespace SaviumDrive.Services
                 nombreCarpetaOriginal = carpetaOriginal.Name;
 
                 // 2️⃣ CREAR CARPETA TEMPORAL EN DRIVE (aquí subiremos el nuevo backup)
-                idCarpetaTemporal = _driveManager.GetOrCreateFolder($"TEMP_{nombreCarpetaOriginal}", juego.DriveFolderId);
+                // Borrar restos de intentos anteriores para no mezclar archivos viejos
+                string nombreTemporal = $"TEMP_{nombreCarpetaOriginal}";
+                foreach (var resto in itemsRaiz.Where(i => i.Name == nombreTemporal && i.MimeType == "application/vnd.google-apps.folder"))
+                {
+                    await _driveManager.EliminarArchivoOCarpeta(resto.Id);
+                }
+                idCarpetaTemporal = _driveManager.GetOrCreateFolder(nombreTemporal, juego.DriveFolderId);
 
                 // 3️⃣ SUBIR CONTENIDO NUEVO A LA CARPETA TEMPORAL
                 long totalBytes = GetDirectorySize(juego.LocalPath);
@@ -283,9 +287,24 @@ namespace SaviumDrive.Services
                     NotifyProgress(juego.Name, porcentaje, "StatusUploading", string.Format(GetStr("MsgUploadingSize"), nombreArchivo, progresoStr), true);
                 });
 
-                // 4️⃣ TODO BIEN: Eliminar carpeta vieja y renombrar la temporal
-                await _driveManager.EliminarArchivoOCarpeta(carpetaOriginal.Id);
-                await _driveManager.RenombrarArchivo(idCarpetaTemporal, nombreCarpetaOriginal);
+                // 4️⃣ TODO BIEN: Intercambiar carpetas sin perder el backup viejo si algo falla
+                // a) Apartar la vieja con otro nombre
+                await _driveManager.RenombrarArchivo(carpetaOriginal.Id, $"OLD_{nombreCarpetaOriginal}");
+                try
+                {
+                    // b) La temporal pasa a ser la oficial
+                    await _driveManager.RenombrarArchivo(idCarpetaTemporal, nombreCarpetaOriginal);
+                }
+                catch
+                {
+                    // Revertir: la vieja vuelve a su nombre
+                    try { await _driveManager.RenombrarArchivo(carpetaOriginal.Id, nombreCarpetaOriginal); } catch { }
+                    throw;
+                }
+                idCarpetaTemporal = null; // Ya no es temporal, no borrarla en el rollback
+
+                // c) Borrar la vieja (si falla, solo queda una carpeta OLD_ sobrante)
+                try { await _driveManager.EliminarArchivoOCarpeta(carpetaOriginal.Id); } catch { }
 
                 // 5️⃣ Actualizar fecha
                 juego.LastBackup = DateTime.UtcNow;
@@ -297,9 +316,9 @@ namespace SaviumDrive.Services
                     await GuardarLibreria(juegos);
                 }
             }
-            catch (OperationCanceledException)
+            catch (Exception)
             {
-                // 🔥 ROLLBACK: Eliminar carpeta temporal (archivos viejos permanecen intactos)
+                // 🔥 ROLLBACK (cancelación o error): Eliminar carpeta temporal (archivos viejos permanecen intactos)
                 if (!string.IsNullOrEmpty(idCarpetaTemporal))
                 {
                     try
@@ -332,6 +351,7 @@ namespace SaviumDrive.Services
 
                 // 1️⃣ CREAR CARPETA TEMPORAL LOCAL (junto a la carpeta original)
                 string directorioContenedor = Path.GetDirectoryName(juego.LocalPath);
+                if (string.IsNullOrEmpty(directorioContenedor)) throw new Exception("Ruta local inválida");
                 rutaCarpetaTemporal = Path.Combine(directorioContenedor, nombreCarpetaTemporal);
 
                 // Si ya existe la carpeta temporal (de un intento previo), eliminarla
@@ -350,6 +370,7 @@ namespace SaviumDrive.Services
                 // 🔥 CALCULAR TAMAÑO TOTAL ANTES DE DESCARGAR
                 long totalBytes = await CalcularTamañoDirectorioEnDrive(idOrigen);
                 long bytesDescargados = 0;
+                int archivosDescargados = 0;
                 string totalStr = FormatBytes(totalBytes);
 
                 NotifyProgress(juego.Name, 0, "StatusDownloading", GetStr("MsgScanning"), true);
@@ -358,6 +379,7 @@ namespace SaviumDrive.Services
                 await DescargarDirectorioRecursivo(idOrigen, rutaCarpetaTemporal, token, (rutaArchivo, pesoArchivo) =>
                 {
                     token.ThrowIfCancellationRequested();
+                    archivosDescargados++;
                     bytesDescargados += pesoArchivo;
                     int porcentaje = totalBytes > 0 ? (int)((double)bytesDescargados / totalBytes * 100) : 0;
                     string progresoStr = $"{FormatBytes(bytesDescargados)} / {totalStr}";
@@ -367,17 +389,35 @@ namespace SaviumDrive.Services
                         string.Format(GetStr("MsgDownloadingSize"), nombreArchivo, progresoStr), true);
                 });
 
-                // 4️⃣ TODO BIEN: Eliminar carpeta vieja y renombrar la temporal
-                if (Directory.Exists(rutaCarpetaOriginal))
+                // 🛡️ No reemplazar las partidas locales con un backup vacío
+                if (archivosDescargados == 0) throw new Exception("El backup en Drive está vacío o no se encontró");
+
+                // 4️⃣ TODO BIEN: Intercambiar carpetas sin borrar nada antes de tiempo
+                string rutaCarpetaVieja = Path.Combine(directorioContenedor, $"OLD_{nombreCarpetaLocal}");
+                if (Directory.Exists(rutaCarpetaVieja)) Directory.Delete(rutaCarpetaVieja, true);
+
+                // a) Apartar la original (si hay archivos bloqueados por el juego, falla aquí sin tocar nada)
+                bool habiaOriginal = Directory.Exists(rutaCarpetaOriginal);
+                if (habiaOriginal) Directory.Move(rutaCarpetaOriginal, rutaCarpetaVieja);
+
+                try
                 {
-                    Directory.Delete(rutaCarpetaOriginal, true);
+                    // b) La temporal pasa a ser la oficial
+                    Directory.Move(rutaCarpetaTemporal, rutaCarpetaOriginal);
+                }
+                catch
+                {
+                    // Revertir: la original vuelve a su sitio
+                    if (habiaOriginal) { try { Directory.Move(rutaCarpetaVieja, rutaCarpetaOriginal); } catch { } }
+                    throw;
                 }
 
-                Directory.Move(rutaCarpetaTemporal, rutaCarpetaOriginal);
+                // c) Borrar la vieja (si falla, solo queda una carpeta OLD_ sobrante)
+                if (habiaOriginal) { try { Directory.Delete(rutaCarpetaVieja, true); } catch { } }
             }
-            catch (OperationCanceledException)
+            catch (Exception)
             {
-                // 🔥 ROLLBACK: Eliminar carpeta temporal (archivos viejos permanecen intactos)
+                // 🔥 ROLLBACK (cancelación o error): Eliminar carpeta temporal (archivos viejos permanecen intactos)
                 if (!string.IsNullOrEmpty(rutaCarpetaTemporal) && Directory.Exists(rutaCarpetaTemporal))
                 {
                     try
@@ -485,6 +525,8 @@ namespace SaviumDrive.Services
 
                 var request = _driveManager.Service.Files.List();
                 request.Q = $"name = '{CLOUD_CONFIG_FILE}' and '{idMadre}' in parents and trashed = false";
+                request.Fields = "files(id, modifiedTime)";
+                request.OrderBy = "modifiedTime desc"; // Si hay duplicados, usar la más reciente
                 var result = await request.ExecuteAsync(token);
 
                 if (result.Files.Count > 0)
@@ -494,7 +536,12 @@ namespace SaviumDrive.Services
 
                     using (var stream = new MemoryStream())
                     {
-                        await _driveManager.Service.Files.Get(fileId).DownloadAsync(stream, token);
+                        var progreso = await _driveManager.Service.Files.Get(fileId).DownloadAsync(stream, token);
+                        if (progreso.Status != Google.Apis.Download.DownloadStatus.Completed)
+                        {
+                            token.ThrowIfCancellationRequested();
+                            throw new IOException("No se pudo descargar la configuración de la nube", progreso.Exception);
+                        }
                         stream.Position = 0;
                         using (var reader = new StreamReader(stream))
                             jsonNube = await reader.ReadToEndAsync();
@@ -596,18 +643,7 @@ namespace SaviumDrive.Services
                     request.Q = $"name = '{CLOUD_CONFIG_FILE}' and '{idMadre}' in parents and trashed = false";
                     var result = await request.ExecuteAsync(cts.Token);
 
-                    if (result.Files.Count > 0)
-                    {
-                        foreach (var f in result.Files)
-                        {
-                            try
-                            {
-                                await _driveManager.EliminarArchivoOCarpeta(f.Id);
-                            }
-                            catch { }
-                        }
-                    }
-
+                    // 🔥 Primero subir la nueva y luego borrar las viejas (si la subida falla, la nube conserva la anterior)
                     var fileMetadata = new Google.Apis.Drive.v3.Data.File()
                     {
                         Name = CLOUD_CONFIG_FILE,
@@ -618,7 +654,21 @@ namespace SaviumDrive.Services
                     using (var stream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(jsonContent)))
                     {
                         var createReq = _driveManager.Service.Files.Create(fileMetadata, stream, "application/json");
-                        await createReq.UploadAsync(cts.Token);
+                        var progreso = await createReq.UploadAsync(cts.Token);
+                        if (progreso.Status != Google.Apis.Upload.UploadStatus.Completed)
+                        {
+                            cts.Token.ThrowIfCancellationRequested();
+                            throw new IOException("No se pudo subir la configuración", progreso.Exception);
+                        }
+                    }
+
+                    foreach (var f in result.Files)
+                    {
+                        try
+                        {
+                            await _driveManager.EliminarArchivoOCarpeta(f.Id);
+                        }
+                        catch { }
                     }
                 }
             }
@@ -641,13 +691,10 @@ namespace SaviumDrive.Services
             {
                 token.ThrowIfCancellationRequested();
 
-                var request = _driveManager.Service.Files.List();
-                request.Q = $"'{idCarpeta}' in parents and trashed = false";
-                request.Fields = "files(id, name, mimeType, size)";
+                var archivos = await _driveManager.ListarArchivos(
+                    $"'{idCarpeta}' in parents and trashed = false", "id, name, mimeType, size", token);
 
-                var result = await request.ExecuteAsync(token);
-
-                foreach (var item in result.Files)
+                foreach (var item in archivos)
                 {
                     token.ThrowIfCancellationRequested();
 
@@ -679,14 +726,11 @@ namespace SaviumDrive.Services
         {
             token.ThrowIfCancellationRequested();
 
-            // 🔥 Solicitar explícitamente el campo 'size'
-            var request = _driveManager.Service.Files.List();
-            request.Q = $"'{idCarpetaDrive}' in parents and trashed = false";
-            request.Fields = "files(id, name, mimeType, size)"; // ⬅️ Crucial
+            // 🔥 Solicitar explícitamente el campo 'size' (y todas las páginas)
+            var archivos = await _driveManager.ListarArchivos(
+                $"'{idCarpetaDrive}' in parents and trashed = false", "id, name, mimeType, size", token);
 
-            var result = await request.ExecuteAsync();
-
-            foreach (var item in result.Files)
+            foreach (var item in archivos)
             {
                 if (item.MimeType == "application/vnd.google-apps.folder")
                 {

@@ -79,9 +79,26 @@ namespace SaviumDrive.Core
         private const int MaxIntentosPermitidos = 5;
         private const int MinutosBloqueo = 5;
 
+        // 🔥 El token va en %LOCALAPPDATA%: la carpeta del .exe puede ser de solo lectura (ej. Program Files)
         public static string GetTokenPath()
         {
-            return Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "token.json");
+            string carpeta = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "SaviumDrive");
+            string rutaToken = Path.Combine(carpeta, "token.json");
+
+            // Migrar sesión de versiones anteriores (token junto al .exe)
+            string rutaAntigua = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "token.json");
+            if (!Directory.Exists(rutaToken) && Directory.Exists(rutaAntigua))
+            {
+                try
+                {
+                    Directory.CreateDirectory(rutaToken);
+                    foreach (var archivo in Directory.GetFiles(rutaAntigua))
+                        File.Copy(archivo, Path.Combine(rutaToken, Path.GetFileName(archivo)), true);
+                }
+                catch { }
+            }
+
+            return rutaToken;
         }
 
         public static async Task<DriveService> Autenticar(CancellationToken cancellationToken)
