@@ -160,7 +160,7 @@ namespace SaviumDrive.Views
 
             string url = _foundCovers[_currentCoverIndex];
             SelectedCoverUrl = url;
-            ImgCoverPreview.Source = new BitmapImage(new Uri(url));
+            ImgCoverPreview.Source = new BitmapImage(new Uri(url)) { DecodePixelWidth = 150, DecodePixelType = DecodePixelType.Logical };
 
             TxtIndexIndicator.Text = $"{_currentCoverIndex + 1}/{_foundCovers.Count}";
         }

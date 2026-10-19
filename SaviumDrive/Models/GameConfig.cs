@@ -126,5 +126,10 @@ namespace SaviumDrive.Models
                 return CoverUrl;
             }
         }
+
+        /// <summary>Portada como Uri (para BitmapImage con DecodePixelWidth). Nunca lanza con URLs inválidas.</summary>
+        [JsonIgnore]
+        public Uri SafeCoverUri =>
+            Uri.TryCreate(SafeCoverUrl, UriKind.Absolute, out var uri) ? uri : new Uri("ms-appx:///Assets/StoreLogo.png");
     }
 }

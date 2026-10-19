@@ -29,7 +29,7 @@ namespace SaviumDrive.Views
                 ? ResourceHelper.GetString("DlgNewVersionMsgOne", juego.Name, siguiente)
                 : ResourceHelper.GetString("DlgNewVersionMsgMany", juego.Name, cantidad, siguiente);
 
-            try { ImgCover.Source = new BitmapImage(new Uri(juego.SafeCoverUrl)); } catch { }
+            ImgCover.Source = new BitmapImage(juego.SafeCoverUri) { DecodePixelWidth = 54, DecodePixelType = DecodePixelType.Logical };
         }
 
         private void TxtDescription_TextChanged(object sender, TextChangedEventArgs e)

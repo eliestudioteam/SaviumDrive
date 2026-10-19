@@ -211,7 +211,7 @@ namespace SaviumDrive.Views
 
             if (!string.IsNullOrEmpty(juego.SafeCoverUrl))
             {
-                image.Source = new BitmapImage(new Uri(juego.SafeCoverUrl));
+                image.Source = new BitmapImage(juego.SafeCoverUri) { DecodePixelWidth = 50, DecodePixelType = DecodePixelType.Logical };
             }
 
             Grid.SetColumn(image, 0);

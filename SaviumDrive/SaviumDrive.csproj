@@ -15,7 +15,14 @@
 		<WindowsPackageType>None</WindowsPackageType>
 		<!-- Incluir el runtime de Windows App SDK junto al .exe (el usuario no necesita instalar nada) -->
 		<WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
+		<!-- Recolector de basura en modo ahorro: la app pasa casi todo el tiempo en la bandeja -->
+		<ServerGarbageCollection>false</ServerGarbageCollection>
+		<ConcurrentGarbageCollection>false</ConcurrentGarbageCollection>
 	</PropertyGroup>
+	<ItemGroup>
+		<!-- Compacta el heap con más frecuencia para devolver memoria al sistema (0-9) -->
+		<RuntimeHostConfigurationOption Include="System.GC.ConserveMemory" Value="7" />
+	</ItemGroup>
 	<!-- Sin las herramientas de C++ (MSVC) instaladas, el compilador XAML falla al buscarlas desde Visual Studio.
 	     Este proyecto es solo C#, así que se omite esa búsqueda cuando no existen. -->
 	<PropertyGroup Condition="'$(VsInstallRoot)' != '' and !Exists('$(VsInstallRoot)\VC\Tools\MSVC')">
