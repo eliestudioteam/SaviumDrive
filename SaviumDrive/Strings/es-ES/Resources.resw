@@ -304,6 +304,13 @@
 	<data name="HistSaveBtn" xml:space="preserve"><value>Guardar</value></data>
 	<data name="SetVersionNotice.Text" xml:space="preserve"><value>Avisar al cambiar de versión</value></data>
 	<data name="SetVersionNoticeDesc.Text" xml:space="preserve"><value>Muestra un aviso indicando que las acciones se harán sobre la nueva versión activa</value></data>
+	<!-- Elegir carpeta en este PC -->
+	<data name="CardFolderMissing.Text" xml:space="preserve"><value>Carpeta no encontrada en este PC</value></data>
+	<data name="CardChooseFolder.Content" xml:space="preserve"><value>Elegir carpeta</value></data>
+	<data name="RelinkTitle" xml:space="preserve"><value>Elige la carpeta de partidas en este PC</value></data>
+	<data name="RelinkMsg" xml:space="preserve"><value>La carpeta de partidas de este juego no existe en este PC:\n{0}\n\nElige dónde están las partidas aquí. Solo cambia en este PC: los demás equipos siguen usando la suya.</value></data>
+	<data name="RelinkMsgRestore" xml:space="preserve"><value>La carpeta de partidas de este juego no existe en este PC:\n{0}\n\nElige dónde quieres restaurar las partidas (puede ser una carpeta vacía). Solo cambia en este PC: los demás equipos siguen usando la suya.</value></data>
+	<data name="RelinkChooseBtn" xml:space="preserve"><value>Elegir carpeta</value></data>
 	<!-- Backups comprimidos (.zip) -->
 	<data name="MsgCompressing" xml:space="preserve"><value>Comprimiendo partidas...</value></data>
 	<data name="MsgExtracting" xml:space="preserve"><value>Descomprimiendo partidas...</value></data>

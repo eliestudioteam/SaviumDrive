@@ -36,7 +36,38 @@ namespace SaviumDrive.Models
     {
         public string Id { get; set; } = Guid.NewGuid().ToString();
         public string Name { get; set; }
+
+        /// <summary>
+        /// Carpeta de partidas original (la del PC donde se agregó el juego). Su nombre es el que
+        /// se usa en Drive en todos los equipos; para trabajar en disco usar <see cref="RutaEnEstePc"/>.
+        /// </summary>
         public string LocalPath { get; set; }
+
+        /// <summary>Carpeta de partidas elegida en cada equipo (clave: id del equipo).</summary>
+        public Dictionary<string, string> RutasPorEquipo { get; set; } = new Dictionary<string, string>();
+
+        /// <summary>Id de este equipo (lo asigna la app al iniciar). Así cada PC usa su propia carpeta.</summary>
+        public static string EquipoActual { get; set; }
+
+        /// <summary>Carpeta de partidas en este PC: la elegida aquí o, si no hay, la original.</summary>
+        [JsonIgnore]
+        public string RutaEnEstePc =>
+            EquipoActual != null && RutasPorEquipo != null &&
+            RutasPorEquipo.TryGetValue(EquipoActual, out var ruta) && !string.IsNullOrEmpty(ruta)
+                ? ruta
+                : LocalPath;
+
+        /// <summary>Nombre de la carpeta del backup en Drive (igual en todos los equipos).</summary>
+        [JsonIgnore]
+        public string NombreCarpetaBackup =>
+            string.IsNullOrEmpty(LocalPath) ? "" : System.IO.Path.GetFileName(LocalPath.TrimEnd('\\', '/'));
+
+        /// <summary>Elige la carpeta de partidas para este PC sin tocar la de los demás equipos.</summary>
+        public void AsignarRutaEnEstePc(string ruta)
+        {
+            RutasPorEquipo ??= new Dictionary<string, string>();
+            RutasPorEquipo[EquipoActual ?? ""] = ruta;
+        }
 
         /// <summary>Carpeta raíz del juego en Drive (contiene todas sus versiones).</summary>
         public string DriveFolderId { get; set; }
@@ -51,7 +82,9 @@ namespace SaviumDrive.Models
         /// <summary>Número más alto usado alguna vez: los números no se reutilizan al borrar.</summary>
         public int LastVersionNumber { get; set; }
 
-        public bool NeedsRelink => string.IsNullOrEmpty(LocalPath) || !System.IO.Directory.Exists(LocalPath);
+        /// <summary>La carpeta de partidas no existe en este PC (hay que elegirla).</summary>
+        [JsonIgnore]
+        public bool NeedsRelink => string.IsNullOrEmpty(RutaEnEstePc) || !System.IO.Directory.Exists(RutaEnEstePc);
 
         [JsonIgnore]
         public GameVersion ActiveVersion =>

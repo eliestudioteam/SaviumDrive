@@ -305,6 +305,13 @@
 	<data name="HistSaveBtn" xml:space="preserve"><value>Save</value></data>
 	<data name="SetVersionNotice.Text" xml:space="preserve"><value>Notify when switching versions</value></data>
 	<data name="SetVersionNoticeDesc.Text" xml:space="preserve"><value>Shows a notice saying that actions will apply to the new active version</value></data>
+	<!-- Elegir carpeta en este PC -->
+	<data name="CardFolderMissing.Text" xml:space="preserve"><value>Folder not found on this PC</value></data>
+	<data name="CardChooseFolder.Content" xml:space="preserve"><value>Choose folder</value></data>
+	<data name="RelinkTitle" xml:space="preserve"><value>Choose the save folder on this PC</value></data>
+	<data name="RelinkMsg" xml:space="preserve"><value>This game's save folder does not exist on this PC:\n{0}\n\nChoose where the saves are here. It only changes on this PC: other computers keep using theirs.</value></data>
+	<data name="RelinkMsgRestore" xml:space="preserve"><value>This game's save folder does not exist on this PC:\n{0}\n\nChoose where you want to restore the saves (it can be an empty folder). It only changes on this PC: other computers keep using theirs.</value></data>
+	<data name="RelinkChooseBtn" xml:space="preserve"><value>Choose folder</value></data>
 	<!-- Backups comprimidos (.zip) -->
 	<data name="MsgCompressing" xml:space="preserve"><value>Compressing saves...</value></data>
 	<data name="MsgExtracting" xml:space="preserve"><value>Extracting saves...</value></data>
