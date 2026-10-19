@@ -75,6 +75,9 @@ namespace SaviumDrive
                 // La ventana no se crea hasta que el usuario la abre (no ocupa memoria).
                 TrayService.MostrarIcono();
                 TrayService.SetModoEficiencia(true);
+
+                // Devolver a Windows la memoria del arranque (igual que al minimizar a la bandeja)
+                ProgramarLiberarMemoria();
             }
             else
             {
