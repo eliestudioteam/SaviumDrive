@@ -1,0 +1,112 @@
+<Page
+    x:Class="SaviumDrive.Views.VersionHistoryPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:local="using:SaviumDrive.Views"
+    mc:Ignorable="d"
+    Background="Transparent">
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- Volver a la biblioteca -->
+        <Button x:Name="BtnBack" Grid.Row="0" Click="BtnBack_Click"
+                Background="Transparent" BorderThickness="0" Padding="4,6" Margin="-4,0,0,12">
+            <StackPanel Orientation="Horizontal" Spacing="8">
+                <FontIcon Glyph="&#xE72B;" FontFamily="Segoe MDL2 Assets" FontSize="14" Foreground="{ThemeResource TextSecondary}"/>
+                <TextBlock x:Uid="HistBack" Foreground="{ThemeResource TextSecondary}"/>
+            </StackPanel>
+        </Button>
+
+        <!-- Cabecera del juego -->
+        <Grid Grid.Row="1" Margin="0,0,0,20" ColumnSpacing="16">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+
+            <Grid Width="64" Height="96" CornerRadius="6" Background="{ThemeResource ItemCardBackground}">
+                <Image x:Name="ImgCover" Stretch="UniformToFill"/>
+            </Grid>
+
+            <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="4">
+                <TextBlock x:Uid="HistTitle" FontSize="28" FontWeight="Bold" Foreground="{ThemeResource TextPrimary}"/>
+                <TextBlock x:Name="TxtGameName" FontSize="16" FontWeight="SemiBold" Foreground="{ThemeResource TextPrimary}" TextTrimming="CharacterEllipsis"/>
+                <TextBlock x:Name="TxtSummary" FontSize="12" Foreground="{ThemeResource TextSecondary}"/>
+            </StackPanel>
+
+            <ProgressRing x:Name="BusyRing" Grid.Column="2" IsActive="False" Width="28" Height="28" VerticalAlignment="Center"/>
+        </Grid>
+
+        <!-- Lista de versiones -->
+        <ListView x:Name="VersionsList" Grid.Row="2" ItemsSource="{x:Bind Items}" SelectionMode="None" Padding="0">
+            <ListView.ItemContainerStyle>
+                <Style TargetType="ListViewItem">
+                    <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                    <Setter Property="Padding" Value="0"/>
+                    <Setter Property="Margin" Value="0,0,0,10"/>
+                </Style>
+            </ListView.ItemContainerStyle>
+            <ListView.ItemTemplate>
+                <DataTemplate x:DataType="local:VersionItem">
+                    <Grid Background="{ThemeResource ItemCardBackground}" CornerRadius="8" Padding="16" ColumnSpacing="16">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+
+                        <!-- Número de versión -->
+                        <StackPanel Spacing="6" VerticalAlignment="Center" MinWidth="64">
+                            <Border CornerRadius="6" Padding="10,4" HorizontalAlignment="Center"
+                                    Background="{ThemeResource CardBackground}">
+                                <TextBlock Text="{x:Bind Label}" FontSize="18" FontWeight="Bold" Foreground="{ThemeResource TextPrimary}"/>
+                            </Border>
+                            <Border CornerRadius="10" Padding="8,2" HorizontalAlignment="Center"
+                                    Background="{ThemeResource AccentColor}" Visibility="{x:Bind IsActive}">
+                                <TextBlock x:Uid="HistActiveTag" FontSize="10" FontWeight="SemiBold" Foreground="White"/>
+                            </Border>
+                        </StackPanel>
+
+                        <!-- Fechas y descripción -->
+                        <StackPanel Grid.Column="1" Spacing="4" VerticalAlignment="Center">
+                            <TextBlock Text="{x:Bind CreatedText}" FontSize="12" Foreground="{ThemeResource TextSecondary}"/>
+                            <TextBlock Text="{x:Bind LastBackupText}" FontSize="12" Foreground="{ThemeResource TextSecondary}"/>
+
+                            <!-- Descripción recortada: al pulsar se ve completa -->
+                            <Button Click="BtnShowDescription_Click" Tag="{x:Bind}"
+                                    Background="Transparent" BorderThickness="0" Padding="0" Margin="0,4,0,0"
+                                    HorizontalAlignment="Stretch" HorizontalContentAlignment="Left">
+                                <TextBlock Text="{x:Bind DescriptionText}" Opacity="{x:Bind DescriptionOpacity}"
+                                           TextWrapping="Wrap" MaxLines="2" TextTrimming="CharacterEllipsis"
+                                           Foreground="{ThemeResource TextPrimary}"/>
+                            </Button>
+
+                            <StackPanel Orientation="Horizontal" Spacing="4" Margin="-8,0,0,0">
+                                <HyperlinkButton x:Uid="HistViewDesc" Click="BtnShowDescription_Click" Tag="{x:Bind}" FontSize="12"/>
+                                <HyperlinkButton x:Uid="HistEditDesc" Click="BtnEditDescription_Click" Tag="{x:Bind}" FontSize="12"/>
+                            </StackPanel>
+                        </StackPanel>
+
+                        <!-- Acciones -->
+                        <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                            <Button x:Uid="HistUseBtn" Click="BtnUseVersion_Click" Tag="{x:Bind}"
+                                    Visibility="{x:Bind IsNotActive}" Style="{StaticResource StandardBtnStyle}"/>
+                            <Button x:Uid="HistDeleteBtn" Click="BtnDeleteVersion_Click" Tag="{x:Bind}"
+                                    Width="36" Height="32" Padding="0" Background="Transparent" BorderThickness="0">
+                                <FontIcon Glyph="&#xE74D;" FontFamily="Segoe MDL2 Assets" FontSize="14" Foreground="{ThemeResource ErrorColor}"/>
+                            </Button>
+                        </StackPanel>
+                    </Grid>
+                </DataTemplate>
+            </ListView.ItemTemplate>
+        </ListView>
+    </Grid>
+</Page>

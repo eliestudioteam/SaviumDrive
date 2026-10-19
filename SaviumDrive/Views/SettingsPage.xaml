@@ -68,8 +68,28 @@
                                 <StackPanel>
                                     <TextBlock x:Uid="SetTray" FontWeight="SemiBold"/>
                                     <TextBlock x:Uid="SetTrayDesc"
-                                               Foreground="{ThemeResource TextSecondaryBrush}" 
-                                               FontSize="12" 
+                                               Foreground="{ThemeResource TextSecondaryBrush}"
+                                               FontSize="12"
+                                               TextWrapping="Wrap"
+                                               Margin="0,4,0,0"/>
+                                </StackPanel>
+                            </ToggleSwitch.Header>
+                        </ToggleSwitch>
+                    </StackPanel>
+
+                    <!-- Aviso al cambiar de versión -->
+                    <StackPanel Margin="0,8,0,0">
+                        <ToggleSwitch x:Name="TglVersionNotice"
+                                      OffContent="No"
+                                      OnContent="Si"
+                                      IsOn="True"
+                                      Toggled="SettingChanged">
+                            <ToggleSwitch.Header>
+                                <StackPanel>
+                                    <TextBlock x:Uid="SetVersionNotice" FontWeight="SemiBold"/>
+                                    <TextBlock x:Uid="SetVersionNoticeDesc"
+                                               Foreground="{ThemeResource TextSecondaryBrush}"
+                                               FontSize="12"
                                                TextWrapping="Wrap"
                                                Margin="0,4,0,0"/>
                                 </StackPanel>

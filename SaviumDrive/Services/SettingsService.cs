@@ -23,6 +23,9 @@ namespace SaviumDrive.Services
         public int WindowWidth { get; set; } = 1280;
         public int WindowHeight { get; set; } = 720;
 
+        // Mostrar "Ahora todas las acciones serán sobre esta versión" al cambiar de versión
+        public bool ShowVersionSwitchNotice { get; set; } = true;
+
         // Última actualización descargada (para mostrar el changelog)
         public string LastUpdateVersion { get; set; }
         public string LastUpdateChangelog { get; set; }

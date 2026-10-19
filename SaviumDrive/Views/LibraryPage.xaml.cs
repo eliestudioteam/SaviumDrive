@@ -267,7 +267,7 @@ namespace SaviumDrive.Views
                 ContentDialog updateDialog = new ContentDialog
                 {
                     Title = ResourceHelper.GetString("ConfirmUpdateTitle"),
-                    Content = ResourceHelper.GetString("ConfirmUpdateMsg", juego.Name),
+                    Content = ResourceHelper.GetString("ConfirmUpdateMsg", juego.DisplayName),
                     PrimaryButtonText = ResourceHelper.GetString("ConfirmUpdateBtn"),
                     CloseButtonText = ResourceHelper.GetString("ConfirmCancelBtn"),
                     DefaultButton = ContentDialogButton.Close,
@@ -285,7 +285,7 @@ namespace SaviumDrive.Views
                     try
                     {
                         // 🔥 PASAR EL TOKEN
-                        await App.LibraryService.ActualizarBackup(juego, _cts.Token);
+                        await App.LibraryService.ActualizarBackup(juego, juego.ActiveVersion, _cts.Token);
                         await MostrarAlerta(ResourceHelper.GetString("AlertSuccess"), ResourceHelper.GetString("AlertUpdateSuccess"));
                     }
                     catch (OperationCanceledException)
@@ -310,7 +310,7 @@ namespace SaviumDrive.Views
             {
                 ContentDialog restoreDialog = new ContentDialog
                 {
-                    Title = ResourceHelper.GetString("ConfirmRestoreTitle"),
+                    Title = $"{ResourceHelper.GetString("ConfirmRestoreTitle")} — {juego.DisplayName}",
                     Content = ResourceHelper.GetString("ConfirmRestoreMsg", juego.LocalPath),
                     PrimaryButtonText = ResourceHelper.GetString("ConfirmRestoreBtn"),
                     CloseButtonText = ResourceHelper.GetString("ConfirmCancelBtn"),
@@ -329,7 +329,7 @@ namespace SaviumDrive.Views
                     try
                     {
                         // 🔥 PASAR EL TOKEN
-                        await App.LibraryService.RestaurarJuego(juego, _cts.Token);
+                        await App.LibraryService.RestaurarJuego(juego, juego.ActiveVersion, _cts.Token);
                         await MostrarAlerta(ResourceHelper.GetString("AlertSuccess"), ResourceHelper.GetString("AlertRestoreSuccess"));
                     }
                     catch (OperationCanceledException)
@@ -352,10 +352,15 @@ namespace SaviumDrive.Views
         {
             if (sender is Button btn && btn.Tag is GameConfig juego)
             {
+                var version = juego.ActiveVersion;
+                bool soloEstaVersion = juego.HasMultipleVersions;
+
                 ContentDialog deleteDialog = new ContentDialog
                 {
-                    Title = ResourceHelper.GetString("ConfirmDeleteTitle", juego.Name),
-                    Content = ResourceHelper.GetString("ConfirmDeleteMsg"),
+                    Title = ResourceHelper.GetString("ConfirmDeleteTitle", juego.DisplayName),
+                    Content = soloEstaVersion
+                        ? ResourceHelper.GetString("ConfirmDeleteVersionMsg", version.Label)
+                        : ResourceHelper.GetString("ConfirmDeleteMsg"),
                     PrimaryButtonText = ResourceHelper.GetString("ConfirmDeleteBtn"),
                     CloseButtonText = ResourceHelper.GetString("ConfirmCancelBtn"),
                     DefaultButton = ContentDialogButton.Close,
@@ -397,7 +402,7 @@ namespace SaviumDrive.Views
                     // 🔥 MOSTRAR EL NOMBRE DEL JUEGO/BACKUP
                     var pathText = new TextBlock
                     {
-                        Text = juego.Name,
+                        Text = juego.DisplayName,
                         FontSize = 16,
                         FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
                         HorizontalAlignment = HorizontalAlignment.Center,
@@ -451,26 +456,20 @@ namespace SaviumDrive.Views
                         try
                         {
                             // 🔥 ELIMINAR DEL SERVICIO (Drive + JSON local)
-                            await App.LibraryService.EliminarJuego(juego);
+                            // Solo la versión activa; si era la única se elimina el juego
+                            bool juegoEliminado = await App.LibraryService.EliminarVersion(juego, version);
 
                             // 🔥 ASEGURAR ACTUALIZACIÓN EN EL HILO DE UI
-                            this.DispatcherQueue.TryEnqueue(() =>
-                            {
-                                // Buscar el juego en la colección ObservableCollection
-                                var juegoEnLista = Juegos.FirstOrDefault(j => j.Id == juego.Id);
-                                if (juegoEnLista != null)
-                                {
-                                    Juegos.Remove(juegoEnLista);
-                                }
-                                ActualizarEstadoVacio();
-                            });
+                            await RecargarLista();
 
                             // Pequeña pausa para que la UI se actualice antes de mostrar la alerta
                             await Task.Delay(100);
 
                             await MostrarAlerta(
                                 ResourceHelper.GetString("AlertSuccess"),
-                                ResourceHelper.GetString("AlertDeleteSuccess")
+                                juegoEliminado
+                                    ? ResourceHelper.GetString("AlertDeleteSuccess")
+                                    : ResourceHelper.GetString("AlertVersionDeleted", version.Label)
                             );
                         }
                         catch (Exception ex)
@@ -488,6 +487,87 @@ namespace SaviumDrive.Views
                         await MostrarAlerta(ResourceHelper.GetString("AlertCancel"), ResourceHelper.GetString("AlertOpCancelled"));
                     }
                 }
+            }
+        }
+
+        // ===================== VERSIONES =====================
+
+        private async void CmbVersion_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            // Ignorar la selección inicial al crear la tarjeta
+            if (e.RemovedItems.Count == 0) return;
+            if (sender is not ComboBox cmb || cmb.Tag is not GameConfig juego) return;
+            if (cmb.SelectedItem is not GameVersion elegida || elegida.Id == juego.ActiveVersionId) return;
+
+            if (_isBusy)
+            {
+                // No cambiar de versión a mitad de una subida o descarga
+                cmb.SelectedItem = juego.ActiveVersion;
+                await MostrarAlerta(ResourceHelper.GetString("AlertWarning"), ResourceHelper.GetString("MsgBusyVersion"));
+                return;
+            }
+
+            try
+            {
+                await App.LibraryService.CambiarVersionActiva(juego, elegida);
+                await VersionDialogs.MostrarAvisoCambioAsync(this.XamlRoot, juego.DisplayName);
+            }
+            catch (Exception ex)
+            {
+                await MostrarAlerta(ResourceHelper.GetString("AlertError"), ex.Message);
+            }
+
+            await RecargarLista();
+        }
+
+        private async void BtnNewVersion_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is not Button btn || btn.Tag is not GameConfig juego) return;
+
+            if (_isBusy)
+            {
+                await MostrarAlerta(ResourceHelper.GetString("AlertWarning"), ResourceHelper.GetString("MsgBusyVersion"));
+                return;
+            }
+
+            if (juego.NeedsRelink)
+            {
+                await MostrarAlerta(ResourceHelper.GetString("AlertError"), ResourceHelper.GetString("AlertLocalFolderMissing", juego.LocalPath));
+                return;
+            }
+
+            var dialog = new NewVersionDialog(juego) { XamlRoot = this.XamlRoot };
+            if (await dialog.ShowAsync() != ContentDialogResult.Primary) return;
+
+            SetBusyState(true, "MsgUploading");
+            SuscribirProgreso();
+
+            try
+            {
+                var nueva = await App.LibraryService.CrearNuevaVersion(juego, dialog.Description, _cts.Token);
+                await RecargarLista();
+                await MostrarAlerta(ResourceHelper.GetString("AlertSuccess"),
+                    ResourceHelper.GetString("AlertVersionCreated", $"{juego.Name} {nueva.Label}"));
+            }
+            catch (OperationCanceledException)
+            {
+                await MostrarAlerta(ResourceHelper.GetString("AlertCancel"), ResourceHelper.GetString("AlertOpCancelled"));
+            }
+            catch (Exception ex)
+            {
+                await MostrarAlerta(ResourceHelper.GetString("AlertError"), ex.Message);
+            }
+            finally
+            {
+                SetBusyState(false, "MsgIdle");
+            }
+        }
+
+        private void BtnHistory_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button btn && btn.Tag is GameConfig juego && App.MainWindow is MainWindow main)
+            {
+                main.NavegarExterna(typeof(VersionHistoryPage), "Library", juego.Id);
             }
         }
 

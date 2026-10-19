@@ -226,7 +226,7 @@ namespace SaviumDrive.Views
 
             var nombreText = new TextBlock
             {
-                Text = juego.Name,
+                Text = juego.DisplayName,
                 FontSize = 16,
                 FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
                 // ✅ Blanco en ambos temas
