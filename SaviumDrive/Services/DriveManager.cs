@@ -50,7 +50,9 @@ namespace SaviumDrive.Services
             var fileMetadata = new Google.Apis.Drive.v3.Data.File()
             {
                 Name = Path.GetFileName(rutaLocal),
-                Parents = new List<string> { folderId }
+                Parents = new List<string> { folderId },
+                // Conservar la fecha real del archivo (no la de subida) para poder comparar con el PC
+                ModifiedTimeDateTimeOffset = new DateTimeOffset(File.GetLastWriteTimeUtc(rutaLocal), TimeSpan.Zero)
             };
 
             // FileShare.ReadWrite: el juego puede tener el archivo abierto
@@ -95,7 +97,7 @@ namespace SaviumDrive.Services
 
         }
         // --- DESCARGA CANCELABLE ---
-        public async Task DescargarArchivo(string fileId, string rutaDestinoLocal, CancellationToken token)
+        public async Task DescargarArchivo(string fileId, string rutaDestinoLocal, CancellationToken token, DateTimeOffset? fechaOriginal = null)
         {
             token.ThrowIfCancellationRequested();
             var request = Service.Files.Get(fileId);
@@ -109,6 +111,12 @@ namespace SaviumDrive.Services
                     token.ThrowIfCancellationRequested();
                     throw new IOException($"No se pudo descargar '{Path.GetFileName(rutaDestinoLocal)}'", progreso.Exception);
                 }
+            }
+
+            // Devolver al archivo su fecha original (si no, parecería recién modificado)
+            if (fechaOriginal.HasValue)
+            {
+                try { File.SetLastWriteTimeUtc(rutaDestinoLocal, fechaOriginal.Value.UtcDateTime); } catch { }
             }
         }
 
@@ -126,9 +134,21 @@ namespace SaviumDrive.Services
             await updateRequest.ExecuteAsync();
         }
 
+        /// <summary>Borrado permanente: solo para restos internos (TEMP_, OLD_, configuración vieja).</summary>
         public async Task EliminarArchivoOCarpeta(string fileId)
         {
             await Service.Files.Delete(fileId).ExecuteAsync();
+        }
+
+        /// <summary>
+        /// Mueve a la papelera de Drive (se puede recuperar durante 30 días).
+        /// Para lo que elimina el usuario: juegos y versiones.
+        /// </summary>
+        public async Task EnviarAPapelera(string fileId)
+        {
+            var request = Service.Files.Update(new Google.Apis.Drive.v3.Data.File { Trashed = true }, fileId);
+            request.Fields = "id, trashed";
+            await request.ExecuteAsync();
         }
 
         // 🔥 Lista TODAS las páginas (Drive devuelve máximo 100 por defecto)

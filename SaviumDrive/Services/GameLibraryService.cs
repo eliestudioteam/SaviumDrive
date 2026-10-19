@@ -675,7 +675,7 @@ namespace SaviumDrive.Services
 
                 if (!string.IsNullOrEmpty(juego.DriveFolderId))
                 {
-                    await _driveManager.EliminarArchivoOCarpeta(juego.DriveFolderId);
+                    await _driveManager.EnviarAPapelera(juego.DriveFolderId);
                 }
             }
             catch { }
@@ -807,12 +807,12 @@ namespace SaviumDrive.Services
                     var items = await _driveManager.ListarContenidoCarpeta(juego.DriveFolderId);
                     foreach (var item in items.Where(i => !idsOtrasVersiones.Contains(i.Id)))
                     {
-                        await _driveManager.EliminarArchivoOCarpeta(item.Id);
+                        await _driveManager.EnviarAPapelera(item.Id);
                     }
                 }
                 else if (!string.IsNullOrEmpty(version.DriveFolderId))
                 {
-                    await _driveManager.EliminarArchivoOCarpeta(version.DriveFolderId);
+                    await _driveManager.EnviarAPapelera(version.DriveFolderId);
                 }
             }
             finally
@@ -966,7 +966,7 @@ namespace SaviumDrive.Services
 
             // 🔥 Solicitar explícitamente el campo 'size' (y todas las páginas)
             var archivos = await _driveManager.ListarArchivos(
-                $"'{idCarpetaDrive}' in parents and trashed = false", "id, name, mimeType, size", token);
+                $"'{idCarpetaDrive}' in parents and trashed = false", "id, name, mimeType, size, modifiedTime", token);
 
             foreach (var item in archivos)
             {
@@ -981,7 +981,7 @@ namespace SaviumDrive.Services
                     string rutaArchivo = Path.Combine(rutaLocalDestino, item.Name);
                     long pesoArchivo = item.Size ?? 0;
 
-                    await _driveManager.DescargarArchivo(item.Id, rutaArchivo, token);
+                    await _driveManager.DescargarArchivo(item.Id, rutaArchivo, token, item.ModifiedTimeDateTimeOffset);
 
                     // 🔥 Pasar tanto la ruta como el peso del archivo
                     onFileDownloaded?.Invoke(rutaArchivo, pesoArchivo);
