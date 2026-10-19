@@ -15,5 +15,6 @@
 	<ItemGroup>
 		<!-- DriveManager no depende de WinUI: se compila directamente desde la app -->
 		<Compile Include="..\..\SaviumDrive\Services\DriveManager.cs" Link="App\DriveManager.cs" />
+		<Compile Include="..\..\SaviumDrive\Services\UpdateVersioning.cs" Link="App\UpdateVersioning.cs" />
 	</ItemGroup>
 </Project>

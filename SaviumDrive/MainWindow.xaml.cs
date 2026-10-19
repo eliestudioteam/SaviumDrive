@@ -595,6 +595,12 @@ namespace SaviumDrive
             var updateService = new UpdateService();
             var (isFirstRun, version, changelog) = updateService.CheckFirstRunAfterUpdate();
 
+            // Instalación manual: no hay changelog guardado, pedirlo a GitHub
+            if (isFirstRun && string.IsNullOrEmpty(changelog))
+            {
+                changelog = await updateService.GetReleaseNotesAsync(version);
+            }
+
             if (isFirstRun && !string.IsNullOrEmpty(changelog))
             {
                 this.DispatcherQueue.TryEnqueue(() =>

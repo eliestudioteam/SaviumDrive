@@ -19,13 +19,20 @@ namespace SaviumDrive.Services
 
     public class UpdateService
     {
-        private const string GITHUB_API_URL = "https://github.com/eliestudioteam/SaviumDrive/releases/latest";
+        // Endpoint JSON de la API (la URL github.com/.../releases/latest devuelve HTML)
+        private const string GITHUB_API_URL = "https://api.github.com/repos/eliestudioteam/SaviumDrive/releases/latest";
+        private const string GITHUB_RELEASES_BY_TAG_URL = "https://api.github.com/repos/eliestudioteam/SaviumDrive/releases/tags/";
         private const string CURRENT_VERSION = "1.0.0"; // Actualiza esto con cada release
-        private static readonly HttpClient _httpClient = new HttpClient();
+        private static readonly HttpClient _httpClient = CreateHttpClient();
 
-        public UpdateService()
+        // Las cabeceras se configuran una sola vez: el cliente es estático y compartido
+        private static HttpClient CreateHttpClient()
         {
-            _httpClient.DefaultRequestHeaders.Add("User-Agent", "SaviumDrive-Updater");
+            var client = new HttpClient();
+            // La API de GitHub rechaza peticiones sin User-Agent
+            client.DefaultRequestHeaders.Add("User-Agent", "SaviumDrive-Updater");
+            client.DefaultRequestHeaders.Add("Accept", "application/vnd.github+json");
+            return client;
         }
 
         /// <summary>
@@ -47,7 +54,7 @@ namespace SaviumDrive.Services
                 string version = tagName.TrimStart('v');
 
                 // Comparar versiones
-                if (!IsNewerVersion(version, CURRENT_VERSION))
+                if (!UpdateVersioning.IsNewerVersion(version, CURRENT_VERSION))
                     return null;
 
                 // Obtener URL de descarga del instalador (.exe)
@@ -85,6 +92,31 @@ namespace SaviumDrive.Services
                 Debug.WriteLine($"Error checking updates: {ex.Message}");
                 return null;
             }
+        }
+
+        /// <summary>
+        /// Obtiene las notas de la release de una versión concreta (para instalaciones manuales,
+        /// donde el actualizador no guardó el changelog). Devuelve null si no se encuentra.
+        /// </summary>
+        public async Task<string> GetReleaseNotesAsync(string version)
+        {
+            foreach (string tag in new[] { "v" + version, version })
+            {
+                try
+                {
+                    var response = await _httpClient.GetAsync($"{GITHUB_RELEASES_BY_TAG_URL}{tag}");
+                    if (!response.IsSuccessStatusCode) continue;
+
+                    using var doc = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+                    if (doc.RootElement.TryGetProperty("body", out var body))
+                        return body.GetString();
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"Error getting release notes: {ex.Message}");
+                }
+            }
+            return null;
         }
 
         /// <summary>
@@ -166,33 +198,6 @@ del ""{batchPath}""
         }
 
         /// <summary>
-        /// Compara dos versiones en formato semántico (ej: 1.2.3)
-        /// </summary>
-        private bool IsNewerVersion(string newVersion, string currentVersion)
-        {
-            try
-            {
-                var newParts = newVersion.Split('.');
-                var currentParts = currentVersion.Split('.');
-
-                for (int i = 0; i < Math.Max(newParts.Length, currentParts.Length); i++)
-                {
-                    int newNum = i < newParts.Length ? int.Parse(newParts[i]) : 0;
-                    int currentNum = i < currentParts.Length ? int.Parse(currentParts[i]) : 0;
-
-                    if (newNum > currentNum) return true;
-                    if (newNum < currentNum) return false;
-                }
-
-                return false;
-            }
-            catch
-            {
-                return false;
-            }
-        }
-
-        /// <summary>
         /// Guarda información de la última actualización instalada
         /// </summary>
         public void SaveUpdateInfo(UpdateInfo updateInfo)
@@ -216,22 +221,23 @@ del ""{batchPath}""
         {
             try
             {
-                string lastVersion = SettingsService.Current.LastUpdateVersion;
-                string lastChangelog = SettingsService.Current.LastUpdateChangelog;
+                var config = SettingsService.Current;
+                bool isFirstRun = UpdateVersioning.IsFirstRunAfterUpdate(
+                    config.LastRunVersion, config.LastUpdateVersion, CURRENT_VERSION);
 
-                if (string.IsNullOrEmpty(lastVersion))
-                    return (false, null, null);
-
-                // Si la última versión guardada es diferente a la actual, es primera ejecución
-                if (lastVersion != CURRENT_VERSION)
+                // Recordar qué versión se ejecutó para no volver a mostrar el changelog
+                if (config.LastRunVersion != CURRENT_VERSION)
                 {
-                    // Actualizar a la versión actual
-                    SettingsService.Current.LastUpdateVersion = CURRENT_VERSION;
+                    config.LastRunVersion = CURRENT_VERSION;
                     SettingsService.Save();
-                    return (true, lastVersion, lastChangelog);
                 }
 
-                return (false, null, null);
+                if (!isFirstRun)
+                    return (false, null, null);
+
+                // El changelog guardado solo corresponde si el actualizador descargó esta misma versión
+                string changelog = config.LastUpdateVersion == CURRENT_VERSION ? config.LastUpdateChangelog : null;
+                return (true, CURRENT_VERSION, changelog);
             }
             catch
             {
