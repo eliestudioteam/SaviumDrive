@@ -7,6 +7,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Windows.Storage.Pickers;
 
@@ -24,6 +25,11 @@ namespace SaviumDrive.Views
 
         private Window _mainWindow;
         private DispatcherTimer _searchTimer;
+
+        // Ruta de partidas rellenada sola (Ludusavi): se puede reemplazar al cambiar el nombre,
+        // pero nunca una carpeta que el usuario eligió con "Examinar"
+        private bool _rutaAutomatica = false;
+        private CancellationTokenSource _ctsRuta;
 
         public AddGameDialog(Window window)
         {
@@ -44,11 +50,57 @@ namespace SaviumDrive.Views
             if (!string.IsNullOrEmpty(rutaAdivinada))
             {
                 TxtGamePath.Text = rutaAdivinada;
+                _rutaAutomatica = true;
             }
             else
             {
                 TxtGamePath.PlaceholderText = "Por favor, selecciona la carpeta de saves...";
+                _ = BuscarRutaAutomatica(name);
             }
+        }
+
+        /// <summary>Busca en la base de datos de Ludusavi dónde guarda partidas el juego y rellena la carpeta si existe.</summary>
+        private async System.Threading.Tasks.Task BuscarRutaAutomatica(string nombre)
+        {
+            if (!string.IsNullOrEmpty(TxtGamePath.Text) && !_rutaAutomatica) return;
+
+            _ctsRuta?.Cancel();
+            var cts = new CancellationTokenSource();
+            _ctsRuta = cts;
+
+            MostrarPistaRuta(LudusaviService.IndiceDisponible ? "PathHintSearching" : "PathHintDownloading");
+
+            string carpeta = null;
+            try { carpeta = await LudusaviService.BuscarCarpetaAsync(nombre, cts.Token); }
+            catch (OperationCanceledException) { return; }
+            catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"⚠️ Ludusavi: {ex.Message}"); }
+
+            // El usuario siguió escribiendo o eligió una carpeta mientras se buscaba
+            if (cts.IsCancellationRequested || _ctsRuta != cts) return;
+            if (!string.IsNullOrEmpty(TxtGamePath.Text) && !_rutaAutomatica) { MostrarPistaRuta(null); return; }
+
+            if (carpeta != null)
+            {
+                TxtGamePath.Text = carpeta;
+                _rutaAutomatica = true;
+                MostrarPistaRuta("PathHintFound");
+            }
+            else
+            {
+                if (_rutaAutomatica) { TxtGamePath.Text = ""; _rutaAutomatica = false; }
+                MostrarPistaRuta("PathHintNotFound");
+            }
+        }
+
+        private void MostrarPistaRuta(string clave)
+        {
+            if (clave == null)
+            {
+                TxtPathHint.Visibility = Visibility.Collapsed;
+                return;
+            }
+            TxtPathHint.Text = ResourceHelper.GetString(clave);
+            TxtPathHint.Visibility = Visibility.Visible;
         }
 
         private string IntentarAdivinarRutaSave(string gameName)
@@ -103,6 +155,9 @@ namespace SaviumDrive.Views
             var folder = await folderPicker.PickSingleFolderAsync();
             if (folder != null)
             {
+                _ctsRuta?.Cancel();
+                _rutaAutomatica = false;
+                MostrarPistaRuta(null);
                 TxtGamePath.Text = folder.Path;
             }
         }
@@ -125,6 +180,9 @@ namespace SaviumDrive.Views
             _searchTimer.Stop();
             LoadingRing.IsActive = true;
             TxtCoverHint.Visibility = Visibility.Collapsed;
+
+            // Buscar a la vez la carpeta de partidas (no espera a la portada)
+            _ = BuscarRutaAutomatica(TxtGameName.Text);
 
             var api = new SteamGridApi();
             _foundCovers = await api.BuscarPortadas(TxtGameName.Text);

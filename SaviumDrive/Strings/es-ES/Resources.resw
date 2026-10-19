@@ -304,4 +304,9 @@
 	<data name="HistSaveBtn" xml:space="preserve"><value>Guardar</value></data>
 	<data name="SetVersionNotice.Text" xml:space="preserve"><value>Avisar al cambiar de versión</value></data>
 	<data name="SetVersionNoticeDesc.Text" xml:space="preserve"><value>Muestra un aviso indicando que las acciones se harán sobre la nueva versión activa</value></data>
+	<!-- Ruta de partidas automática (Ludusavi) -->
+	<data name="PathHintSearching" xml:space="preserve"><value>🔍 Buscando la carpeta de partidas...</value></data>
+	<data name="PathHintDownloading" xml:space="preserve"><value>⬇️ Descargando la base de datos de partidas (solo la primera vez)...</value></data>
+	<data name="PathHintFound" xml:space="preserve"><value>📂 Carpeta encontrada automáticamente (base de datos de Ludusavi). Revísala antes de guardar.</value></data>
+	<data name="PathHintNotFound" xml:space="preserve"><value>No se encontró la carpeta automáticamente. Elígela con Examinar.</value></data>
 </root>
