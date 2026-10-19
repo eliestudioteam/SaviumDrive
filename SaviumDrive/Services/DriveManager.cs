@@ -180,5 +180,45 @@ namespace SaviumDrive.Services
         {
             return await ListarArchivos($"'{folderId}' in parents and trashed = false", "id, name, mimeType", token);
         }
+
+        /// <summary>
+        /// Todos los archivos bajo una carpeta (recursivo), con tamaño y MD5.
+        /// Clave: ruta relativa con '/' (ej. "perfil/slot1.sav").
+        /// </summary>
+        public async Task<Dictionary<string, Google.Apis.Drive.v3.Data.File>> ListarArbolArchivos(string folderId, CancellationToken token = default)
+        {
+            var archivos = new Dictionary<string, Google.Apis.Drive.v3.Data.File>(StringComparer.OrdinalIgnoreCase);
+            await ListarArbolRecursivo(folderId, "", archivos, token);
+            return archivos;
+        }
+
+        private async Task ListarArbolRecursivo(string folderId, string prefijo, Dictionary<string, Google.Apis.Drive.v3.Data.File> archivos, CancellationToken token)
+        {
+            var items = await ListarArchivos($"'{folderId}' in parents and trashed = false",
+                                             "id, name, mimeType, size, md5Checksum, modifiedTime", token);
+            foreach (var item in items)
+            {
+                string ruta = prefijo + item.Name;
+                if (item.MimeType == "application/vnd.google-apps.folder")
+                    await ListarArbolRecursivo(item.Id, ruta + "/", archivos, token);
+                else
+                    archivos[ruta] = item;
+            }
+        }
+
+        /// <summary>Copia un archivo dentro de Drive (sin volver a subirlo), conservando su fecha.</summary>
+        public async Task CopiarArchivo(string fileId, string carpetaDestinoId, string nombre, DateTimeOffset? fechaModificacion, CancellationToken token)
+        {
+            token.ThrowIfCancellationRequested();
+            var copia = new Google.Apis.Drive.v3.Data.File
+            {
+                Name = nombre,
+                Parents = new List<string> { carpetaDestinoId },
+                ModifiedTimeDateTimeOffset = fechaModificacion
+            };
+            var request = Service.Files.Copy(copia, fileId);
+            request.Fields = "id";
+            await request.ExecuteAsync(token);
+        }
     }
 }

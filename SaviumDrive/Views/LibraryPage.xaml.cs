@@ -285,8 +285,11 @@ namespace SaviumDrive.Views
                     try
                     {
                         // 🔥 PASAR EL TOKEN
-                        await App.LibraryService.ActualizarBackup(juego, juego.ActiveVersion, _cts.Token);
-                        await MostrarAlerta(ResourceHelper.GetString("AlertSuccess"), ResourceHelper.GetString("AlertUpdateSuccess"));
+                        var resultado = await App.LibraryService.ActualizarBackup(juego, juego.ActiveVersion, _cts.Token);
+                        await MostrarAlerta(ResourceHelper.GetString("AlertSuccess"),
+                            resultado.YaAlDia
+                                ? ResourceHelper.GetString("AlertUpdateNoChanges")
+                                : ResourceHelper.GetString("AlertUpdateIncremental", resultado.Subidos, resultado.SinCambios, resultado.Eliminados));
                     }
                     catch (OperationCanceledException)
                     {
