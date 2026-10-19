@@ -127,7 +127,7 @@
 	<data name="AlertRestoreSuccess" xml:space="preserve"><value>Archivos restaurados correctamente.</value></data>
 	<data name="AlertOpCancelled" xml:space="preserve"><value>Operación cancelada.</value></data>
 	<data name="ConfirmDeleteTitle" xml:space="preserve"><value>¿Eliminar {0}?</value></data>
-	<data name="ConfirmDeleteMsg" xml:space="preserve"><value>Esto borrará el respaldo de Google Drive y de esta lista. Los archivos en tu PC NO se tocarán.</value></data>
+	<data name="ConfirmDeleteMsg" xml:space="preserve"><value>Esto moverá el respaldo a la papelera de Google Drive (podrás recuperarlo durante 30 días) y lo quitará de esta lista. Los archivos en tu PC NO se tocarán.</value></data>
 	<data name="ConfirmDeleteBtn" xml:space="preserve"><value>Eliminar</value></data>
 	<data name="ConfirmRestoreTitle" xml:space="preserve"><value>Aplicar Respaldo</value></data>
 	<data name="ConfirmRestoreMsg" xml:space="preserve"><value>Se descargarán los archivos de la nube y se sobrescribirán en:\n\n{0}\n\n¿Estás seguro?</value></data>
@@ -181,7 +181,7 @@
 
 	<data name="AlertWarning" xml:space="preserve"><value>⚠️ Advertencia</value></data>
 	<data name="MsgDeletingIn" xml:space="preserve"><value>El respaldo se eliminará en {0} segundos...</value></data>
-	<data name="AlertDeleteSuccess" xml:space="preserve"><value>Backup eliminado correctamente</value></data>
+	<data name="AlertDeleteSuccess" xml:space="preserve"><value>Backup enviado a la papelera de Google Drive. Puedes recuperarlo desde drive.google.com durante 30 días.</value></data>
 	<data name="AlertBackupCreated" xml:space="preserve"><value>Backup creado correctamente</value></data>
 
 	<data name="StatusDeleting" xml:space="preserve"><value>Eliminando...</value></data>
@@ -285,8 +285,8 @@
 	<data name="MsgBusyVersion" xml:space="preserve"><value>Hay una operación en curso. Espera a que termine antes de cambiar o crear versiones.</value></data>
 	<data name="AlertLocalFolderMissing" xml:space="preserve"><value>No se encontró la carpeta de partidas en este PC:\n{0}</value></data>
 	<data name="AlertVersionCreated" xml:space="preserve"><value>Se creó {0} en la nube. Ahora es la versión activa.</value></data>
-	<data name="AlertVersionDeleted" xml:space="preserve"><value>Se eliminó {0} de la nube.</value></data>
-	<data name="ConfirmDeleteVersionMsg" xml:space="preserve"><value>Esto borrará {0} de Google Drive. Las demás versiones y los archivos de tu PC NO se tocarán.</value></data>
+	<data name="AlertVersionDeleted" xml:space="preserve"><value>{0} se envió a la papelera de Google Drive. Puedes recuperarla desde drive.google.com durante 30 días.</value></data>
+	<data name="ConfirmDeleteVersionMsg" xml:space="preserve"><value>Esto moverá {0} a la papelera de Google Drive (podrás recuperarla durante 30 días). Las demás versiones y los archivos de tu PC NO se tocarán.</value></data>
 	<data name="HistBack.Text" xml:space="preserve"><value>Volver a la biblioteca</value></data>
 	<data name="HistTitle.Text" xml:space="preserve"><value>Historial de versiones</value></data>
 	<data name="HistSummary" xml:space="preserve"><value>{0} versiones · Activa: {1}</value></data>

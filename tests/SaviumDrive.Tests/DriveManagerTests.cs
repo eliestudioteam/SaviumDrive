@@ -109,6 +109,39 @@ namespace SaviumDrive.Tests
             Assert.Equal(250, archivos.Select(f => f.Id).Distinct().Count());
         }
 
+        // --- Papelera ---
+
+        [Fact]
+        public async Task EnviarAPapelera_MarcaComoTrashedSinBorrarDefinitivamente()
+        {
+            string cuerpo = null;
+            var handler = new FakeDriveHandler(req =>
+            {
+                if (req.Method == HttpMethod.Patch) cuerpo = req.Content?.ReadAsStringAsync().Result;
+                return FakeDriveHandler.Json("{\"id\":\"juego-1\",\"trashed\":true}");
+            });
+            var manager = new DriveManager(FakeDrive.CreateService(handler));
+
+            await manager.EnviarAPapelera("juego-1");
+
+            var peticion = Assert.Single(handler.Requests);
+            Assert.Equal(HttpMethod.Patch, peticion.Method);
+            Assert.EndsWith("/files/juego-1", peticion.RequestUri.AbsolutePath);
+            Assert.Contains("\"trashed\":true", cuerpo);
+            Assert.DoesNotContain(handler.Requests, r => r.Method == HttpMethod.Delete);
+        }
+
+        [Fact]
+        public async Task EliminarArchivoOCarpeta_BorraDefinitivamente()
+        {
+            var handler = new FakeDriveHandler(req => new HttpResponseMessage(HttpStatusCode.NoContent));
+            var manager = new DriveManager(FakeDrive.CreateService(handler));
+
+            await manager.EliminarArchivoOCarpeta("temp-1");
+
+            Assert.Equal(HttpMethod.Delete, Assert.Single(handler.Requests).Method);
+        }
+
         // --- Descargas ---
 
         [Fact]

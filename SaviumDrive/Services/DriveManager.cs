@@ -134,9 +134,21 @@ namespace SaviumDrive.Services
             await updateRequest.ExecuteAsync();
         }
 
+        /// <summary>Borrado permanente: solo para restos internos (TEMP_, OLD_, configuración vieja).</summary>
         public async Task EliminarArchivoOCarpeta(string fileId)
         {
             await Service.Files.Delete(fileId).ExecuteAsync();
+        }
+
+        /// <summary>
+        /// Mueve a la papelera de Drive (se puede recuperar durante 30 días).
+        /// Para lo que elimina el usuario: juegos y versiones.
+        /// </summary>
+        public async Task EnviarAPapelera(string fileId)
+        {
+            var request = Service.Files.Update(new Google.Apis.Drive.v3.Data.File { Trashed = true }, fileId);
+            request.Fields = "id, trashed";
+            await request.ExecuteAsync();
         }
 
         // 🔥 Lista TODAS las páginas (Drive devuelve máximo 100 por defecto)
