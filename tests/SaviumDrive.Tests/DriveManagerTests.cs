@@ -109,6 +109,55 @@ namespace SaviumDrive.Tests
             Assert.Equal(250, archivos.Select(f => f.Id).Distinct().Count());
         }
 
+        // --- Árbol de archivos y copias (subida incremental) ---
+
+        [Fact]
+        public async Task ListarArbolArchivos_RecorreSubcarpetasConRutasRelativas()
+        {
+            var handler = new FakeDriveHandler(req =>
+            {
+                string q = FakeDrive.QueryParam(req, "q") ?? "";
+                if (q.Contains("'raiz' in parents"))
+                    return FakeDriveHandler.Json("{\"files\":[" +
+                        "{\"id\":\"f1\",\"name\":\"config.ini\",\"mimeType\":\"text/plain\",\"size\":\"3\",\"md5Checksum\":\"aaa\"}," +
+                        "{\"id\":\"d1\",\"name\":\"perfil\",\"mimeType\":\"application/vnd.google-apps.folder\"}]}");
+                if (q.Contains("'d1' in parents"))
+                    return FakeDriveHandler.Json("{\"files\":[{\"id\":\"f2\",\"name\":\"slot1.sav\",\"mimeType\":\"application/octet-stream\",\"size\":\"20\",\"md5Checksum\":\"bbb\"}]}");
+                return FakeDriveHandler.Json("{\"files\":[]}");
+            });
+            var manager = new DriveManager(FakeDrive.CreateService(handler));
+
+            var arbol = await manager.ListarArbolArchivos("raiz");
+
+            Assert.Equal(2, arbol.Count);
+            Assert.Equal("aaa", arbol["config.ini"].Md5Checksum);
+            Assert.Equal(20, arbol["perfil/slot1.sav"].Size);
+            Assert.Contains("md5Checksum", FakeDrive.QueryParam(handler.Requests[0], "fields"));
+        }
+
+        [Fact]
+        public async Task CopiarArchivo_CopiaDentroDeDriveSinSubirContenido()
+        {
+            string cuerpo = null;
+            var handler = new FakeDriveHandler(req =>
+            {
+                cuerpo = req.Content?.ReadAsStringAsync().Result;
+                return FakeDriveHandler.Json("{\"id\":\"copia-1\"}");
+            });
+            var manager = new DriveManager(FakeDrive.CreateService(handler));
+            var fecha = new DateTimeOffset(2026, 3, 14, 9, 30, 0, TimeSpan.Zero);
+
+            await manager.CopiarArchivo("original-1", "temp-1", "slot1.sav", fecha, CancellationToken.None);
+
+            var peticion = Assert.Single(handler.Requests);
+            Assert.Equal(HttpMethod.Post, peticion.Method);
+            Assert.EndsWith("/files/original-1/copy", peticion.RequestUri.AbsolutePath);
+            Assert.DoesNotContain("upload", peticion.RequestUri.AbsolutePath);
+            Assert.Contains("\"parents\":[\"temp-1\"]", cuerpo);
+            Assert.Contains("\"name\":\"slot1.sav\"", cuerpo);
+            Assert.Contains("\"modifiedTime\":\"2026-03-14T09:30:00", cuerpo);
+        }
+
         // --- Descargas ---
 
         [Fact]

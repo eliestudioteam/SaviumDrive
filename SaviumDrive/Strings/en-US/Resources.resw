@@ -305,4 +305,8 @@
 	<data name="HistSaveBtn" xml:space="preserve"><value>Save</value></data>
 	<data name="SetVersionNotice.Text" xml:space="preserve"><value>Notify when switching versions</value></data>
 	<data name="SetVersionNoticeDesc.Text" xml:space="preserve"><value>Shows a notice saying that actions will apply to the new active version</value></data>
+	<!-- Subida incremental -->
+	<data name="MsgComparing" xml:space="preserve"><value>Comparing with the cloud...</value></data>
+	<data name="AlertUpdateNoChanges" xml:space="preserve"><value>No changes: the cloud backup was already up to date.</value></data>
+	<data name="AlertUpdateIncremental" xml:space="preserve"><value>Cloud backup updated.\n\nFiles uploaded (new or modified): {0}\nUnchanged (not uploaded again): {1}\nRemoved because they are no longer on your PC: {2}</value></data>
 </root>

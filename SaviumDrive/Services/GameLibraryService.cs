@@ -257,7 +257,7 @@ namespace SaviumDrive.Services
         }
 
         // 🔥 ACTUALIZAR BACKUP CON CARPETA TEMPORAL (No destruir archivos viejos)
-        public async Task ActualizarBackup(GameConfig juego, GameVersion version, CancellationToken token)
+        public async Task<ResultadoActualizacion> ActualizarBackup(GameConfig juego, GameVersion version, CancellationToken token)
         {
             string idCarpetaTemporal = null;
             string nombreCarpetaOriginal = null;
@@ -278,7 +278,32 @@ namespace SaviumDrive.Services
                 if (carpetaOriginal == null) throw new Exception("Carpeta original no encontrada en Drive");
                 nombreCarpetaOriginal = carpetaOriginal.Name;
 
-                // 2️⃣ CREAR CARPETA TEMPORAL EN DRIVE (aquí subiremos el nuevo backup)
+                // 2️⃣ COMPARAR CON DRIVE (ruta + tamaño + MD5): solo se sube lo que cambió
+                NotifyProgress(nombreProgreso, -1, "StatusUploading", GetStr("MsgComparing"), true);
+                var remoto = await _driveManager.ListarArbolArchivos(carpetaOriginal.Id, token);
+                var local = await Task.Run(() => BackupDiff.LeerCarpetaLocal(juego.LocalPath), token);
+                var huellasRemotas = remoto.ToDictionary(
+                    par => par.Key,
+                    par => new HuellaArchivo(par.Value.Size ?? -1, par.Value.Md5Checksum),
+                    StringComparer.OrdinalIgnoreCase);
+                var diferencias = BackupDiff.Calcular(local, huellasRemotas);
+
+                var resultado = new ResultadoActualizacion
+                {
+                    SinCambios = diferencias.SinCambios.Count,
+                    Subidos = diferencias.Modificados.Count + diferencias.Nuevos.Count,
+                    Eliminados = diferencias.Eliminados.Count
+                };
+
+                if (diferencias.YaAlDia)
+                {
+                    // Nada que subir: el backup ya coincide con el PC
+                    resultado.YaAlDia = true;
+                    await MarcarGuardado(juego, version);
+                    return resultado;
+                }
+
+                // 3️⃣ CREAR CARPETA TEMPORAL EN DRIVE (aquí se arma el nuevo backup)
                 // Borrar restos de intentos anteriores para no mezclar archivos viejos
                 string nombreTemporal = $"TEMP_{nombreCarpetaOriginal}";
                 foreach (var resto in itemsRaiz.Where(i => i.Name == nombreTemporal && i.MimeType == "application/vnd.google-apps.folder"))
@@ -287,22 +312,47 @@ namespace SaviumDrive.Services
                 }
                 idCarpetaTemporal = _driveManager.GetOrCreateFolder(nombreTemporal, idBase);
 
-                // 3️⃣ SUBIR CONTENIDO NUEVO A LA CARPETA TEMPORAL
-                long totalBytes = GetDirectorySize(juego.LocalPath);
-                long bytesSubidos = 0;
+                // 4️⃣ ARMAR EL NUEVO BACKUP: los archivos sin cambios se copian dentro de Drive
+                // (sin volver a subirlos) y solo se suben los nuevos o modificados
+                long totalBytes = local.Values.Sum(h => h.Tamano);
+                long bytesListos = 0;
                 string totalStr = FormatBytes(totalBytes);
+                var sinCambios = new HashSet<string>(diferencias.SinCambios, StringComparer.OrdinalIgnoreCase);
 
-                await SubirDirectorioRecursivo(juego.LocalPath, idCarpetaTemporal, token, (nombreArchivo, pesoArchivo) =>
+                // Misma estructura de carpetas (también las vacías); los padres van antes que los hijos
+                var carpetasDrive = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase) { [""] = idCarpetaTemporal };
+                foreach (var dir in Directory.GetDirectories(juego.LocalPath, "*", SearchOption.AllDirectories).OrderBy(d => d.Length))
                 {
                     token.ThrowIfCancellationRequested();
-                    bytesSubidos += pesoArchivo;
-                    int porcentaje = totalBytes > 0 ? (int)((double)bytesSubidos / totalBytes * 100) : 0;
-                    string progresoStr = $"{FormatBytes(bytesSubidos)} / {totalStr}";
+                    string rel = BackupDiff.NormalizarRuta(Path.GetRelativePath(juego.LocalPath, dir));
+                    carpetasDrive[rel] = _driveManager.GetOrCreateFolder(Path.GetFileName(dir), carpetasDrive[CarpetaPadre(rel)]);
+                }
 
+                foreach (var par in local)
+                {
+                    token.ThrowIfCancellationRequested();
+                    string rel = par.Key;
+                    string nombreArchivo = rel.Contains('/') ? rel.Substring(rel.LastIndexOf('/') + 1) : rel;
+                    string idPadre = carpetasDrive[CarpetaPadre(rel)];
+
+                    if (sinCambios.Contains(rel))
+                    {
+                        var original = remoto[rel];
+                        await _driveManager.CopiarArchivo(original.Id, idPadre, nombreArchivo, original.ModifiedTimeDateTimeOffset, token);
+                    }
+                    else
+                    {
+                        string rutaLocal = Path.Combine(juego.LocalPath, rel.Replace('/', Path.DirectorySeparatorChar));
+                        await Task.Run(() => _driveManager.SubirArchivo(rutaLocal, idPadre, token));
+                    }
+
+                    bytesListos += par.Value.Tamano;
+                    int porcentaje = totalBytes > 0 ? (int)((double)bytesListos / totalBytes * 100) : 0;
+                    string progresoStr = $"{FormatBytes(bytesListos)} / {totalStr}";
                     NotifyProgress(nombreProgreso, porcentaje, "StatusUploading", string.Format(GetStr("MsgUploadingSize"), nombreArchivo, progresoStr), true);
-                });
+                }
 
-                // 4️⃣ TODO BIEN: Intercambiar carpetas sin perder el backup viejo si algo falla
+                // 5️⃣ TODO BIEN: Intercambiar carpetas sin perder el backup viejo si algo falla
                 // a) Apartar la vieja con otro nombre
                 await _driveManager.RenombrarArchivo(carpetaOriginal.Id, $"OLD_{nombreCarpetaOriginal}");
                 try
@@ -321,16 +371,9 @@ namespace SaviumDrive.Services
                 // c) Borrar la vieja (si falla, solo queda una carpeta OLD_ sobrante)
                 try { await _driveManager.EliminarArchivoOCarpeta(carpetaOriginal.Id); } catch { }
 
-                // 5️⃣ Actualizar fecha (de la versión y del juego)
-                var ahora = DateTime.UtcNow;
-                juego.LastBackup = ahora;
-                version.LastBackup = ahora;
-                await ModificarJuego(juego.Id, j =>
-                {
-                    j.LastBackup = ahora;
-                    var v = j.FindVersion(version.Id);
-                    if (v != null) v.LastBackup = ahora;
-                });
+                // 6️⃣ Actualizar fecha (de la versión y del juego)
+                await MarcarGuardado(juego, version);
+                return resultado;
             }
             catch (Exception)
             {
@@ -351,6 +394,27 @@ namespace SaviumDrive.Services
             }
         }
 
+
+        /// <summary>Guarda la fecha del último backup (de la versión y del juego).</summary>
+        private async Task MarcarGuardado(GameConfig juego, GameVersion version)
+        {
+            var ahora = DateTime.UtcNow;
+            juego.LastBackup = ahora;
+            version.LastBackup = ahora;
+            await ModificarJuego(juego.Id, j =>
+            {
+                j.LastBackup = ahora;
+                var v = j.FindVersion(version.Id);
+                if (v != null) v.LastBackup = ahora;
+            });
+        }
+
+        /// <summary>"a/b/c.sav" → "a/b"; "c.sav" → "".</summary>
+        private static string CarpetaPadre(string rutaRelativa)
+        {
+            int i = rutaRelativa.LastIndexOf('/');
+            return i < 0 ? "" : rutaRelativa.Substring(0, i);
+        }
 
         // 🔥 RESTAURAR JUEGO CON CARPETA TEMPORAL LOCAL Y PROGRESO DETALLADO
         public async Task RestaurarJuego(GameConfig juego, GameVersion version, CancellationToken token)

@@ -18,5 +18,6 @@
 		<Compile Include="..\..\SaviumDrive\Services\UpdateVersioning.cs" Link="App\UpdateVersioning.cs" />
 		<Compile Include="..\..\SaviumDrive\Services\LibraryMerge.cs" Link="App\LibraryMerge.cs" />
 		<Compile Include="..\..\SaviumDrive\Models\GameConfig.cs" Link="App\GameConfig.cs" />
+		<Compile Include="..\..\SaviumDrive\Services\BackupDiff.cs" Link="App\BackupDiff.cs" />
 	</ItemGroup>
 </Project>
