@@ -182,6 +182,25 @@ namespace SaviumDrive.Services
         }
 
         /// <summary>
+        /// Bytes que ocupa una carpeta en Drive (recursivo). <paramref name="incluirEnRaiz"/> decide qué
+        /// elementos del primer nivel cuentan (ej. excluir otras versiones o restos TEMP_/OLD_).
+        /// </summary>
+        public async Task<long> CalcularTamanoCarpeta(string folderId, Func<Google.Apis.Drive.v3.Data.File, bool> incluirEnRaiz = null, CancellationToken token = default)
+        {
+            long total = 0;
+            var items = await ListarArchivos($"'{folderId}' in parents and trashed = false", "id, name, mimeType, size", token);
+            foreach (var item in items)
+            {
+                if (incluirEnRaiz != null && !incluirEnRaiz(item)) continue;
+
+                total += item.MimeType == "application/vnd.google-apps.folder"
+                    ? await CalcularTamanoCarpeta(item.Id, null, token)
+                    : item.Size ?? 0;
+            }
+            return total;
+        }
+
+        /// <summary>
         /// Todos los archivos bajo una carpeta (recursivo), con tamaño y MD5.
         /// Clave: ruta relativa con '/' (ej. "perfil/slot1.sav").
         /// </summary>
