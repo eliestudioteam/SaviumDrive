@@ -611,7 +611,7 @@ namespace SaviumDrive.Services
 
                 if (!string.IsNullOrEmpty(juego.DriveFolderId))
                 {
-                    await _driveManager.EliminarArchivoOCarpeta(juego.DriveFolderId);
+                    await _driveManager.EnviarAPapelera(juego.DriveFolderId);
                 }
             }
             catch { }
@@ -743,12 +743,12 @@ namespace SaviumDrive.Services
                     var items = await _driveManager.ListarContenidoCarpeta(juego.DriveFolderId);
                     foreach (var item in items.Where(i => !idsOtrasVersiones.Contains(i.Id)))
                     {
-                        await _driveManager.EliminarArchivoOCarpeta(item.Id);
+                        await _driveManager.EnviarAPapelera(item.Id);
                     }
                 }
                 else if (!string.IsNullOrEmpty(version.DriveFolderId))
                 {
-                    await _driveManager.EliminarArchivoOCarpeta(version.DriveFolderId);
+                    await _driveManager.EnviarAPapelera(version.DriveFolderId);
                 }
             }
             finally

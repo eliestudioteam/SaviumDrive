@@ -127,7 +127,7 @@
 	<data name="AlertRestoreSuccess" xml:space="preserve"><value>Files restored successfully.</value></data>
 	<data name="AlertOpCancelled" xml:space="preserve"><value>Operation cancelled.</value></data>
 	<data name="ConfirmDeleteTitle" xml:space="preserve"><value>Delete {0}?</value></data>
-	<data name="ConfirmDeleteMsg" xml:space="preserve"><value>This will delete the backup from Google Drive and this list. Files on your PC will NOT be touched.</value></data>
+	<data name="ConfirmDeleteMsg" xml:space="preserve"><value>This will move the backup to the Google Drive trash (you can recover it for 30 days) and remove it from this list. Files on your PC will NOT be touched.</value></data>
 	<data name="ConfirmDeleteBtn" xml:space="preserve"><value>Delete</value></data>
 	<data name="ConfirmRestoreTitle" xml:space="preserve"><value>Apply Backup</value></data>
 	<data name="ConfirmRestoreMsg" xml:space="preserve"><value>Files will be downloaded from the cloud and overwritten in:\n\n{0}\n\nAre you sure?</value></data>
@@ -181,7 +181,7 @@
 
 	<data name="AlertWarning" xml:space="preserve"><value>⚠️ Warning</value></data>
 	<data name="MsgDeletingIn" xml:space="preserve"><value>Backup will be deleted in {0} seconds...</value></data>
-	<data name="AlertDeleteSuccess" xml:space="preserve"><value>Backup deleted successfully</value></data>
+	<data name="AlertDeleteSuccess" xml:space="preserve"><value>Backup moved to the Google Drive trash. You can recover it from drive.google.com for 30 days.</value></data>
 	<data name="AlertBackupCreated" xml:space="preserve"><value>Backup created successfully</value></data>
 
 	<data name="StatusDeleting" xml:space="preserve"><value>Deleting...</value></data>
@@ -286,8 +286,8 @@
 	<data name="MsgBusyVersion" xml:space="preserve"><value>An operation is in progress. Wait for it to finish before switching or creating versions.</value></data>
 	<data name="AlertLocalFolderMissing" xml:space="preserve"><value>The save folder was not found on this PC:\n{0}</value></data>
 	<data name="AlertVersionCreated" xml:space="preserve"><value>{0} was created in the cloud. It is now the active version.</value></data>
-	<data name="AlertVersionDeleted" xml:space="preserve"><value>{0} was deleted from the cloud.</value></data>
-	<data name="ConfirmDeleteVersionMsg" xml:space="preserve"><value>This will delete {0} from Google Drive. Other versions and the files on your PC will NOT be touched.</value></data>
+	<data name="AlertVersionDeleted" xml:space="preserve"><value>{0} was moved to the Google Drive trash. You can recover it from drive.google.com for 30 days.</value></data>
+	<data name="ConfirmDeleteVersionMsg" xml:space="preserve"><value>This will move {0} to the Google Drive trash (you can recover it for 30 days). Other versions and the files on your PC will NOT be touched.</value></data>
 	<data name="HistBack.Text" xml:space="preserve"><value>Back to library</value></data>
 	<data name="HistTitle.Text" xml:space="preserve"><value>Version history</value></data>
 	<data name="HistSummary" xml:space="preserve"><value>{0} versions · Active: {1}</value></data>
