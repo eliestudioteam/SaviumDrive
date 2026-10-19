@@ -305,4 +305,11 @@
 	<data name="HistSaveBtn" xml:space="preserve"><value>Save</value></data>
 	<data name="SetVersionNotice.Text" xml:space="preserve"><value>Notify when switching versions</value></data>
 	<data name="SetVersionNoticeDesc.Text" xml:space="preserve"><value>Shows a notice saying that actions will apply to the new active version</value></data>
+	<!-- Tamaño de cada versión en el historial -->
+	<data name="HistSize" xml:space="preserve"><value>Size in Drive: {0}</value></data>
+	<data name="HistSizeCalculating" xml:space="preserve"><value>Size in Drive: calculating...</value></data>
+	<data name="HistSizeUnavailable" xml:space="preserve"><value>Size in Drive: unavailable</value></data>
+	<data name="HistTotalSize" xml:space="preserve"><value>Total in Drive: {0}</value></data>
+	<data name="HistTotalCalculating" xml:space="preserve"><value>Total in Drive: calculating...</value></data>
+	<data name="HistTotalPartial" xml:space="preserve"><value>Total in Drive: at least {0} (some versions could not be calculated)</value></data>
 </root>

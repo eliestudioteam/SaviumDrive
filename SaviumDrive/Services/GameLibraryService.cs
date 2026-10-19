@@ -89,7 +89,7 @@ namespace SaviumDrive.Services
             catch { return 0; }
         }
 
-        private string FormatBytes(long bytes)
+        public static string FormatBytes(long bytes)
         {
             string[] suffixes = { "B", "KB", "MB", "GB", "TB" };
             int counter = 0;
@@ -778,6 +778,36 @@ namespace SaviumDrive.Services
                 var v = j.FindVersion(version.Id);
                 if (v != null) v.Description = texto;
             });
+        }
+
+        // Tamaños ya calculados en esta sesión (clave: versión + fecha de su último guardado)
+        private readonly Dictionary<string, long> _tamanosVersion = new Dictionary<string, long>();
+
+        /// <summary>
+        /// Bytes que ocupa una versión en Drive. V1 vive en la carpeta raíz del juego junto a las demás
+        /// versiones, así que no se cuentan sus carpetas; tampoco los restos TEMP_/OLD_.
+        /// Se recuerda durante la sesión (no se guarda en el .json).
+        /// </summary>
+        public async Task<long> CalcularTamanoVersion(GameConfig juego, GameVersion version, CancellationToken token = default)
+        {
+            string clave = $"{version.Id}|{version.LastBackup.Ticks}";
+            lock (_tamanosVersion)
+            {
+                if (_tamanosVersion.TryGetValue(clave, out long guardado)) return guardado;
+            }
+
+            var otrasVersiones = juego.Versions
+                .Where(v => v.Id != version.Id)
+                .Select(v => v.DriveFolderId)
+                .ToHashSet();
+
+            long tamano = await _driveManager.CalcularTamanoCarpeta(version.DriveFolderId, item =>
+                !otrasVersiones.Contains(item.Id) &&
+                !item.Name.StartsWith("TEMP_", StringComparison.Ordinal) &&
+                !item.Name.StartsWith("OLD_", StringComparison.Ordinal), token);
+
+            lock (_tamanosVersion) { _tamanosVersion[clave] = tamano; }
+            return tamano;
         }
 
         public async Task CambiarVersionActiva(GameConfig juego, GameVersion version)

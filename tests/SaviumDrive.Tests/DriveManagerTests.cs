@@ -109,6 +109,61 @@ namespace SaviumDrive.Tests
             Assert.Equal(250, archivos.Select(f => f.Id).Distinct().Count());
         }
 
+        // --- Tamaño de carpetas (historial de versiones) ---
+
+        /// <summary>
+        /// Carpeta raíz de un juego con V1 dentro (saves/) junto a otra versión (Version_2/) y restos TEMP_/OLD_.
+        /// </summary>
+        private static FakeDriveHandler DriveConVersiones() => new FakeDriveHandler(req =>
+        {
+            string q = FakeDrive.QueryParam(req, "q") ?? "";
+            if (q.Contains("'raiz' in parents"))
+                return FakeDriveHandler.Json("{\"files\":[" +
+                    "{\"id\":\"saves\",\"name\":\"saves\",\"mimeType\":\"application/vnd.google-apps.folder\"}," +
+                    "{\"id\":\"v2\",\"name\":\"Version_2\",\"mimeType\":\"application/vnd.google-apps.folder\"}," +
+                    "{\"id\":\"temp\",\"name\":\"TEMP_saves\",\"mimeType\":\"application/vnd.google-apps.folder\"}," +
+                    "{\"id\":\"suelto\",\"name\":\"leeme.txt\",\"mimeType\":\"text/plain\",\"size\":\"5\"}]}");
+            if (q.Contains("'saves' in parents"))
+                return FakeDriveHandler.Json("{\"files\":[" +
+                    "{\"id\":\"a\",\"name\":\"a.sav\",\"mimeType\":\"application/octet-stream\",\"size\":\"1000\"}," +
+                    "{\"id\":\"sub\",\"name\":\"perfil\",\"mimeType\":\"application/vnd.google-apps.folder\"}]}");
+            if (q.Contains("'sub' in parents"))
+                return FakeDriveHandler.Json("{\"files\":[{\"id\":\"b\",\"name\":\"b.sav\",\"mimeType\":\"application/octet-stream\",\"size\":\"250\"}]}");
+            if (q.Contains("'v2' in parents"))
+                return FakeDriveHandler.Json("{\"files\":[{\"id\":\"c\",\"name\":\"c.sav\",\"mimeType\":\"application/octet-stream\",\"size\":\"9000\"}]}");
+            if (q.Contains("'temp' in parents"))
+                return FakeDriveHandler.Json("{\"files\":[{\"id\":\"d\",\"name\":\"d.sav\",\"mimeType\":\"application/octet-stream\",\"size\":\"777\"}]}");
+            return FakeDriveHandler.Json("{\"files\":[]}");
+        });
+
+        [Fact]
+        public async Task CalcularTamanoCarpeta_SumaArchivosYSubcarpetas()
+        {
+            var manager = new DriveManager(FakeDrive.CreateService(DriveConVersiones()));
+
+            Assert.Equal(1250, await manager.CalcularTamanoCarpeta("saves"));
+            Assert.Equal(9000, await manager.CalcularTamanoCarpeta("v2"));
+        }
+
+        [Fact]
+        public async Task CalcularTamanoCarpeta_FiltroEnRaiz_ExcluyeOtrasVersionesYRestos()
+        {
+            var manager = new DriveManager(FakeDrive.CreateService(DriveConVersiones()));
+
+            // Tamaño de V1 (en la raíz del juego): sin Version_2 ni TEMP_
+            long v1 = await manager.CalcularTamanoCarpeta("raiz", item =>
+                item.Id != "v2" && !item.Name.StartsWith("TEMP_") && !item.Name.StartsWith("OLD_"));
+
+            Assert.Equal(1000 + 250 + 5, v1);
+        }
+
+        [Fact]
+        public async Task CalcularTamanoCarpeta_SinFiltro_CuentaTodo()
+        {
+            var manager = new DriveManager(FakeDrive.CreateService(DriveConVersiones()));
+            Assert.Equal(1000 + 250 + 9000 + 777 + 5, await manager.CalcularTamanoCarpeta("raiz"));
+        }
+
         // --- Descargas ---
 
         [Fact]
