@@ -55,7 +55,7 @@
             <!-- Botón SÍ -->
             <Button x:Name="BtnYes" Click="BtnYes_Click" Grid.Column="2" 
                     x:Uid="BtnConfig"
-                    Style="{StaticResource AccentBtnStyle}" 
+                    Style="{StaticResource ActionButtonStyle}" 
                     HorizontalAlignment="Stretch"/>
         </Grid>
     </Grid>

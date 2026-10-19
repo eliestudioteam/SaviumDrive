@@ -26,6 +26,9 @@ namespace SaviumDrive.Services
         // Última actualización descargada (para mostrar el changelog)
         public string LastUpdateVersion { get; set; }
         public string LastUpdateChangelog { get; set; }
+
+        // Última versión que se ejecutó (para detectar la primera ejecución tras actualizar)
+        public string LastRunVersion { get; set; }
     }
 
     public static class SettingsService

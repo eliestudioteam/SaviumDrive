@@ -77,11 +77,11 @@ namespace SaviumDrive.Views
 
                 if (config.AutoDetectGames)
                 {
-                    App.GameDetector.Start();
+                    App.GameDetector?.Start();
                 }
                 else
                 {
-                    App.GameDetector.Stop();
+                    App.GameDetector?.Stop();
                 }
             }
 

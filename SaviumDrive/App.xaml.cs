@@ -50,6 +50,11 @@ namespace SaviumDrive
             // 1️⃣ Servicios básicos inmediatos
             NetworkService = new NetworkService();
 
+            // El detector debe existir ANTES de crear la ventana: MainWindow se suscribe
+            // a GameClosed en su constructor. Crearlo es barato (solo un timer parado);
+            // Start() se llama más tarde en IniciarServiciosCompletos.
+            GameDetector = new GameDetectorService();
+
             // 2️⃣ Crear ventana
             MainWindow = new MainWindow();
 

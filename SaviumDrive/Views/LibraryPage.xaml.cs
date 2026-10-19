@@ -43,7 +43,7 @@ namespace SaviumDrive.Views
                     if (last.Percentage >= 0) MainProgressBar.Value = last.Percentage;
                     TxtProgressDetail.Text = last.DetailMessage;
                 }
-                App.LibraryService.ProgressChanged += OnGlobalProgress;
+                SuscribirProgreso();
             }
 
             // 🔥 DETECTAR SI VIENE DESDE HOMEPAGE CON ACCIÓN RÁPIDA
@@ -63,6 +63,14 @@ namespace SaviumDrive.Views
         {
             base.OnNavigatedFrom(e);
             if (App.LibraryService != null) App.LibraryService.ProgressChanged -= OnGlobalProgress;
+        }
+
+        // Quitar antes de añadir: así el handler nunca queda suscrito dos veces
+        private void SuscribirProgreso()
+        {
+            if (App.LibraryService == null) return;
+            App.LibraryService.ProgressChanged -= OnGlobalProgress;
+            App.LibraryService.ProgressChanged += OnGlobalProgress;
         }
 
         private void OnGlobalProgress(object sender, GlobalProgressArgs e)
@@ -111,9 +119,9 @@ namespace SaviumDrive.Views
         {
             try
             {
-                if (!App.LibraryService.IsBusy) BtnText.Text = ResourceHelper.GetString("BtnAddGame");
-
                 if (App.LibraryService == null) return;
+
+                if (!App.LibraryService.IsBusy) BtnText.Text = ResourceHelper.GetString("BtnAddGame");
 
                 // 1. Carga rápida local
                 var local = await App.LibraryService.CargarSoloLocal();
@@ -123,8 +131,7 @@ namespace SaviumDrive.Views
                 if (!App.LibraryService.IsBusy)
                 {
                     // Nos aseguramos de suscribirnos para ver la animación "Sincronizando..."
-                    App.LibraryService.ProgressChanged -= OnGlobalProgress; // Evitar dobles
-                    App.LibraryService.ProgressChanged += OnGlobalProgress;
+                    SuscribirProgreso();
 
                     // Llamada a la sincronización (ahora reportará progreso a través del evento)
                     var cloudList = await App.LibraryService.SincronizarYActualizar();
@@ -219,7 +226,7 @@ namespace SaviumDrive.Views
                         }
 
                         SetBusyState(true, "MsgPreparing");
-                        App.LibraryService.ProgressChanged += OnGlobalProgress;
+                        SuscribirProgreso();
 
                         try
                         {
@@ -273,7 +280,7 @@ namespace SaviumDrive.Views
                 if (await updateDialog.ShowAsync() == ContentDialogResult.Primary)
                 {
                     SetBusyState(true, "MsgUpdating");
-                    App.LibraryService.ProgressChanged += OnGlobalProgress;
+                    SuscribirProgreso();
 
                     try
                     {
@@ -317,7 +324,7 @@ namespace SaviumDrive.Views
                 if (await restoreDialog.ShowAsync() == ContentDialogResult.Primary)
                 {
                     SetBusyState(true, "MsgConnecting");
-                    App.LibraryService.ProgressChanged += OnGlobalProgress;
+                    SuscribirProgreso();
 
                     try
                     {
@@ -439,7 +446,7 @@ namespace SaviumDrive.Views
                     {
                         // Proceder a eliminar
                         SetBusyState(true, "MsgDeleting");
-                        App.LibraryService.ProgressChanged += OnGlobalProgress;
+                        SuscribirProgreso();
 
                         try
                         {

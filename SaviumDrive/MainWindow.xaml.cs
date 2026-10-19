@@ -35,8 +35,15 @@ namespace SaviumDrive
         private const int SW_RESTORE = 9;
 
         // --- P/INVOKE: Para limitar el tamaño (NUEVO) ---
-        [DllImport("User32.dll", SetLastError = true, CharSet = CharSet.Auto)]
-        private static extern IntPtr SetWindowLongPtr(IntPtr hWnd, int nIndex, WinProc newProc);
+        // SetWindowLongPtr solo existe en el user32 de 64 bits; en x86 hay que usar SetWindowLong
+        [DllImport("User32.dll", EntryPoint = "SetWindowLongPtrW", SetLastError = true)]
+        private static extern IntPtr SetWindowLongPtr64(IntPtr hWnd, int nIndex, WinProc newProc);
+
+        [DllImport("User32.dll", EntryPoint = "SetWindowLongW", SetLastError = true)]
+        private static extern IntPtr SetWindowLong32(IntPtr hWnd, int nIndex, WinProc newProc);
+
+        private static IntPtr SetWindowLongPtr(IntPtr hWnd, int nIndex, WinProc newProc) =>
+            IntPtr.Size == 8 ? SetWindowLongPtr64(hWnd, nIndex, newProc) : SetWindowLong32(hWnd, nIndex, newProc);
 
         [DllImport("User32.dll", SetLastError = true, CharSet = CharSet.Auto)]
         private static extern IntPtr CallWindowProc(IntPtr lpPrevWndFunc, IntPtr hWnd, uint Msg, IntPtr wParam, IntPtr lParam);
@@ -312,23 +319,31 @@ namespace SaviumDrive
         {
             this.DispatcherQueue.TryEnqueue(() =>
             {
-                // Abrir ventana de recordatorio independiente
-                var reminderWindow = new BackupReminderWindow(); // Mensaje genérico
-
-                reminderWindow.Closed += (s, args) =>
+                // Un fallo al crear el recordatorio no debe tumbar la app entera
+                try
                 {
-                    if (reminderWindow.Result)
+                    // Abrir ventana de recordatorio independiente
+                    var reminderWindow = new BackupReminderWindow(); // Mensaje genérico
+
+                    reminderWindow.Closed += (s, args) =>
                     {
-                        // Si el usuario dijo "SÍ":
-                        RestaurarYMostrarApp();
+                        if (reminderWindow.Result)
+                        {
+                            // Si el usuario dijo "SÍ":
+                            RestaurarYMostrarApp();
 
-                        // Navegar a la librería pasando los datos del juego detectado
-                        ContentFrame.Navigate(typeof(LibraryPage), session);
-                        ActualizarEstiloBotones("Library");
-                    }
-                };
+                            // Navegar a la librería pasando los datos del juego detectado
+                            ContentFrame.Navigate(typeof(LibraryPage), session);
+                            ActualizarEstiloBotones("Library");
+                        }
+                    };
 
-                reminderWindow.Activate();
+                    reminderWindow.Activate();
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"❌ Error mostrando el recordatorio de backup: {ex}");
+                }
             });
         }
 
@@ -595,6 +610,12 @@ namespace SaviumDrive
             var updateService = new UpdateService();
             var (isFirstRun, version, changelog) = updateService.CheckFirstRunAfterUpdate();
 
+            // Instalación manual: no hay changelog guardado, pedirlo a GitHub
+            if (isFirstRun && string.IsNullOrEmpty(changelog))
+            {
+                changelog = await updateService.GetReleaseNotesAsync(version);
+            }
+
             if (isFirstRun && !string.IsNullOrEmpty(changelog))
             {
                 this.DispatcherQueue.TryEnqueue(() =>
@@ -677,6 +698,7 @@ namespace SaviumDrive
         {
             if (_forceClosing)
             {
+                DesuscribirConectividad();
                 App.TrayService?.Dispose();
                 return;
             }
@@ -684,20 +706,25 @@ namespace SaviumDrive
             // 🆕 GUARDAR POSICIÓN ANTES DE CERRAR
             GuardarPosicionVentana();
 
-            // Desuscribirse del evento
-            if (App.NetworkService != null)
-            {
-                App.NetworkService.ConnectivityChanged -= OnConnectivityChanged;
-            }
-
             if (SettingsService.Current.MinimizeToTray)
             {
+                // Solo se oculta en la bandeja: la ventana sigue viva y debe seguir
+                // recibiendo los cambios de conectividad
                 args.Handled = true;
                 App.TrayService?.MostrarTray();
             }
             else
             {
+                DesuscribirConectividad();
                 App.TrayService?.Dispose();
+            }
+        }
+
+        private void DesuscribirConectividad()
+        {
+            if (App.NetworkService != null)
+            {
+                App.NetworkService.ConnectivityChanged -= OnConnectivityChanged;
             }
         }
 

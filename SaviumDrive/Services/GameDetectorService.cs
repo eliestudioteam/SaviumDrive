@@ -59,7 +59,7 @@ namespace SaviumDrive.Services
             "vlc", "mpc-hc64", "potplayer", "photos", "movies", "netflix", "hulu", "primevideo", "plex",
             "obs64", "steam", "epicgameslauncher", "origin", "battlenet", "gog galaxy", "uplay", "xbox",
             "winword", "excel", "powerpoint", "outlook", "photoshop", "illustrator", "premiere",
-            "startmenuexperiencehost", "textinputhost", "ctfmon", "widgets"
+            "startmenuexperiencehost", "textinputhost", "ctfmon", "widgets", "claude"
         };
 
         // Lista Blanca (Emuladores y exes conocidos)
@@ -181,6 +181,10 @@ namespace SaviumDrive.Services
                     string folder = Path.GetDirectoryName(path);
                     if (Directory.Exists(folder))
                     {
+                        // Apps Electron (Claude, Discord, VS Code...) traen d3dcompiler/vulkan y parecían juegos
+                        if (File.Exists(Path.Combine(folder, "resources", "app.asar")))
+                            return false;
+
                         string lowerPath = path.ToLower();
                         if (lowerPath.Contains("\\games\\") || lowerPath.Contains("\\juegos\\") || lowerPath.Contains("repack"))
                             return true;

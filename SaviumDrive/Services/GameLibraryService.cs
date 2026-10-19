@@ -557,24 +557,17 @@ namespace SaviumDrive.Services
                         ? File.GetLastWriteTimeUtc(_localFilePath)
                         : DateTime.MinValue;
 
-                    if (nubeContainer.LastUpdated > fechaLocal)
+                    var fusion = LibraryMerge.Fusionar(juegosLocales, fechaLocal,
+                                                       nubeContainer.Games, nubeContainer.LastUpdated);
+
+                    if (fusion.UsarNube)
                     {
                         await GuardarEnDisco(nubeContainer.Games, nubeContainer.LastUpdated);
                     }
 
-                    bool cambios = false;
-                    foreach (var jNube in nubeContainer.Games)
+                    if (fusion.HayCambios)
                     {
-                        if (!juegosLocales.Any(j => j.Id == jNube.Id))
-                        {
-                            juegosLocales.Add(jNube);
-                            cambios = true;
-                        }
-                    }
-
-                    if (cambios)
-                    {
-                        await GuardarLibreria(juegosLocales);
+                        await GuardarLibreria(fusion.Juegos);
                     }
                 }
             }
