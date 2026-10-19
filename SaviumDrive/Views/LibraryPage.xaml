@@ -57,42 +57,82 @@
                         <Image Grid.Row="0" Source="{x:Bind SafeCoverUrl}" Stretch="UniformToFill" VerticalAlignment="Top" Height="210"/>
 
                         <Border Grid.Row="0" VerticalAlignment="Bottom" Background="#CC000000" Padding="5">
-                            <TextBlock Text="{x:Bind Name}" Foreground="White" FontSize="11" HorizontalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                            <TextBlock Text="{x:Bind DisplayName}" Foreground="White" FontSize="11" HorizontalAlignment="Center" TextTrimming="CharacterEllipsis"/>
                         </Border>
 
-                        <!-- 🔥 CAMBIO: Ahora 3 botones (Actualizar, Restaurar, Eliminar) -->
+                        <!-- Selector de versión activa (solo si hay más de una) -->
+                        <ComboBox Grid.Row="0"
+                                  x:Uid="CmbItemVersion"
+                                  ItemsSource="{x:Bind OrderedVersions}"
+                                  SelectedItem="{x:Bind ActiveVersion}"
+                                  DisplayMemberPath="Label"
+                                  Tag="{x:Bind}"
+                                  SelectionChanged="CmbVersion_SelectionChanged"
+                                  Visibility="{x:Bind HasMultipleVersions}"
+                                  HorizontalAlignment="Right" VerticalAlignment="Top"
+                                  Margin="0,6,6,0" MinWidth="64" Height="28" Padding="8,0,0,0"
+                                  FontSize="11" FontWeight="SemiBold"
+                                  Background="#CC000000" Foreground="White" BorderThickness="0">
+                            <!-- Mismos colores en modo claro y oscuro: va sobre la portada, no sobre el fondo de la app -->
+                            <ComboBox.Resources>
+                                <SolidColorBrush x:Key="ComboBoxBackground" Color="#CC000000"/>
+                                <SolidColorBrush x:Key="ComboBoxBackgroundPointerOver" Color="#E6000000"/>
+                                <SolidColorBrush x:Key="ComboBoxBackgroundPressed" Color="#F2000000"/>
+                                <SolidColorBrush x:Key="ComboBoxBackgroundFocused" Color="#CC000000"/>
+                                <SolidColorBrush x:Key="ComboBoxBackgroundUnfocused" Color="#CC000000"/>
+                                <SolidColorBrush x:Key="ComboBoxForeground" Color="White"/>
+                                <SolidColorBrush x:Key="ComboBoxForegroundPointerOver" Color="White"/>
+                                <SolidColorBrush x:Key="ComboBoxForegroundPressed" Color="White"/>
+                                <SolidColorBrush x:Key="ComboBoxForegroundFocused" Color="White"/>
+                                <SolidColorBrush x:Key="ComboBoxForegroundFocusedPressed" Color="White"/>
+                                <SolidColorBrush x:Key="ComboBoxBorderBrush" Color="Transparent"/>
+                                <SolidColorBrush x:Key="ComboBoxBorderBrushPointerOver" Color="Transparent"/>
+                                <SolidColorBrush x:Key="ComboBoxBorderBrushPressed" Color="Transparent"/>
+                                <SolidColorBrush x:Key="ComboBoxDropDownGlyphForeground" Color="White"/>
+                                <SolidColorBrush x:Key="ComboBoxDropDownGlyphForegroundFocused" Color="White"/>
+                                <SolidColorBrush x:Key="ComboBoxDropDownGlyphForegroundFocusedPressed" Color="White"/>
+                            </ComboBox.Resources>
+                        </ComboBox>
 
-                        <Grid Grid.Row="1" Padding="5" Background="Transparent">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="*"/>
-                            </Grid.ColumnDefinitions>
+                        <!-- Acciones (sobre la versión activa) -->
+                        <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Center" Padding="2,5">
 
                             <!-- Botón Actualizar -->
-                            <Button Grid.Column="0" 
-                                    x:Uid="BtnItemUpdate" 
-                                    Click="BtnUpdate_Click" Tag="{x:Bind}" 
-                                    Background="Transparent" BorderThickness="0" HorizontalAlignment="Stretch">
+                            <Button x:Uid="BtnItemUpdate"
+                                    Click="BtnUpdate_Click" Tag="{x:Bind}"
+                                    Width="30" Padding="0" Background="Transparent" BorderThickness="0">
                                 <FontIcon Glyph="&#xE74E;" FontFamily="Segoe MDL2 Assets" FontSize="14" Foreground="#FFA500"/>
                             </Button>
 
                             <!-- Botón Restaurar -->
-                            <Button Grid.Column="1" 
-                                    x:Uid="BtnItemRestore"
-                                    Click="BtnRestore_Click" Tag="{x:Bind}" 
-                                    Background="Transparent" BorderThickness="0" HorizontalAlignment="Stretch">
+                            <Button x:Uid="BtnItemRestore"
+                                    Click="BtnRestore_Click" Tag="{x:Bind}"
+                                    Width="30" Padding="0" Background="Transparent" BorderThickness="0">
                                 <FontIcon Glyph="&#xE896;" FontFamily="Segoe MDL2 Assets" FontSize="14" Foreground="{ThemeResource SuccessColor}"/>
                             </Button>
 
                             <!-- Botón Eliminar -->
-                            <Button Grid.Column="2" 
-                                    x:Uid="BtnItemDelete"
-                                    Click="BtnDelete_Click" Tag="{x:Bind}" 
-                                    Background="Transparent" BorderThickness="0" HorizontalAlignment="Stretch">
+                            <Button x:Uid="BtnItemDelete"
+                                    Click="BtnDelete_Click" Tag="{x:Bind}"
+                                    Width="30" Padding="0" Background="Transparent" BorderThickness="0">
                                 <FontIcon Glyph="&#xE74D;" FontFamily="Segoe MDL2 Assets" FontSize="14" Foreground="{ThemeResource ErrorColor}"/>
                             </Button>
-                        </Grid>
+
+                            <!-- Botón Nueva versión -->
+                            <Button x:Uid="BtnItemNewVersion"
+                                    Click="BtnNewVersion_Click" Tag="{x:Bind}"
+                                    Width="30" Padding="0" Background="Transparent" BorderThickness="0">
+                                <FontIcon Glyph="&#xE8C8;" FontFamily="Segoe MDL2 Assets" FontSize="14" Foreground="{ThemeResource AccentColor}"/>
+                            </Button>
+
+                            <!-- Botón Historial (solo si hay más de una versión) -->
+                            <Button x:Uid="BtnItemHistory"
+                                    Click="BtnHistory_Click" Tag="{x:Bind}"
+                                    Visibility="{x:Bind HasMultipleVersions}"
+                                    Width="30" Padding="0" Background="Transparent" BorderThickness="0">
+                                <FontIcon Glyph="&#xE81C;" FontFamily="Segoe MDL2 Assets" FontSize="14" Foreground="{ThemeResource TextSecondary}"/>
+                            </Button>
+                        </StackPanel>
                         <!-- ... fin del DataTemplate ... -->
 
                     </Grid>

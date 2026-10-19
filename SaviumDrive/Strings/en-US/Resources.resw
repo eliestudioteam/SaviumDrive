@@ -267,4 +267,42 @@
 	<data name="SetMinimizeStartupDesc.Text" xml:space="preserve">
   <value>Start the app in the background when Windows starts</value>
 </data>
+	<!-- Versiones -->
+	<data name="BtnItemNewVersion.ToolTipService.ToolTip" xml:space="preserve"><value>New version</value></data>
+	<data name="BtnItemHistory.ToolTipService.ToolTip" xml:space="preserve"><value>Version history</value></data>
+	<data name="CmbItemVersion.ToolTipService.ToolTip" xml:space="preserve"><value>Active version</value></data>
+	<data name="DlgNewVersion.Title" xml:space="preserve"><value>Versions</value></data>
+	<data name="DlgNewVersion.PrimaryButtonText" xml:space="preserve"><value>Create version</value></data>
+	<data name="DlgNewVersion.CloseButtonText" xml:space="preserve"><value>Cancel</value></data>
+	<data name="DlgNewVersionDesc.Header" xml:space="preserve"><value>Description</value></data>
+	<data name="DlgNewVersionDesc.PlaceholderText" xml:space="preserve"><value>What's different in this version? E.g. a separate hardcore run</value></data>
+	<data name="DlgNewVersionNext" xml:space="preserve"><value>Will be saved as {0}</value></data>
+	<data name="DlgNewVersionMsgOne" xml:space="preserve"><value>You already have a version of {0} in the cloud. Do you want to make another one? The current contents of your save folder will be uploaded as {1}, without touching the previous version.</value></data>
+	<data name="DlgNewVersionMsgMany" xml:space="preserve"><value>You already have {1} versions of {0} in the cloud. Do you want to make another one? The current contents of your save folder will be uploaded as {2}, without touching the previous ones.</value></data>
+	<data name="HistDescPlaceholder" xml:space="preserve"><value>What's different in this version? E.g. a separate hardcore run</value></data>
+	<data name="VerSwitchTitle" xml:space="preserve"><value>Version changed</value></data>
+	<data name="VerSwitchMsg" xml:space="preserve"><value>From now on, every action you take will apply to {0}.</value></data>
+	<data name="VerSwitchDontShow" xml:space="preserve"><value>Don't show again</value></data>
+	<data name="MsgBusyVersion" xml:space="preserve"><value>An operation is in progress. Wait for it to finish before switching or creating versions.</value></data>
+	<data name="AlertLocalFolderMissing" xml:space="preserve"><value>The save folder was not found on this PC:\n{0}</value></data>
+	<data name="AlertVersionCreated" xml:space="preserve"><value>{0} was created in the cloud. It is now the active version.</value></data>
+	<data name="AlertVersionDeleted" xml:space="preserve"><value>{0} was deleted from the cloud.</value></data>
+	<data name="ConfirmDeleteVersionMsg" xml:space="preserve"><value>This will delete {0} from Google Drive. Other versions and the files on your PC will NOT be touched.</value></data>
+	<data name="HistBack.Text" xml:space="preserve"><value>Back to library</value></data>
+	<data name="HistTitle.Text" xml:space="preserve"><value>Version history</value></data>
+	<data name="HistSummary" xml:space="preserve"><value>{0} versions · Active: {1}</value></data>
+	<data name="HistActiveTag.Text" xml:space="preserve"><value>ACTIVE</value></data>
+	<data name="HistCreated" xml:space="preserve"><value>Created: {0}</value></data>
+	<data name="HistLastSaved" xml:space="preserve"><value>Last saved: {0}</value></data>
+	<data name="HistNoDesc" xml:space="preserve"><value>No description</value></data>
+	<data name="HistViewDesc.Content" xml:space="preserve"><value>View description</value></data>
+	<data name="HistEditDesc.Content" xml:space="preserve"><value>Edit</value></data>
+	<data name="HistUseBtn.Content" xml:space="preserve"><value>Use this version</value></data>
+	<data name="HistDeleteBtn.ToolTipService.ToolTip" xml:space="preserve"><value>Delete version</value></data>
+	<data name="HistDescTitle" xml:space="preserve"><value>{0} description</value></data>
+	<data name="HistEditBtn" xml:space="preserve"><value>Edit description</value></data>
+	<data name="HistEditTitle" xml:space="preserve"><value>Edit {0} description</value></data>
+	<data name="HistSaveBtn" xml:space="preserve"><value>Save</value></data>
+	<data name="SetVersionNotice.Text" xml:space="preserve"><value>Notify when switching versions</value></data>
+	<data name="SetVersionNoticeDesc.Text" xml:space="preserve"><value>Shows a notice saying that actions will apply to the new active version</value></data>
 </root>

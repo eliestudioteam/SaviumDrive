@@ -129,14 +129,27 @@ namespace SaviumDrive.Services
                     NotifyProgress(nombre, porcentaje, "StatusUploading", string.Format(GetStr("MsgUploadingSize"), nombreArchivo, progresoStr), true);
                 });
 
+                var ahora = DateTime.UtcNow;
                 var nuevoJuego = new GameConfig
                 {
                     Name = nombre,
                     LocalPath = rutaLocal,
                     DriveFolderId = idJuegoRaiz,
                     CoverUrl = coverUrl,
-                    LastBackup = DateTime.UtcNow
+                    LastBackup = ahora
                 };
+
+                // V1 vive en la carpeta raíz del juego (igual que los backups anteriores a las versiones)
+                var v1 = new GameVersion
+                {
+                    Number = 1,
+                    CreatedAt = ahora,
+                    LastBackup = ahora,
+                    DriveFolderId = idJuegoRaiz
+                };
+                nuevoJuego.Versions.Add(v1);
+                nuevoJuego.ActiveVersionId = v1.Id;
+                nuevoJuego.LastVersionNumber = 1;
 
                 var juegos = await CargarSoloLocal();
                 juegos.Add(nuevoJuego);
@@ -244,19 +257,21 @@ namespace SaviumDrive.Services
         }
 
         // 🔥 ACTUALIZAR BACKUP CON CARPETA TEMPORAL (No destruir archivos viejos)
-        public async Task ActualizarBackup(GameConfig juego, CancellationToken token)
+        public async Task ActualizarBackup(GameConfig juego, GameVersion version, CancellationToken token)
         {
             string idCarpetaTemporal = null;
             string nombreCarpetaOriginal = null;
+            string nombreProgreso = $"{juego.Name} {version?.Label}";
 
             try
             {
-                NotifyProgress(juego.Name, 0, "StatusUploading", GetStr("MsgPrepUpdate"), true);
+                NotifyProgress(nombreProgreso, 0, "StatusUploading", GetStr("MsgPrepUpdate"), true);
 
-                if (string.IsNullOrEmpty(juego.DriveFolderId)) throw new Exception("ID Inválido");
+                if (version == null || string.IsNullOrEmpty(version.DriveFolderId)) throw new Exception("ID Inválido");
+                string idBase = version.DriveFolderId;
 
                 // 1️⃣ OBTENER CARPETA ORIGINAL (la que contiene los archivos del juego)
-                var itemsRaiz = await _driveManager.ListarContenidoCarpeta(juego.DriveFolderId);
+                var itemsRaiz = await _driveManager.ListarContenidoCarpeta(idBase);
                 var infoCarpetaLocal = new DirectoryInfo(juego.LocalPath);
                 var carpetaOriginal = itemsRaiz.FirstOrDefault(i => i.Name == infoCarpetaLocal.Name && i.MimeType == "application/vnd.google-apps.folder");
 
@@ -270,7 +285,7 @@ namespace SaviumDrive.Services
                 {
                     await _driveManager.EliminarArchivoOCarpeta(resto.Id);
                 }
-                idCarpetaTemporal = _driveManager.GetOrCreateFolder(nombreTemporal, juego.DriveFolderId);
+                idCarpetaTemporal = _driveManager.GetOrCreateFolder(nombreTemporal, idBase);
 
                 // 3️⃣ SUBIR CONTENIDO NUEVO A LA CARPETA TEMPORAL
                 long totalBytes = GetDirectorySize(juego.LocalPath);
@@ -284,7 +299,7 @@ namespace SaviumDrive.Services
                     int porcentaje = totalBytes > 0 ? (int)((double)bytesSubidos / totalBytes * 100) : 0;
                     string progresoStr = $"{FormatBytes(bytesSubidos)} / {totalStr}";
 
-                    NotifyProgress(juego.Name, porcentaje, "StatusUploading", string.Format(GetStr("MsgUploadingSize"), nombreArchivo, progresoStr), true);
+                    NotifyProgress(nombreProgreso, porcentaje, "StatusUploading", string.Format(GetStr("MsgUploadingSize"), nombreArchivo, progresoStr), true);
                 });
 
                 // 4️⃣ TODO BIEN: Intercambiar carpetas sin perder el backup viejo si algo falla
@@ -306,15 +321,16 @@ namespace SaviumDrive.Services
                 // c) Borrar la vieja (si falla, solo queda una carpeta OLD_ sobrante)
                 try { await _driveManager.EliminarArchivoOCarpeta(carpetaOriginal.Id); } catch { }
 
-                // 5️⃣ Actualizar fecha
-                juego.LastBackup = DateTime.UtcNow;
-                var juegos = await CargarSoloLocal();
-                var existente = juegos.FirstOrDefault(j => j.Id == juego.Id);
-                if (existente != null)
+                // 5️⃣ Actualizar fecha (de la versión y del juego)
+                var ahora = DateTime.UtcNow;
+                juego.LastBackup = ahora;
+                version.LastBackup = ahora;
+                await ModificarJuego(juego.Id, j =>
                 {
-                    existente.LastBackup = juego.LastBackup;
-                    await GuardarLibreria(juegos);
-                }
+                    j.LastBackup = ahora;
+                    var v = j.FindVersion(version.Id);
+                    if (v != null) v.LastBackup = ahora;
+                });
             }
             catch (Exception)
             {
@@ -337,17 +353,18 @@ namespace SaviumDrive.Services
 
 
         // 🔥 RESTAURAR JUEGO CON CARPETA TEMPORAL LOCAL Y PROGRESO DETALLADO
-        public async Task RestaurarJuego(GameConfig juego, CancellationToken token)
+        public async Task RestaurarJuego(GameConfig juego, GameVersion version, CancellationToken token)
         {
             string rutaCarpetaTemporal = null;
             string rutaCarpetaOriginal = juego.LocalPath;
             string nombreCarpetaTemporal = $"TEMP_{new DirectoryInfo(juego.LocalPath).Name}";
+            string nombreProgreso = $"{juego.Name} {version?.Label}";
 
             try
             {
-                NotifyProgress(juego.Name, 0, "StatusDownloading", GetStr("MsgConnectingDrive"), true);
+                NotifyProgress(nombreProgreso, 0, "StatusDownloading", GetStr("MsgConnectingDrive"), true);
 
-                if (string.IsNullOrEmpty(juego.DriveFolderId)) throw new Exception("ID inválido");
+                if (version == null || string.IsNullOrEmpty(version.DriveFolderId)) throw new Exception("ID inválido");
 
                 // 1️⃣ CREAR CARPETA TEMPORAL LOCAL (junto a la carpeta original)
                 string directorioContenedor = Path.GetDirectoryName(juego.LocalPath);
@@ -362,10 +379,13 @@ namespace SaviumDrive.Services
                 Directory.CreateDirectory(rutaCarpetaTemporal);
 
                 // 2️⃣ OBTENER CARPETA ORIGEN Y CALCULAR TAMAÑO TOTAL
-                var itemsRaiz = await _driveManager.ListarContenidoCarpeta(juego.DriveFolderId);
+                var itemsRaiz = await _driveManager.ListarContenidoCarpeta(version.DriveFolderId);
                 var nombreCarpetaLocal = new DirectoryInfo(juego.LocalPath).Name;
                 var carpetaContenedora = itemsRaiz.FirstOrDefault(i => i.Name == nombreCarpetaLocal && i.MimeType == "application/vnd.google-apps.folder");
-                string idOrigen = carpetaContenedora != null ? carpetaContenedora.Id : juego.DriveFolderId;
+
+                // Sin respaldo a la carpeta del juego: en V1 contiene también las otras versiones
+                if (carpetaContenedora == null) throw new Exception("El backup de esta versión no se encontró en Drive");
+                string idOrigen = carpetaContenedora.Id;
 
                 // 🔥 CALCULAR TAMAÑO TOTAL ANTES DE DESCARGAR
                 long totalBytes = await CalcularTamañoDirectorioEnDrive(idOrigen);
@@ -373,7 +393,7 @@ namespace SaviumDrive.Services
                 int archivosDescargados = 0;
                 string totalStr = FormatBytes(totalBytes);
 
-                NotifyProgress(juego.Name, 0, "StatusDownloading", GetStr("MsgScanning"), true);
+                NotifyProgress(nombreProgreso, 0, "StatusDownloading", GetStr("MsgScanning"), true);
 
                 // 3️⃣ DESCARGAR ARCHIVOS A LA CARPETA TEMPORAL CON PROGRESO
                 await DescargarDirectorioRecursivo(idOrigen, rutaCarpetaTemporal, token, (rutaArchivo, pesoArchivo) =>
@@ -385,7 +405,7 @@ namespace SaviumDrive.Services
                     string progresoStr = $"{FormatBytes(bytesDescargados)} / {totalStr}";
                     string nombreArchivo = Path.GetFileName(rutaArchivo);
 
-                    NotifyProgress(juego.Name, porcentaje, "StatusDownloading",
+                    NotifyProgress(nombreProgreso, porcentaje, "StatusDownloading",
                         string.Format(GetStr("MsgDownloadingSize"), nombreArchivo, progresoStr), true);
                 });
 
@@ -463,9 +483,9 @@ namespace SaviumDrive.Services
                 {
                     string json = await File.ReadAllTextAsync(_localFilePath);
                     var container = JsonConvert.DeserializeObject<LibraryContainer>(json);
-                    if (container != null && container.Games != null) return container.Games;
+                    if (container != null && container.Games != null) return MigrarVersiones(container.Games);
                     var listaVieja = JsonConvert.DeserializeObject<List<GameConfig>>(json);
-                    return listaVieja ?? new List<GameConfig>();
+                    return MigrarVersiones(listaVieja ?? new List<GameConfig>());
                 }
                 catch { }
             }
@@ -608,6 +628,167 @@ namespace SaviumDrive.Services
                 await GuardarLibreria(juegos);
             }
         }
+        // ===================== VERSIONES =====================
+
+        private static List<GameConfig> MigrarVersiones(List<GameConfig> juegos)
+        {
+            foreach (var j in juegos) j?.EnsureVersions();
+            return juegos;
+        }
+
+        /// <summary>Carga la librería, aplica el cambio al juego indicado y la guarda (local + nube).</summary>
+        private async Task<GameConfig> ModificarJuego(string juegoId, Action<GameConfig> cambio)
+        {
+            var juegos = await CargarSoloLocal();
+            var existente = juegos.FirstOrDefault(j => j.Id == juegoId);
+            if (existente == null) return null;
+
+            cambio(existente);
+            await GuardarLibreria(juegos);
+            return existente;
+        }
+
+        /// <summary>Sube la carpeta local como una versión nueva (V2, V3...) y la deja como activa.</summary>
+        public async Task<GameVersion> CrearNuevaVersion(GameConfig juego, string descripcion, CancellationToken token)
+        {
+            string idCarpetaVersion = null;
+            int numero = juego.NextVersionNumber;
+            string nombreProgreso = $"{juego.Name} V{numero}";
+
+            try
+            {
+                NotifyProgress(nombreProgreso, 0, "StatusUploading", GetStr("MsgScanning"), true);
+
+                if (string.IsNullOrEmpty(juego.DriveFolderId)) throw new Exception("ID Inválido");
+                if (!Directory.Exists(juego.LocalPath)) throw new DirectoryNotFoundException(juego.LocalPath);
+
+                // Drive: <Juego>/Version_N/<carpeta de partidas>
+                idCarpetaVersion = _driveManager.GetOrCreateFolder($"Version_{numero}", juego.DriveFolderId);
+                string idContenido = _driveManager.GetOrCreateFolder(new DirectoryInfo(juego.LocalPath).Name, idCarpetaVersion);
+
+                long totalBytes = GetDirectorySize(juego.LocalPath);
+                long bytesSubidos = 0;
+                string totalStr = FormatBytes(totalBytes);
+
+                await SubirDirectorioRecursivo(juego.LocalPath, idContenido, token, (nombreArchivo, pesoArchivo) =>
+                {
+                    token.ThrowIfCancellationRequested();
+                    bytesSubidos += pesoArchivo;
+                    int porcentaje = totalBytes > 0 ? (int)((double)bytesSubidos / totalBytes * 100) : 0;
+                    string progresoStr = $"{FormatBytes(bytesSubidos)} / {totalStr}";
+
+                    NotifyProgress(nombreProgreso, porcentaje, "StatusUploading", string.Format(GetStr("MsgUploadingSize"), nombreArchivo, progresoStr), true);
+                });
+
+                var ahora = DateTime.UtcNow;
+                var nueva = new GameVersion
+                {
+                    Number = numero,
+                    Description = (descripcion ?? "").Trim(),
+                    CreatedAt = ahora,
+                    LastBackup = ahora,
+                    DriveFolderId = idCarpetaVersion
+                };
+
+                await ModificarJuego(juego.Id, j =>
+                {
+                    j.Versions.Add(nueva);
+                    j.ActiveVersionId = nueva.Id;
+                    j.LastVersionNumber = Math.Max(j.LastVersionNumber, numero);
+                    j.LastBackup = ahora;
+                });
+
+                return nueva;
+            }
+            catch (Exception)
+            {
+                // ROLLBACK (cancelación o error): no dejar una versión a medias en Drive
+                if (!string.IsNullOrEmpty(idCarpetaVersion))
+                {
+                    try { await _driveManager.EliminarArchivoOCarpeta(idCarpetaVersion); } catch { }
+                }
+                throw;
+            }
+            finally
+            {
+                NotifyProgress("", 0, "", "", false);
+            }
+        }
+
+        /// <summary>
+        /// Borra una sola versión. Si es la única, se elimina el juego completo.
+        /// Devuelve true si se eliminó el juego entero.
+        /// </summary>
+        public async Task<bool> EliminarVersion(GameConfig juego, GameVersion version)
+        {
+            if (juego.Versions == null || juego.Versions.Count <= 1)
+            {
+                await EliminarJuego(juego);
+                return true;
+            }
+
+            try
+            {
+                NotifyProgress($"{juego.Name} {version.Label}", -1, "StatusDeleting", GetStr("MsgDeleting"), true);
+
+                if (version.DriveFolderId == juego.DriveFolderId)
+                {
+                    // V1 vive en la raíz del juego junto a las demás versiones:
+                    // borrar todo lo de la raíz excepto las carpetas de las otras versiones
+                    var idsOtrasVersiones = juego.Versions
+                        .Where(v => v.Id != version.Id)
+                        .Select(v => v.DriveFolderId)
+                        .ToHashSet();
+
+                    var items = await _driveManager.ListarContenidoCarpeta(juego.DriveFolderId);
+                    foreach (var item in items.Where(i => !idsOtrasVersiones.Contains(i.Id)))
+                    {
+                        await _driveManager.EliminarArchivoOCarpeta(item.Id);
+                    }
+                }
+                else if (!string.IsNullOrEmpty(version.DriveFolderId))
+                {
+                    await _driveManager.EliminarArchivoOCarpeta(version.DriveFolderId);
+                }
+            }
+            finally
+            {
+                NotifyProgress("", 0, "", "", false);
+            }
+
+            await ModificarJuego(juego.Id, j =>
+            {
+                j.Versions.RemoveAll(v => v.Id == version.Id);
+                if (j.ActiveVersionId == version.Id)
+                {
+                    // Pasar a la versión más reciente que queda
+                    j.ActiveVersionId = j.Versions.OrderByDescending(v => v.Number).First().Id;
+                }
+            });
+
+            return false;
+        }
+
+        public async Task ActualizarDescripcion(GameConfig juego, GameVersion version, string descripcion)
+        {
+            string texto = (descripcion ?? "").Trim();
+            version.Description = texto;
+            await ModificarJuego(juego.Id, j =>
+            {
+                var v = j.FindVersion(version.Id);
+                if (v != null) v.Description = texto;
+            });
+        }
+
+        public async Task CambiarVersionActiva(GameConfig juego, GameVersion version)
+        {
+            juego.ActiveVersionId = version.Id;
+            await ModificarJuego(juego.Id, j =>
+            {
+                if (j.FindVersion(version.Id) != null) j.ActiveVersionId = version.Id;
+            });
+        }
+
         public async Task GuardarLibreria(List<GameConfig> juegos)
         {
             DateTime ahora = DateTime.UtcNow;

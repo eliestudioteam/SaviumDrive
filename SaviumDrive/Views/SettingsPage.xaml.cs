@@ -30,6 +30,7 @@ namespace SaviumDrive.Views
             var config = SettingsService.Current;
             if (TglWindowsStart != null) TglWindowsStart.IsOn = config.StartWithWindows;
             if (TglTray != null) TglTray.IsOn = config.MinimizeToTray;
+            if (TglVersionNotice != null) TglVersionNotice.IsOn = config.ShowVersionSwitchNotice;
 
             // ✅ AGREGAR ESTA LÍNEA QUE FALTABA
             if (TglMinimizeOnStartup != null) TglMinimizeOnStartup.IsOn = config.MinimizeOnStartup;
@@ -67,6 +68,7 @@ namespace SaviumDrive.Views
             var config = SettingsService.Current;
             if (TglWindowsStart != null) config.StartWithWindows = TglWindowsStart.IsOn;
             if (TglTray != null) config.MinimizeToTray = TglTray.IsOn;
+            if (TglVersionNotice != null) config.ShowVersionSwitchNotice = TglVersionNotice.IsOn;
 
             // 🔥 GUARDAR: Minimizar al inicio con Windows
             if (TglMinimizeOnStartup != null) config.MinimizeOnStartup = TglMinimizeOnStartup.IsOn;
