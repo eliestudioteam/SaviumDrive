@@ -305,4 +305,8 @@
 	<data name="HistSaveBtn" xml:space="preserve"><value>Save</value></data>
 	<data name="SetVersionNotice.Text" xml:space="preserve"><value>Notify when switching versions</value></data>
 	<data name="SetVersionNoticeDesc.Text" xml:space="preserve"><value>Shows a notice saying that actions will apply to the new active version</value></data>
+	<!-- Aviso antes de restaurar -->
+	<data name="RestoreNewerTitle" xml:space="preserve"><value>Your save on this PC is newer</value></data>
+	<data name="RestoreNewerMsg" xml:space="preserve"><value>The files on your PC were modified on {0}, after the last cloud save of {1} ({2}).\n\nIf you restore, you will lose that progress. To keep it, use Save first.\n\nAre you sure you want to replace it?</value></data>
+	<data name="RestoreNewerBtn" xml:space="preserve"><value>Replace anyway</value></data>
 </root>
