@@ -67,9 +67,14 @@
             </Border>
         </Grid>
 
-        <TextBox x:Name="TxtGamePath" 
-                 x:Uid="DlgGamePath"
-                 IsReadOnly="True"/>
+        <StackPanel Spacing="4">
+            <TextBox x:Name="TxtGamePath"
+                     x:Uid="DlgGamePath"
+                     IsReadOnly="True"/>
+            <!-- Estado de la búsqueda automática de la carpeta (Ludusavi) -->
+            <TextBlock x:Name="TxtPathHint" FontSize="11" TextWrapping="Wrap" MaxWidth="350"
+                       Foreground="{ThemeResource TextSecondary}" Visibility="Collapsed"/>
+        </StackPanel>
 
         <Button x:Name="BtnBrowse"
                 x:Uid="DlgBrowseBtn"

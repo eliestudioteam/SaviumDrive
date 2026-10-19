@@ -17,6 +17,10 @@ namespace SaviumDrive.Views
     public sealed partial class LibraryPage : Page
     {
         public ObservableCollection<GameConfig> Juegos { get; set; }
+
+        // Biblioteca completa; Juegos es lo que se muestra tras buscar y ordenar
+        private System.Collections.Generic.List<GameConfig> _todos = new System.Collections.Generic.List<GameConfig>();
+        private bool _cargandoOrden;
         private CancellationTokenSource _cts;
         private bool _isBusy = false;
 
@@ -25,6 +29,13 @@ namespace SaviumDrive.Views
             this.InitializeComponent();
             Juegos = new ObservableCollection<GameConfig>();
             this.Loaded += LibraryPage_Loaded;
+
+            // Recordar el orden elegido
+            _cargandoOrden = true;
+            var orden = LibraryFilter.DesdeTexto(SettingsService.Current.LibrarySort);
+            CmbOrden.SelectedItem = CmbOrden.Items.OfType<ComboBoxItem>().FirstOrDefault(i => (string)i.Tag == orden.ToString())
+                                    ?? CmbOrden.Items[0];
+            _cargandoOrden = false;
         }
 
         // 🔥 AL ENTRAR: RECUPERAR ESTADO O INICIAR SYNC
@@ -143,20 +154,46 @@ namespace SaviumDrive.Views
 
         private void ActualizarLista(System.Collections.Generic.List<GameConfig> lista)
         {
+            _todos = lista ?? new System.Collections.Generic.List<GameConfig>();
+            AplicarFiltro();
+        }
+
+        /// <summary>Muestra los juegos que coinciden con la búsqueda, en el orden elegido.</summary>
+        private void AplicarFiltro()
+        {
+            var orden = (CmbOrden?.SelectedItem as ComboBoxItem)?.Tag is string tag ? LibraryFilter.DesdeTexto(tag) : OrdenBiblioteca.NombreAZ;
+            var visibles = LibraryFilter.Aplicar(_todos, TxtBuscar?.Text, orden);
+
             Juegos.Clear();
-            foreach (var j in lista) Juegos.Add(j);
+            foreach (var j in visibles) Juegos.Add(j);
             ActualizarEstadoVacio();
+        }
+
+        private void TxtBuscar_TextChanged(AutoSuggestBox sender, AutoSuggestBoxTextChangedEventArgs args)
+        {
+            if (args.Reason == AutoSuggestionBoxTextChangeReason.UserInput) AplicarFiltro();
+        }
+
+        private void CmbOrden_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (_cargandoOrden || CmbOrden.SelectedItem is not ComboBoxItem item) return;
+            SettingsService.Current.LibrarySort = (string)item.Tag;
+            SettingsService.Save();
+            AplicarFiltro();
         }
 
         private void ActualizarEstadoVacio()
         {
             if (EmptyState == null) return;
-            EmptyState.Visibility = Juegos.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+            bool bibliotecaVacia = _todos.Count == 0;
+            EmptyState.Visibility = bibliotecaVacia ? Visibility.Visible : Visibility.Collapsed;
+            NoResultsState.Visibility = !bibliotecaVacia && Juegos.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
         }
 
         private bool NombreYaExiste(string nombre)
         {
-            return Juegos.Any(j => j.Name.Equals(nombre, StringComparison.OrdinalIgnoreCase));
+            // Contra toda la biblioteca, no solo los juegos que se ven con la búsqueda
+            return _todos.Any(j => j.Name.Equals(nombre, StringComparison.OrdinalIgnoreCase));
         }
 
         private Style GetStandardButtonStyle() => Application.Current.Resources["StandardBtnStyle"] as Style;
@@ -238,8 +275,8 @@ namespace SaviumDrive.Views
                                 _cts.Token // ⬅️ ESTO FALTABA
                             );
 
-                            Juegos.Add(nuevoJuego);
-                            ActualizarEstadoVacio();
+                            _todos.Add(nuevoJuego);
+                            AplicarFiltro();
                             await MostrarAlerta(ResourceHelper.GetString("AlertSuccess"), ResourceHelper.GetString("AlertBackupCreated"));
                         }
                         catch (OperationCanceledException)
@@ -264,6 +301,8 @@ namespace SaviumDrive.Views
         {
             if (sender is Button btn && btn.Tag is GameConfig juego)
             {
+                if (juego.NeedsRelink && !await PedirCarpetaEnEstePc(juego, paraRestaurar: false)) return;
+
                 ContentDialog updateDialog = new ContentDialog
                 {
                     Title = ResourceHelper.GetString("ConfirmUpdateTitle"),
@@ -285,8 +324,11 @@ namespace SaviumDrive.Views
                     try
                     {
                         // 🔥 PASAR EL TOKEN
-                        await App.LibraryService.ActualizarBackup(juego, juego.ActiveVersion, _cts.Token);
-                        await MostrarAlerta(ResourceHelper.GetString("AlertSuccess"), ResourceHelper.GetString("AlertUpdateSuccess"));
+                        var resultado = await App.LibraryService.ActualizarBackup(juego, juego.ActiveVersion, _cts.Token);
+                        await MostrarAlerta(ResourceHelper.GetString("AlertSuccess"),
+                            resultado.YaAlDia
+                                ? ResourceHelper.GetString("AlertUpdateNoChanges")
+                                : ResourceHelper.GetString("AlertUpdateIncremental", resultado.Subidos, resultado.SinCambios, resultado.Eliminados));
                     }
                     catch (OperationCanceledException)
                     {
@@ -308,11 +350,27 @@ namespace SaviumDrive.Views
         {
             if (sender is Button btn && btn.Tag is GameConfig juego)
             {
+                if (juego.NeedsRelink && !await PedirCarpetaEnEstePc(juego, paraRestaurar: true)) return;
+
+                // ¿Las partidas de este PC son más nuevas que el backup? Restaurar perdería ese progreso
+                var version = juego.ActiveVersion;
+                DateTime? ultimaLocal = SaveTimestamps.UltimaModificacion(juego.RutaEnEstePc);
+                bool localMasReciente = version != null && SaveTimestamps.LocalEsMasReciente(ultimaLocal, version.LastBackup);
+
                 ContentDialog restoreDialog = new ContentDialog
                 {
-                    Title = $"{ResourceHelper.GetString("ConfirmRestoreTitle")} — {juego.DisplayName}",
-                    Content = ResourceHelper.GetString("ConfirmRestoreMsg", juego.LocalPath),
-                    PrimaryButtonText = ResourceHelper.GetString("ConfirmRestoreBtn"),
+                    Title = localMasReciente
+                        ? ResourceHelper.GetString("RestoreNewerTitle")
+                        : $"{ResourceHelper.GetString("ConfirmRestoreTitle")} — {juego.DisplayName}",
+                    Content = localMasReciente
+                        ? ResourceHelper.GetString("RestoreNewerMsg",
+                            ultimaLocal.Value.ToLocalTime().ToString("g"),
+                            juego.DisplayName,
+                            version.LastBackup.ToLocalTime().ToString("g"))
+                        : ResourceHelper.GetString("ConfirmRestoreMsg", juego.RutaEnEstePc),
+                    PrimaryButtonText = localMasReciente
+                        ? ResourceHelper.GetString("RestoreNewerBtn")
+                        : ResourceHelper.GetString("ConfirmRestoreBtn"),
                     CloseButtonText = ResourceHelper.GetString("ConfirmCancelBtn"),
                     DefaultButton = ContentDialogButton.Close,
                     XamlRoot = this.XamlRoot,
@@ -530,11 +588,7 @@ namespace SaviumDrive.Views
                 return;
             }
 
-            if (juego.NeedsRelink)
-            {
-                await MostrarAlerta(ResourceHelper.GetString("AlertError"), ResourceHelper.GetString("AlertLocalFolderMissing", juego.LocalPath));
-                return;
-            }
+            if (juego.NeedsRelink && !await PedirCarpetaEnEstePc(juego, paraRestaurar: false)) return;
 
             var dialog = new NewVersionDialog(juego) { XamlRoot = this.XamlRoot };
             if (await dialog.ShowAsync() != ContentDialogResult.Primary) return;
@@ -568,6 +622,66 @@ namespace SaviumDrive.Views
             if (sender is Button btn && btn.Tag is GameConfig juego && App.MainWindow is MainWindow main)
             {
                 main.NavegarExterna(typeof(VersionHistoryPage), "Library", juego.Id);
+            }
+        }
+
+        // ===================== CARPETA EN ESTE PC =====================
+
+        private async void BtnRelink_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is not Button btn || btn.Tag is not GameConfig juego) return;
+            if (await ElegirCarpetaEnEstePc(juego)) await RecargarLista();
+        }
+
+        /// <summary>
+        /// La carpeta de partidas no existe en este PC: explicarlo y pedir que se elija.
+        /// Para restaurar puede ser una carpeta vacía (ahí se descargará el backup).
+        /// </summary>
+        private async Task<bool> PedirCarpetaEnEstePc(GameConfig juego, bool paraRestaurar)
+        {
+            var dialogo = new ContentDialog
+            {
+                Title = ResourceHelper.GetString("RelinkTitle"),
+                Content = ResourceHelper.GetString(paraRestaurar ? "RelinkMsgRestore" : "RelinkMsg", juego.RutaEnEstePc),
+                PrimaryButtonText = ResourceHelper.GetString("RelinkChooseBtn"),
+                CloseButtonText = ResourceHelper.GetString("ConfirmCancelBtn"),
+                DefaultButton = ContentDialogButton.Primary,
+                XamlRoot = this.XamlRoot,
+                RequestedTheme = SettingsService.Current.DarkMode ? ElementTheme.Dark : ElementTheme.Light,
+                PrimaryButtonStyle = GetStandardButtonStyle(),
+                CloseButtonStyle = GetStandardButtonStyle()
+            };
+
+            if (await dialogo.ShowAsync() != ContentDialogResult.Primary) return false;
+            bool elegida = await ElegirCarpetaEnEstePc(juego);
+            if (elegida) await RecargarLista();
+            return elegida;
+        }
+
+        /// <summary>Abre el selector de carpetas y guarda la elegida solo para este PC.</summary>
+        private async Task<bool> ElegirCarpetaEnEstePc(GameConfig juego)
+        {
+            if (App.MainWindow == null) return false;
+
+            var picker = new Windows.Storage.Pickers.FolderPicker
+            {
+                SuggestedStartLocation = Windows.Storage.Pickers.PickerLocationId.DocumentsLibrary
+            };
+            picker.FileTypeFilter.Add("*");
+            WinRT.Interop.InitializeWithWindow.Initialize(picker, WinRT.Interop.WindowNative.GetWindowHandle(App.MainWindow));
+
+            var carpeta = await picker.PickSingleFolderAsync();
+            if (carpeta == null) return false;
+
+            try
+            {
+                await App.LibraryService.CambiarRutaEnEstePc(juego, carpeta.Path);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                await MostrarAlerta(ResourceHelper.GetString("AlertError"), ex.Message);
+                return false;
             }
         }
 
