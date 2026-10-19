@@ -287,8 +287,11 @@ namespace SaviumDrive.Views
                     try
                     {
                         // 🔥 PASAR EL TOKEN
-                        await App.LibraryService.ActualizarBackup(juego, juego.ActiveVersion, _cts.Token);
-                        await MostrarAlerta(ResourceHelper.GetString("AlertSuccess"), ResourceHelper.GetString("AlertUpdateSuccess"));
+                        var resultado = await App.LibraryService.ActualizarBackup(juego, juego.ActiveVersion, _cts.Token);
+                        await MostrarAlerta(ResourceHelper.GetString("AlertSuccess"),
+                            resultado.YaAlDia
+                                ? ResourceHelper.GetString("AlertUpdateNoChanges")
+                                : ResourceHelper.GetString("AlertUpdateIncremental", resultado.Subidos, resultado.SinCambios, resultado.Eliminados));
                     }
                     catch (OperationCanceledException)
                     {
@@ -312,11 +315,25 @@ namespace SaviumDrive.Views
             {
                 if (juego.NeedsRelink && !await PedirCarpetaEnEstePc(juego, paraRestaurar: true)) return;
 
+                // ¿Las partidas de este PC son más nuevas que el backup? Restaurar perdería ese progreso
+                var version = juego.ActiveVersion;
+                DateTime? ultimaLocal = SaveTimestamps.UltimaModificacion(juego.RutaEnEstePc);
+                bool localMasReciente = version != null && SaveTimestamps.LocalEsMasReciente(ultimaLocal, version.LastBackup);
+
                 ContentDialog restoreDialog = new ContentDialog
                 {
-                    Title = $"{ResourceHelper.GetString("ConfirmRestoreTitle")} — {juego.DisplayName}",
-                    Content = ResourceHelper.GetString("ConfirmRestoreMsg", juego.RutaEnEstePc),
-                    PrimaryButtonText = ResourceHelper.GetString("ConfirmRestoreBtn"),
+                    Title = localMasReciente
+                        ? ResourceHelper.GetString("RestoreNewerTitle")
+                        : $"{ResourceHelper.GetString("ConfirmRestoreTitle")} — {juego.DisplayName}",
+                    Content = localMasReciente
+                        ? ResourceHelper.GetString("RestoreNewerMsg",
+                            ultimaLocal.Value.ToLocalTime().ToString("g"),
+                            juego.DisplayName,
+                            version.LastBackup.ToLocalTime().ToString("g"))
+                        : ResourceHelper.GetString("ConfirmRestoreMsg", juego.RutaEnEstePc),
+                    PrimaryButtonText = localMasReciente
+                        ? ResourceHelper.GetString("RestoreNewerBtn")
+                        : ResourceHelper.GetString("ConfirmRestoreBtn"),
                     CloseButtonText = ResourceHelper.GetString("ConfirmCancelBtn"),
                     DefaultButton = ContentDialogButton.Close,
                     XamlRoot = this.XamlRoot,
