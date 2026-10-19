@@ -237,7 +237,7 @@ namespace SaviumDrive.Views
 
             var rutaText = new TextBlock
             {
-                Text = juego.LocalPath,
+                Text = juego.RutaEnEstePc,
                 FontSize = 11,
                 // ✅ Blanco en Light, gris claro en Dark
                 Foreground = new SolidColorBrush(isDark ?

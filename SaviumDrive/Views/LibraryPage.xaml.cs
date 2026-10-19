@@ -264,6 +264,8 @@ namespace SaviumDrive.Views
         {
             if (sender is Button btn && btn.Tag is GameConfig juego)
             {
+                if (juego.NeedsRelink && !await PedirCarpetaEnEstePc(juego, paraRestaurar: false)) return;
+
                 ContentDialog updateDialog = new ContentDialog
                 {
                     Title = ResourceHelper.GetString("ConfirmUpdateTitle"),
@@ -308,10 +310,12 @@ namespace SaviumDrive.Views
         {
             if (sender is Button btn && btn.Tag is GameConfig juego)
             {
+                if (juego.NeedsRelink && !await PedirCarpetaEnEstePc(juego, paraRestaurar: true)) return;
+
                 ContentDialog restoreDialog = new ContentDialog
                 {
                     Title = $"{ResourceHelper.GetString("ConfirmRestoreTitle")} — {juego.DisplayName}",
-                    Content = ResourceHelper.GetString("ConfirmRestoreMsg", juego.LocalPath),
+                    Content = ResourceHelper.GetString("ConfirmRestoreMsg", juego.RutaEnEstePc),
                     PrimaryButtonText = ResourceHelper.GetString("ConfirmRestoreBtn"),
                     CloseButtonText = ResourceHelper.GetString("ConfirmCancelBtn"),
                     DefaultButton = ContentDialogButton.Close,
@@ -530,11 +534,7 @@ namespace SaviumDrive.Views
                 return;
             }
 
-            if (juego.NeedsRelink)
-            {
-                await MostrarAlerta(ResourceHelper.GetString("AlertError"), ResourceHelper.GetString("AlertLocalFolderMissing", juego.LocalPath));
-                return;
-            }
+            if (juego.NeedsRelink && !await PedirCarpetaEnEstePc(juego, paraRestaurar: false)) return;
 
             var dialog = new NewVersionDialog(juego) { XamlRoot = this.XamlRoot };
             if (await dialog.ShowAsync() != ContentDialogResult.Primary) return;
@@ -568,6 +568,66 @@ namespace SaviumDrive.Views
             if (sender is Button btn && btn.Tag is GameConfig juego && App.MainWindow is MainWindow main)
             {
                 main.NavegarExterna(typeof(VersionHistoryPage), "Library", juego.Id);
+            }
+        }
+
+        // ===================== CARPETA EN ESTE PC =====================
+
+        private async void BtnRelink_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is not Button btn || btn.Tag is not GameConfig juego) return;
+            if (await ElegirCarpetaEnEstePc(juego)) await RecargarLista();
+        }
+
+        /// <summary>
+        /// La carpeta de partidas no existe en este PC: explicarlo y pedir que se elija.
+        /// Para restaurar puede ser una carpeta vacía (ahí se descargará el backup).
+        /// </summary>
+        private async Task<bool> PedirCarpetaEnEstePc(GameConfig juego, bool paraRestaurar)
+        {
+            var dialogo = new ContentDialog
+            {
+                Title = ResourceHelper.GetString("RelinkTitle"),
+                Content = ResourceHelper.GetString(paraRestaurar ? "RelinkMsgRestore" : "RelinkMsg", juego.RutaEnEstePc),
+                PrimaryButtonText = ResourceHelper.GetString("RelinkChooseBtn"),
+                CloseButtonText = ResourceHelper.GetString("ConfirmCancelBtn"),
+                DefaultButton = ContentDialogButton.Primary,
+                XamlRoot = this.XamlRoot,
+                RequestedTheme = SettingsService.Current.DarkMode ? ElementTheme.Dark : ElementTheme.Light,
+                PrimaryButtonStyle = GetStandardButtonStyle(),
+                CloseButtonStyle = GetStandardButtonStyle()
+            };
+
+            if (await dialogo.ShowAsync() != ContentDialogResult.Primary) return false;
+            bool elegida = await ElegirCarpetaEnEstePc(juego);
+            if (elegida) await RecargarLista();
+            return elegida;
+        }
+
+        /// <summary>Abre el selector de carpetas y guarda la elegida solo para este PC.</summary>
+        private async Task<bool> ElegirCarpetaEnEstePc(GameConfig juego)
+        {
+            if (App.MainWindow == null) return false;
+
+            var picker = new Windows.Storage.Pickers.FolderPicker
+            {
+                SuggestedStartLocation = Windows.Storage.Pickers.PickerLocationId.DocumentsLibrary
+            };
+            picker.FileTypeFilter.Add("*");
+            WinRT.Interop.InitializeWithWindow.Initialize(picker, WinRT.Interop.WindowNative.GetWindowHandle(App.MainWindow));
+
+            var carpeta = await picker.PickSingleFolderAsync();
+            if (carpeta == null) return false;
+
+            try
+            {
+                await App.LibraryService.CambiarRutaEnEstePc(juego, carpeta.Path);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                await MostrarAlerta(ResourceHelper.GetString("AlertError"), ex.Message);
+                return false;
             }
         }
 

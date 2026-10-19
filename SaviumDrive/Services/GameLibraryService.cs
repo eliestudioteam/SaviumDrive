@@ -147,6 +147,7 @@ namespace SaviumDrive.Services
                     LastBackup = ahora,
                     DriveFolderId = idJuegoRaiz
                 };
+                nuevoJuego.AsignarRutaEnEstePc(rutaLocal);
                 nuevoJuego.Versions.Add(v1);
                 nuevoJuego.ActiveVersionId = v1.Id;
                 nuevoJuego.LastVersionNumber = 1;
@@ -272,8 +273,8 @@ namespace SaviumDrive.Services
 
                 // 1️⃣ OBTENER CARPETA ORIGINAL (la que contiene los archivos del juego)
                 var itemsRaiz = await _driveManager.ListarContenidoCarpeta(idBase);
-                var infoCarpetaLocal = new DirectoryInfo(juego.LocalPath);
-                var carpetaOriginal = itemsRaiz.FirstOrDefault(i => i.Name == infoCarpetaLocal.Name && i.MimeType == "application/vnd.google-apps.folder");
+                // En Drive la carpeta se llama como la original (igual en todos los equipos)
+                var carpetaOriginal = itemsRaiz.FirstOrDefault(i => i.Name == juego.NombreCarpetaBackup && i.MimeType == "application/vnd.google-apps.folder");
 
                 if (carpetaOriginal == null) throw new Exception("Carpeta original no encontrada en Drive");
                 nombreCarpetaOriginal = carpetaOriginal.Name;
@@ -288,11 +289,11 @@ namespace SaviumDrive.Services
                 idCarpetaTemporal = _driveManager.GetOrCreateFolder(nombreTemporal, idBase);
 
                 // 3️⃣ SUBIR CONTENIDO NUEVO A LA CARPETA TEMPORAL
-                long totalBytes = GetDirectorySize(juego.LocalPath);
+                long totalBytes = GetDirectorySize(juego.RutaEnEstePc);
                 long bytesSubidos = 0;
                 string totalStr = FormatBytes(totalBytes);
 
-                await SubirDirectorioRecursivo(juego.LocalPath, idCarpetaTemporal, token, (nombreArchivo, pesoArchivo) =>
+                await SubirDirectorioRecursivo(juego.RutaEnEstePc, idCarpetaTemporal, token, (nombreArchivo, pesoArchivo) =>
                 {
                     token.ThrowIfCancellationRequested();
                     bytesSubidos += pesoArchivo;
@@ -356,8 +357,9 @@ namespace SaviumDrive.Services
         public async Task RestaurarJuego(GameConfig juego, GameVersion version, CancellationToken token)
         {
             string rutaCarpetaTemporal = null;
-            string rutaCarpetaOriginal = juego.LocalPath;
-            string nombreCarpetaTemporal = $"TEMP_{new DirectoryInfo(juego.LocalPath).Name}";
+            string rutaCarpetaOriginal = juego.RutaEnEstePc;
+            string nombreCarpetaEnPc = new DirectoryInfo(rutaCarpetaOriginal).Name;
+            string nombreCarpetaTemporal = $"TEMP_{nombreCarpetaEnPc}";
             string nombreProgreso = $"{juego.Name} {version?.Label}";
 
             try
@@ -367,7 +369,7 @@ namespace SaviumDrive.Services
                 if (version == null || string.IsNullOrEmpty(version.DriveFolderId)) throw new Exception("ID inválido");
 
                 // 1️⃣ CREAR CARPETA TEMPORAL LOCAL (junto a la carpeta original)
-                string directorioContenedor = Path.GetDirectoryName(juego.LocalPath);
+                string directorioContenedor = Path.GetDirectoryName(rutaCarpetaOriginal);
                 if (string.IsNullOrEmpty(directorioContenedor)) throw new Exception("Ruta local inválida");
                 rutaCarpetaTemporal = Path.Combine(directorioContenedor, nombreCarpetaTemporal);
 
@@ -380,8 +382,8 @@ namespace SaviumDrive.Services
 
                 // 2️⃣ OBTENER CARPETA ORIGEN Y CALCULAR TAMAÑO TOTAL
                 var itemsRaiz = await _driveManager.ListarContenidoCarpeta(version.DriveFolderId);
-                var nombreCarpetaLocal = new DirectoryInfo(juego.LocalPath).Name;
-                var carpetaContenedora = itemsRaiz.FirstOrDefault(i => i.Name == nombreCarpetaLocal && i.MimeType == "application/vnd.google-apps.folder");
+                // En Drive la carpeta se llama como la original (aunque en este PC se llame distinto)
+                var carpetaContenedora = itemsRaiz.FirstOrDefault(i => i.Name == juego.NombreCarpetaBackup && i.MimeType == "application/vnd.google-apps.folder");
 
                 // Sin respaldo a la carpeta del juego: en V1 contiene también las otras versiones
                 if (carpetaContenedora == null) throw new Exception("El backup de esta versión no se encontró en Drive");
@@ -413,7 +415,7 @@ namespace SaviumDrive.Services
                 if (archivosDescargados == 0) throw new Exception("El backup en Drive está vacío o no se encontró");
 
                 // 4️⃣ TODO BIEN: Intercambiar carpetas sin borrar nada antes de tiempo
-                string rutaCarpetaVieja = Path.Combine(directorioContenedor, $"OLD_{nombreCarpetaLocal}");
+                string rutaCarpetaVieja = Path.Combine(directorioContenedor, $"OLD_{nombreCarpetaEnPc}");
                 if (Directory.Exists(rutaCarpetaVieja)) Directory.Delete(rutaCarpetaVieja, true);
 
                 // a) Apartar la original (si hay archivos bloqueados por el juego, falla aquí sin tocar nada)
@@ -660,17 +662,17 @@ namespace SaviumDrive.Services
                 NotifyProgress(nombreProgreso, 0, "StatusUploading", GetStr("MsgScanning"), true);
 
                 if (string.IsNullOrEmpty(juego.DriveFolderId)) throw new Exception("ID Inválido");
-                if (!Directory.Exists(juego.LocalPath)) throw new DirectoryNotFoundException(juego.LocalPath);
+                if (!Directory.Exists(juego.RutaEnEstePc)) throw new DirectoryNotFoundException(juego.RutaEnEstePc);
 
                 // Drive: <Juego>/Version_N/<carpeta de partidas>
                 idCarpetaVersion = _driveManager.GetOrCreateFolder($"Version_{numero}", juego.DriveFolderId);
-                string idContenido = _driveManager.GetOrCreateFolder(new DirectoryInfo(juego.LocalPath).Name, idCarpetaVersion);
+                string idContenido = _driveManager.GetOrCreateFolder(juego.NombreCarpetaBackup, idCarpetaVersion);
 
-                long totalBytes = GetDirectorySize(juego.LocalPath);
+                long totalBytes = GetDirectorySize(juego.RutaEnEstePc);
                 long bytesSubidos = 0;
                 string totalStr = FormatBytes(totalBytes);
 
-                await SubirDirectorioRecursivo(juego.LocalPath, idContenido, token, (nombreArchivo, pesoArchivo) =>
+                await SubirDirectorioRecursivo(juego.RutaEnEstePc, idContenido, token, (nombreArchivo, pesoArchivo) =>
                 {
                     token.ThrowIfCancellationRequested();
                     bytesSubidos += pesoArchivo;
@@ -778,6 +780,13 @@ namespace SaviumDrive.Services
                 var v = j.FindVersion(version.Id);
                 if (v != null) v.Description = texto;
             });
+        }
+
+        /// <summary>Guarda la carpeta de partidas de este PC (los demás equipos siguen con la suya).</summary>
+        public async Task CambiarRutaEnEstePc(GameConfig juego, string ruta)
+        {
+            juego.AsignarRutaEnEstePc(ruta);
+            await ModificarJuego(juego.Id, j => j.AsignarRutaEnEstePc(ruta));
         }
 
         public async Task CambiarVersionActiva(GameConfig juego, GameVersion version)
