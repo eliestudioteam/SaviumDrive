@@ -35,8 +35,15 @@ namespace SaviumDrive
         private const int SW_RESTORE = 9;
 
         // --- P/INVOKE: Para limitar el tamaño (NUEVO) ---
-        [DllImport("User32.dll", SetLastError = true, CharSet = CharSet.Auto)]
-        private static extern IntPtr SetWindowLongPtr(IntPtr hWnd, int nIndex, WinProc newProc);
+        // SetWindowLongPtr solo existe en el user32 de 64 bits; en x86 hay que usar SetWindowLong
+        [DllImport("User32.dll", EntryPoint = "SetWindowLongPtrW", SetLastError = true)]
+        private static extern IntPtr SetWindowLongPtr64(IntPtr hWnd, int nIndex, WinProc newProc);
+
+        [DllImport("User32.dll", EntryPoint = "SetWindowLongW", SetLastError = true)]
+        private static extern IntPtr SetWindowLong32(IntPtr hWnd, int nIndex, WinProc newProc);
+
+        private static IntPtr SetWindowLongPtr(IntPtr hWnd, int nIndex, WinProc newProc) =>
+            IntPtr.Size == 8 ? SetWindowLongPtr64(hWnd, nIndex, newProc) : SetWindowLong32(hWnd, nIndex, newProc);
 
         [DllImport("User32.dll", SetLastError = true, CharSet = CharSet.Auto)]
         private static extern IntPtr CallWindowProc(IntPtr lpPrevWndFunc, IntPtr hWnd, uint Msg, IntPtr wParam, IntPtr lParam);
