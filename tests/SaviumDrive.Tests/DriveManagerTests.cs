@@ -126,6 +126,23 @@ namespace SaviumDrive.Tests
             Assert.Equal("partida guardada", File.ReadAllText(destino));
         }
 
+        [Fact]
+        public async Task DescargarArchivo_ConFechaOriginal_LaRestauraEnElArchivo()
+        {
+            var handler = new FakeDriveHandler(req => new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new ByteArrayContent(Encoding.UTF8.GetBytes("partida"))
+            });
+            var manager = new DriveManager(FakeDrive.CreateService(handler));
+            string destino = Path.Combine(_tempDir, "save.dat");
+            var original = new DateTimeOffset(2026, 3, 14, 9, 30, 0, TimeSpan.Zero);
+
+            await manager.DescargarArchivo("archivo-1", destino, CancellationToken.None, original);
+
+            // Sin esto el archivo tendría la fecha de la descarga y parecería más nuevo que el backup
+            Assert.Equal(original.UtcDateTime, File.GetLastWriteTimeUtc(destino));
+        }
+
         [Theory]
         [InlineData(HttpStatusCode.NotFound)]
         [InlineData(HttpStatusCode.Forbidden)]
@@ -161,6 +178,32 @@ namespace SaviumDrive.Tests
             await manager.SubirArchivo(archivo, "carpeta-1", CancellationToken.None);
 
             Assert.Contains(handler.Requests, r => r.Method == HttpMethod.Put && r.RequestUri.ToString() == sesion);
+        }
+
+        [Fact]
+        public async Task SubirArchivo_EnviaLaFechaOriginalDelArchivo()
+        {
+            const string sesion = "https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable&upload_id=abc";
+            string metadatos = null;
+            var handler = new FakeDriveHandler(req =>
+            {
+                if (req.Method == HttpMethod.Post)
+                {
+                    metadatos = req.Content?.ReadAsStringAsync().Result;
+                    var r = new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("") };
+                    r.Headers.Location = new Uri(sesion);
+                    return r;
+                }
+                return FakeDriveHandler.Json("{\"id\":\"subido-1\"}");
+            });
+            var manager = new DriveManager(FakeDrive.CreateService(handler));
+            string archivo = CrearArchivo("save.dat", "datos");
+            File.SetLastWriteTimeUtc(archivo, new DateTime(2026, 3, 14, 9, 30, 0, DateTimeKind.Utc));
+
+            await manager.SubirArchivo(archivo, "carpeta-1", CancellationToken.None);
+
+            Assert.NotNull(metadatos);
+            Assert.Contains("\"modifiedTime\":\"2026-03-14T09:30:00", metadatos);
         }
 
         [Theory]

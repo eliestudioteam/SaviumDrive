@@ -902,7 +902,7 @@ namespace SaviumDrive.Services
 
             // 🔥 Solicitar explícitamente el campo 'size' (y todas las páginas)
             var archivos = await _driveManager.ListarArchivos(
-                $"'{idCarpetaDrive}' in parents and trashed = false", "id, name, mimeType, size", token);
+                $"'{idCarpetaDrive}' in parents and trashed = false", "id, name, mimeType, size, modifiedTime", token);
 
             foreach (var item in archivos)
             {
@@ -917,7 +917,7 @@ namespace SaviumDrive.Services
                     string rutaArchivo = Path.Combine(rutaLocalDestino, item.Name);
                     long pesoArchivo = item.Size ?? 0;
 
-                    await _driveManager.DescargarArchivo(item.Id, rutaArchivo, token);
+                    await _driveManager.DescargarArchivo(item.Id, rutaArchivo, token, item.ModifiedTimeDateTimeOffset);
 
                     // 🔥 Pasar tanto la ruta como el peso del archivo
                     onFileDownloaded?.Invoke(rutaArchivo, pesoArchivo);
