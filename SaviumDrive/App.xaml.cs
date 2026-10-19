@@ -24,6 +24,9 @@ namespace SaviumDrive
         {
             // ⚡ OPTIMIZACIÓN: Solo cargar lo ESENCIAL en el constructor
             SettingsService.LoadSettings();
+
+            // Cada PC usa su propia carpeta de partidas (los juegos se sincronizan entre equipos)
+            SaviumDrive.Models.GameConfig.EquipoActual = SaviumDrive.Core.SecurityHelpers.ObtenerDeviceId();
             AplicarIdioma();
 
             this.InitializeComponent();

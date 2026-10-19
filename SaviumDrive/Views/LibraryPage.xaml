@@ -59,7 +59,7 @@
                 <DataTemplate x:DataType="models:GameConfig">
                     <Grid Width="160" Height="260" CornerRadius="8" Background="{ThemeResource ItemCardBackground}" Margin="0,0,15,15">
                         <ToolTipService.ToolTip>
-                            <ToolTip Content="{x:Bind LocalPath}"/>
+                            <ToolTip Content="{x:Bind RutaEnEstePc}"/>
                         </ToolTipService.ToolTip>
                         <Grid.RowDefinitions>
                             <RowDefinition Height="*"/>
@@ -105,6 +105,19 @@
                                 <SolidColorBrush x:Key="ComboBoxDropDownGlyphForegroundFocusedPressed" Color="White"/>
                             </ComboBox.Resources>
                         </ComboBox>
+
+                        <!-- La carpeta de partidas no existe en este PC (ej. el juego se agregó en otro equipo) -->
+                        <Border Grid.Row="0" VerticalAlignment="Center" Margin="8,0"
+                                Background="#E6202020" CornerRadius="6" Padding="8"
+                                Visibility="{x:Bind NeedsRelink}">
+                            <StackPanel Spacing="6">
+                                <TextBlock x:Uid="CardFolderMissing" Foreground="White" FontSize="11"
+                                           TextWrapping="Wrap" TextAlignment="Center"/>
+                                <Button x:Uid="CardChooseFolder" Click="BtnRelink_Click" Tag="{x:Bind}"
+                                        HorizontalAlignment="Stretch" FontSize="11" Padding="6,4"
+                                        Style="{StaticResource StandardBtnStyle}"/>
+                            </StackPanel>
+                        </Border>
 
                         <!-- Acciones (sobre la versión activa) -->
                         <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Center" Padding="2,5">
