@@ -690,6 +690,7 @@ namespace SaviumDrive
         {
             if (_forceClosing)
             {
+                DesuscribirConectividad();
                 App.TrayService?.Dispose();
                 return;
             }
@@ -697,20 +698,25 @@ namespace SaviumDrive
             // 🆕 GUARDAR POSICIÓN ANTES DE CERRAR
             GuardarPosicionVentana();
 
-            // Desuscribirse del evento
-            if (App.NetworkService != null)
-            {
-                App.NetworkService.ConnectivityChanged -= OnConnectivityChanged;
-            }
-
             if (SettingsService.Current.MinimizeToTray)
             {
+                // Solo se oculta en la bandeja: la ventana sigue viva y debe seguir
+                // recibiendo los cambios de conectividad
                 args.Handled = true;
                 App.TrayService?.MostrarTray();
             }
             else
             {
+                DesuscribirConectividad();
                 App.TrayService?.Dispose();
+            }
+        }
+
+        private void DesuscribirConectividad()
+        {
+            if (App.NetworkService != null)
+            {
+                App.NetworkService.ConnectivityChanged -= OnConnectivityChanged;
             }
         }
 
