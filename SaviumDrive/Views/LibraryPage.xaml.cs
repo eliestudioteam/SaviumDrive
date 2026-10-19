@@ -17,6 +17,10 @@ namespace SaviumDrive.Views
     public sealed partial class LibraryPage : Page
     {
         public ObservableCollection<GameConfig> Juegos { get; set; }
+
+        // Biblioteca completa; Juegos es lo que se muestra tras buscar y ordenar
+        private System.Collections.Generic.List<GameConfig> _todos = new System.Collections.Generic.List<GameConfig>();
+        private bool _cargandoOrden;
         private CancellationTokenSource _cts;
         private bool _isBusy = false;
 
@@ -25,6 +29,13 @@ namespace SaviumDrive.Views
             this.InitializeComponent();
             Juegos = new ObservableCollection<GameConfig>();
             this.Loaded += LibraryPage_Loaded;
+
+            // Recordar el orden elegido
+            _cargandoOrden = true;
+            var orden = LibraryFilter.DesdeTexto(SettingsService.Current.LibrarySort);
+            CmbOrden.SelectedItem = CmbOrden.Items.OfType<ComboBoxItem>().FirstOrDefault(i => (string)i.Tag == orden.ToString())
+                                    ?? CmbOrden.Items[0];
+            _cargandoOrden = false;
         }
 
         // 🔥 AL ENTRAR: RECUPERAR ESTADO O INICIAR SYNC
@@ -143,20 +154,46 @@ namespace SaviumDrive.Views
 
         private void ActualizarLista(System.Collections.Generic.List<GameConfig> lista)
         {
+            _todos = lista ?? new System.Collections.Generic.List<GameConfig>();
+            AplicarFiltro();
+        }
+
+        /// <summary>Muestra los juegos que coinciden con la búsqueda, en el orden elegido.</summary>
+        private void AplicarFiltro()
+        {
+            var orden = (CmbOrden?.SelectedItem as ComboBoxItem)?.Tag is string tag ? LibraryFilter.DesdeTexto(tag) : OrdenBiblioteca.NombreAZ;
+            var visibles = LibraryFilter.Aplicar(_todos, TxtBuscar?.Text, orden);
+
             Juegos.Clear();
-            foreach (var j in lista) Juegos.Add(j);
+            foreach (var j in visibles) Juegos.Add(j);
             ActualizarEstadoVacio();
+        }
+
+        private void TxtBuscar_TextChanged(AutoSuggestBox sender, AutoSuggestBoxTextChangedEventArgs args)
+        {
+            if (args.Reason == AutoSuggestionBoxTextChangeReason.UserInput) AplicarFiltro();
+        }
+
+        private void CmbOrden_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (_cargandoOrden || CmbOrden.SelectedItem is not ComboBoxItem item) return;
+            SettingsService.Current.LibrarySort = (string)item.Tag;
+            SettingsService.Save();
+            AplicarFiltro();
         }
 
         private void ActualizarEstadoVacio()
         {
             if (EmptyState == null) return;
-            EmptyState.Visibility = Juegos.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+            bool bibliotecaVacia = _todos.Count == 0;
+            EmptyState.Visibility = bibliotecaVacia ? Visibility.Visible : Visibility.Collapsed;
+            NoResultsState.Visibility = !bibliotecaVacia && Juegos.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
         }
 
         private bool NombreYaExiste(string nombre)
         {
-            return Juegos.Any(j => j.Name.Equals(nombre, StringComparison.OrdinalIgnoreCase));
+            // Contra toda la biblioteca, no solo los juegos que se ven con la búsqueda
+            return _todos.Any(j => j.Name.Equals(nombre, StringComparison.OrdinalIgnoreCase));
         }
 
         private Style GetStandardButtonStyle() => Application.Current.Resources["StandardBtnStyle"] as Style;
@@ -238,8 +275,8 @@ namespace SaviumDrive.Views
                                 _cts.Token // ⬅️ ESTO FALTABA
                             );
 
-                            Juegos.Add(nuevoJuego);
-                            ActualizarEstadoVacio();
+                            _todos.Add(nuevoJuego);
+                            AplicarFiltro();
                             await MostrarAlerta(ResourceHelper.GetString("AlertSuccess"), ResourceHelper.GetString("AlertBackupCreated"));
                         }
                         catch (OperationCanceledException)
