@@ -2,8 +2,8 @@
 using System;
 using System.IO;
 using System.Threading.Tasks;
-using Windows.ApplicationModel;
 using Microsoft.UI.Xaml;
+using Microsoft.Win32;
 
 namespace SaviumDrive.Services
 {
@@ -22,6 +22,10 @@ namespace SaviumDrive.Services
         public int WindowY { get; set; } = 0;
         public int WindowWidth { get; set; } = 1280;
         public int WindowHeight { get; set; } = 720;
+
+        // Última actualización descargada (para mostrar el changelog)
+        public string LastUpdateVersion { get; set; }
+        public string LastUpdateChangelog { get; set; }
     }
 
     public static class SettingsService
@@ -74,37 +78,38 @@ namespace SaviumDrive.Services
             }
         }
 
-        public static async Task ConfigurarArranqueWindows(bool activar)
+        // Argumento que se pasa al .exe cuando arranca con Windows
+        public const string StartupArgument = "--startup";
+        private const string RunKeyPath = @"Software\Microsoft\Windows\CurrentVersion\Run";
+        private const string RunValueName = "SaviumDrive";
+
+        // 🔥 Inicio con Windows mediante HKCU\...\Run (no requiere permisos de administrador)
+        public static Task ConfigurarArranqueWindows(bool activar)
         {
             try
             {
-                var startupTask = await StartupTask.GetAsync("SaviumDriveStartupId");
+                using var key = Registry.CurrentUser.OpenSubKey(RunKeyPath, writable: true)
+                                ?? Registry.CurrentUser.CreateSubKey(RunKeyPath);
 
                 if (activar)
                 {
-                    if (startupTask.State != StartupTaskState.Enabled)
+                    string exePath = Environment.ProcessPath;
+                    if (!string.IsNullOrEmpty(exePath))
                     {
-                        var result = await startupTask.RequestEnableAsync();
-
-                        // 🔥 NUEVO: Verificar el resultado
-                        if (result != StartupTaskState.Enabled)
-                        {
-                            System.Diagnostics.Debug.WriteLine($"⚠️ No se pudo habilitar el inicio: {result}");
-                        }
+                        key.SetValue(RunValueName, $"\"{exePath}\" {StartupArgument}");
                     }
                 }
                 else
                 {
-                    if (startupTask.State == StartupTaskState.Enabled)
-                    {
-                        startupTask.Disable();
-                    }
+                    key.DeleteValue(RunValueName, throwOnMissingValue: false);
                 }
             }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"❌ Error configurando inicio: {ex.Message}");
             }
+
+            return Task.CompletedTask;
         }
     }
 }

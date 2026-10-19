@@ -7,18 +7,16 @@ using Microsoft.UI.Xaml.Media;
 using SaviumDrive.Services;
 using System;
 using System.Text.RegularExpressions;
-using Windows.ApplicationModel.Resources;
+using SaviumDrive.Helpers;
 
 namespace SaviumDrive.Views
 {
     public sealed partial class ChangelogWindow : Window
     {
-        private ResourceLoader _resourceLoader;
 
         public ChangelogWindow(string version, string changelog)
         {
             this.InitializeComponent();
-            _resourceLoader = ResourceLoader.GetForViewIndependentUse();
 
             // Configurar ventana
             SetupWindow();
@@ -31,7 +29,7 @@ namespace SaviumDrive.Views
 
             // Mostrar información
             TxtVersionInfo.Text = string.Format(
-                _resourceLoader.GetString("ChangelogVersionInfo"),
+                ResourceHelper.GetString("ChangelogVersionInfo"),
                 version
             );
 
@@ -70,7 +68,7 @@ namespace SaviumDrive.Views
         {
             if (string.IsNullOrWhiteSpace(markdown))
             {
-                markdown = _resourceLoader.GetString("ChangelogNoInfo");
+                markdown = ResourceHelper.GetString("ChangelogNoInfo");
             }
 
             ChangelogContent.Blocks.Clear();

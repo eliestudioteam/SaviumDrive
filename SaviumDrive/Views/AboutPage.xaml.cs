@@ -5,13 +5,12 @@ using Microsoft.UI.Xaml.Media;
 using SaviumDrive.Services;
 using System;
 using System.Threading.Tasks;
-using Windows.ApplicationModel.Resources;
+using SaviumDrive.Helpers;
 
 namespace SaviumDrive.Views
 {
     public sealed partial class AboutPage : Page
     {
-        private ResourceLoader _resourceLoader;
         private UpdateService _updateService;
         private UpdateInfo _currentUpdate;
         private Brush _originalTextBrush; // Guardar el color original
@@ -19,7 +18,6 @@ namespace SaviumDrive.Views
         public AboutPage()
         {
             this.InitializeComponent();
-            _resourceLoader = ResourceLoader.GetForViewIndependentUse();
             _updateService = new UpdateService();
 
             // Guardar el color original del tema
@@ -29,7 +27,7 @@ namespace SaviumDrive.Views
             TxtVersion.Text = $"v{GetCurrentVersion()}";
 
             // ✅ Establecer texto inicial con el color correcto
-            TxtUpdate.Text = _resourceLoader.GetString("AbtUpdate");
+            TxtUpdate.Text = ResourceHelper.GetString("AbtUpdate");
 
             // Aplicar colores iniciales
             ApplyThemeColors();
@@ -71,7 +69,7 @@ namespace SaviumDrive.Views
             BtnUpdate.IsEnabled = false;
 
             // Cambiar a estado "buscando" - Usar colores visibles
-            TxtUpdate.Text = _resourceLoader.GetString("AbtSearching");
+            TxtUpdate.Text = ResourceHelper.GetString("AbtSearching");
 
             // En modo claro: texto negro, modo oscuro: texto blanco
             var searchingTextColor = new SolidColorBrush(
@@ -92,7 +90,7 @@ namespace SaviumDrive.Views
                 if (_currentUpdate == null)
                 {
                     // No hay actualizaciones - Usar verde personalizado
-                    TxtUpdate.Text = _resourceLoader.GetString("AbtUpToDate");
+                    TxtUpdate.Text = ResourceHelper.GetString("AbtUpToDate");
                     IconUpdate.Glyph = "\uE73E"; // Check
 
                     // Color blanco para el texto sobre fondo verde
@@ -117,8 +115,8 @@ namespace SaviumDrive.Views
             catch (Exception ex)
             {
                 await ShowErrorDialog(
-                    _resourceLoader.GetString("AlertError"),
-                    _resourceLoader.GetString("UpdateCheckError")
+                    ResourceHelper.GetString("AlertError"),
+                    ResourceHelper.GetString("UpdateCheckError")
                 );
                 RestoreCheckButton();
             }
@@ -132,12 +130,12 @@ namespace SaviumDrive.Views
             UpdateInfoCard.Visibility = Visibility.Visible;
 
             TxtNewVersion.Text = string.Format(
-                _resourceLoader.GetString("UpdateNewVersion"),
+                ResourceHelper.GetString("UpdateNewVersion"),
                 _currentUpdate.Version
             );
 
             TxtFileSize.Text = string.Format(
-                _resourceLoader.GetString("UpdateFileSize"),
+                ResourceHelper.GetString("UpdateFileSize"),
                 UpdateService.FormatFileSize(_currentUpdate.Size)
             );
         }
@@ -163,8 +161,8 @@ namespace SaviumDrive.Views
                 string installerPath = await _updateService.DownloadUpdateAsync(_currentUpdate.DownloadUrl, progress);
 
                 await ShowSuccessDialog(
-                    _resourceLoader.GetString("UpdateDownloadComplete"),
-                    _resourceLoader.GetString("UpdateInstallPrompt")
+                    ResourceHelper.GetString("UpdateDownloadComplete"),
+                    ResourceHelper.GetString("UpdateInstallPrompt")
                 );
 
                 _updateService.SaveUpdateInfo(_currentUpdate);
@@ -174,8 +172,8 @@ namespace SaviumDrive.Views
             catch (Exception ex)
             {
                 await ShowErrorDialog(
-                    _resourceLoader.GetString("AlertError"),
-                    _resourceLoader.GetString("UpdateDownloadError")
+                    ResourceHelper.GetString("AlertError"),
+                    ResourceHelper.GetString("UpdateDownloadError")
                 );
 
                 DownloadProgress.Visibility = Visibility.Collapsed;
@@ -186,7 +184,7 @@ namespace SaviumDrive.Views
         private void RestoreCheckButton()
         {
             // Restaurar texto
-            TxtUpdate.Text = _resourceLoader.GetString("AbtUpdate");
+            TxtUpdate.Text = ResourceHelper.GetString("AbtUpdate");
             IconUpdate.Glyph = "\uE896"; // Icono original
 
             // Restaurar colores del tema
@@ -202,7 +200,7 @@ namespace SaviumDrive.Views
             {
                 Title = title,
                 Content = message,
-                CloseButtonText = _resourceLoader.GetString("DlgCloseBtn"),
+                CloseButtonText = ResourceHelper.GetString("DlgCloseBtn"),
                 XamlRoot = this.Content.XamlRoot
             };
 
@@ -222,8 +220,8 @@ namespace SaviumDrive.Views
             {
                 Title = title,
                 Content = message,
-                PrimaryButtonText = _resourceLoader.GetString("UpdateInstallNow"),
-                CloseButtonText = _resourceLoader.GetString("ConfirmCancelBtn"),
+                PrimaryButtonText = ResourceHelper.GetString("UpdateInstallNow"),
+                CloseButtonText = ResourceHelper.GetString("ConfirmCancelBtn"),
                 DefaultButton = ContentDialogButton.Primary,
                 XamlRoot = this.Content.XamlRoot
             };

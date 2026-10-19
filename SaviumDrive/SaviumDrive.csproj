@@ -10,8 +10,17 @@
 		<PublishProfile>win-$(Platform).pubxml</PublishProfile>
 		<UseWinUI>true</UseWinUI>
 		<WinUISDKReferences>false</WinUISDKReferences>
-		<EnableMsixTooling>true</EnableMsixTooling>
 		<Nullable>enable</Nullable>
+		<!-- App sin empaquetar (sin MSIX): se distribuye como carpeta/.exe -->
+		<WindowsPackageType>None</WindowsPackageType>
+		<!-- Incluir el runtime de Windows App SDK junto al .exe (el usuario no necesita instalar nada) -->
+		<WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
+	</PropertyGroup>
+	<!-- Sin las herramientas de C++ (MSVC) instaladas, el compilador XAML falla al buscarlas desde Visual Studio.
+	     Este proyecto es solo C#, así que se omite esa búsqueda cuando no existen. -->
+	<PropertyGroup Condition="'$(VsInstallRoot)' != '' and !Exists('$(VsInstallRoot)\VC\Tools\MSVC')">
+		<VCInstallPath32>none</VCInstallPath32>
+		<VCInstallPath64>none</VCInstallPath64>
 	</PropertyGroup>
 	<ItemGroup>
 		<Content Remove="Strings\en-US\Resources.resw" />
@@ -35,26 +44,19 @@
 		<PackageReference Include="Microsoft.WindowsAppSDK" Version="1.6.250108002" />
 		<PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.26100.1742" />
 		<PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
+		<!-- Herramientas de compilación de recursos (PRI): permiten compilar sin el componente WinUI de Visual Studio -->
+		<PackageReference Include="Microsoft.Windows.SDK.BuildTools.MSIX" Version="1.6.20250507.1" />
 		<!-- ⬇️ NUEVO: Bandeja del sistema -->
 		<PackageReference Include="H.NotifyIcon.WinUI" Version="2.3.2" />
 	</ItemGroup>
 	<ItemGroup>
-		<Content Include="Assets\Square150x150Logo.scale-200.png" />
-		<Content Include="Assets\Square44x44Logo.scale-200.png" />
-		<Content Include="Assets\Square44x44Logo.targetsize-24_altform-unplated.png" />
+		<!-- Imágenes e iconos: se copian junto al .exe -->
 		<Content Include="Assets\StoreLogo.png" />
-		<Content Include="Assets\Wide310x150Logo.scale-200.png" />
-		<!-- ⬇️ NUEVO: Icono de bandeja -->
 		<Content Include="Assets\tray-icon1024x1024.ico" />
-
-			
+		<Content Update="Assets\**" CopyToOutputDirectory="PreserveNewest" />
 	</ItemGroup>
 	<ItemGroup>
 		<Manifest Include="$(ApplicationManifest)" />
-	</ItemGroup>
-	<!-- Defining the "Msix" ProjectCapability here allows the Single-project MSIX Packaging Tools extension to be activated for this project even if the Windows App SDK Nuget package has not yet been restored. -->
-	<ItemGroup Condition="'$(DisableMsixProjectCapabilityAddedByProject)'!='true' and '$(EnableMsixTooling)'=='true'">
-		<ProjectCapability Include="Msix" />
 	</ItemGroup>
 	<ItemGroup>
 		<Page Update="Views\ChangelogWindow.xaml">
@@ -91,10 +93,6 @@
 			<Generator>MSBuild:Compile</Generator>
 		</Page>
 	</ItemGroup>
-	<!-- Defining the "HasPackageAndPublishMenuAddedByProject" property here allows the Solution Explorer "Package and Publish" context menu entry to be enabled for this project even if the Windows App SDK Nuget package has not yet been restored. -->
-	<PropertyGroup Condition="'$(DisableHasPackageAndPublishMenuAddedByProject)'!='true' and '$(EnableMsixTooling)'=='true'">
-		<HasPackageAndPublishMenu>true</HasPackageAndPublishMenu>
-	</PropertyGroup>
 	<!-- Publish Properties -->
 	<PropertyGroup>
 		<PublishReadyToRun Condition="'$(Configuration)' == 'Debug'">False</PublishReadyToRun>

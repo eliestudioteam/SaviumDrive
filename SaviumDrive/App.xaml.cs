@@ -2,8 +2,9 @@
 using Microsoft.Windows.AppLifecycle;
 using SaviumDrive.Services;
 using System;
+using System.Linq;
 using System.Threading.Tasks;
-using Windows.Globalization;
+using Microsoft.Windows.Globalization;
 
 namespace SaviumDrive
 {
@@ -42,9 +43,9 @@ namespace SaviumDrive
 
         protected override void OnLaunched(Microsoft.UI.Xaml.LaunchActivatedEventArgs args)
         {
-            // 🔥 DETECTAR si se inició con Windows
-            var appArgs = AppInstance.GetCurrent().GetActivatedEventArgs();
-            _startedWithWindows = appArgs?.Kind == Microsoft.Windows.AppLifecycle.ExtendedActivationKind.StartupTask;
+            // 🔥 DETECTAR si se inició con Windows (la entrada del registro pasa este argumento)
+            _startedWithWindows = Environment.GetCommandLineArgs()
+                .Any(a => a.Equals(SettingsService.StartupArgument, StringComparison.OrdinalIgnoreCase));
 
             // 1️⃣ Servicios básicos inmediatos
             NetworkService = new NetworkService();

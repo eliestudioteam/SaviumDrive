@@ -92,8 +92,8 @@ namespace SaviumDrive
             ActualizarColoresTitleBar();
 
             string iconPath = System.IO.Path.Combine(
-                Windows.ApplicationModel.Package.Current.InstalledLocation.Path,
-                "Assets/tray-icon1024x1024.ico");
+                AppContext.BaseDirectory,
+                "Assets", "tray-icon1024x1024.ico");
 
             this.AppWindow.SetIcon(iconPath);
 
