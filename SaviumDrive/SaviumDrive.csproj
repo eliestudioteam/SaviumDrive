@@ -40,12 +40,12 @@
 	<ItemGroup>
 		<PackageReference Include="Google.Apis.Auth" Version="1.73.0" />
 		<PackageReference Include="Google.Apis.Drive.v3" Version="1.72.0.3970" />
-		<!-- ⬇️ ACTUALIZADO A 1.6.x -->
-		<PackageReference Include="Microsoft.WindowsAppSDK" Version="1.6.250108002" />
-		<PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.26100.1742" />
+		<!-- 1.8: corrige un cierre al arrancar desde rutas largas (corrupción de memoria en 1.6) -->
+		<PackageReference Include="Microsoft.WindowsAppSDK" Version="1.8.260921001" />
+		<PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.26100.4654" />
 		<PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
 		<!-- Herramientas de compilación de recursos (PRI): permiten compilar sin el componente WinUI de Visual Studio -->
-		<PackageReference Include="Microsoft.Windows.SDK.BuildTools.MSIX" Version="1.6.20250507.1" />
+		<PackageReference Include="Microsoft.Windows.SDK.BuildTools.MSIX" Version="1.7.20250829.1" />
 		<!-- ⬇️ NUEVO: Bandeja del sistema -->
 		<PackageReference Include="H.NotifyIcon.WinUI" Version="2.3.2" />
 	</ItemGroup>
