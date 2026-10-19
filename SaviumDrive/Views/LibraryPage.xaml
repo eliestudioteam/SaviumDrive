@@ -66,7 +66,12 @@
                             <RowDefinition Height="Auto"/>
                         </Grid.RowDefinitions>
 
-                        <Image Grid.Row="0" Source="{x:Bind SafeCoverUrl}" Stretch="UniformToFill" VerticalAlignment="Top" Height="210"/>
+                        <!-- Decodificar a tamaño de tarjeta: la portada original es 600x900 (~2 MB en memoria) -->
+                        <Image Grid.Row="0" Stretch="UniformToFill" VerticalAlignment="Top" Height="210">
+                            <Image.Source>
+                                <BitmapImage UriSource="{x:Bind SafeCoverUri}" DecodePixelWidth="160" DecodePixelType="Logical"/>
+                            </Image.Source>
+                        </Image>
 
                         <Border Grid.Row="0" VerticalAlignment="Bottom" Background="#CC000000" Padding="5">
                             <TextBlock Text="{x:Bind DisplayName}" Foreground="White" FontSize="11" HorizontalAlignment="Center" TextTrimming="CharacterEllipsis"/>

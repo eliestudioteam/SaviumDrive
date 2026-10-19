@@ -34,6 +34,9 @@ namespace SaviumDrive.Services
 
         public bool IsBusy { get; private set; } = false;
 
+        /// <summary>Sesión de Drive ya autenticada (para reutilizarla al reabrir la ventana).</summary>
+        public Google.Apis.Drive.v3.DriveService DriveService => _driveManager.Service;
+
         // 🔥 MEMORIA DE ÚLTIMO ESTADO (Para restaurar UI al navegar)
         public GlobalProgressArgs LastProgressArgs { get; private set; }
 

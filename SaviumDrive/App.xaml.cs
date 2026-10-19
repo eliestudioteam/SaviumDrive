@@ -1,6 +1,8 @@
-﻿using Microsoft.UI.Xaml;
+﻿using Microsoft.UI.Dispatching;
+using Microsoft.UI.Xaml;
 using Microsoft.Windows.AppLifecycle;
 using SaviumDrive.Services;
+using SaviumDrive.Views;
 using System;
 using System.Linq;
 using System.Threading.Tasks;
@@ -10,12 +12,15 @@ namespace SaviumDrive
 {
     public partial class App : Application
     {
+        /// <summary>Ventana principal, o null mientras la app está solo en la bandeja.</summary>
         public static Window MainWindow { get; private set; }
         public static TrayIconService TrayService { get; private set; }
         public static GameDetectorService GameDetector { get; private set; }
         public static NetworkService NetworkService { get; private set; }
         public static GameLibraryService LibraryService { get; set; }
         public static Google.Apis.Drive.v3.DriveService DriveService { get; set; }
+
+        private static DispatcherQueue _dispatcher;
 
         // 🔥 NUEVO: Flag para saber si se inició con Windows
         private static bool _startedWithWindows = false;
@@ -46,69 +51,48 @@ namespace SaviumDrive
 
         protected override void OnLaunched(Microsoft.UI.Xaml.LaunchActivatedEventArgs args)
         {
+            _dispatcher = DispatcherQueue.GetForCurrentThread();
+
+            // La app sigue viva en la bandeja aunque no quede ninguna ventana abierta;
+            // para salir se llama a SalirAplicacion()
+            DispatcherShutdownMode = DispatcherShutdownMode.OnExplicitShutdown;
+
             // 🔥 DETECTAR si se inició con Windows (la entrada del registro pasa este argumento)
             _startedWithWindows = Environment.GetCommandLineArgs()
                 .Any(a => a.Equals(SettingsService.StartupArgument, StringComparison.OrdinalIgnoreCase));
 
             // 1️⃣ Servicios básicos inmediatos
             NetworkService = new NetworkService();
+            TrayService = new TrayIconService(_dispatcher);
 
-            // El detector debe existir ANTES de crear la ventana: MainWindow se suscribe
-            // a GameClosed en su constructor. Crearlo es barato (solo un timer parado);
-            // Start() se llama más tarde en IniciarServiciosCompletos.
+            // El recordatorio de backup lo gestiona App: debe funcionar aunque no haya ventana
             GameDetector = new GameDetectorService();
+            GameDetector.GameClosed += OnGameClosed;
 
-            // 2️⃣ Crear ventana
-            MainWindow = new MainWindow();
-
-            if (_startedWithWindows)
+            if (_startedWithWindows && SettingsService.Current.MinimizeOnStartup)
             {
-                // 🎯 INICIO CON WINDOWS: Minimizar y cargar en segundo plano
-                IniciarConWindows();
+                // 🎯 INICIO CON WINDOWS OCULTO: solo el icono de la bandeja.
+                // La ventana no se crea hasta que el usuario la abre (no ocupa memoria).
+                TrayService.MostrarIcono();
+                TrayService.SetModoEficiencia(true);
+
+                // Devolver a Windows la memoria del arranque (igual que al minimizar a la bandeja)
+                ProgramarLiberarMemoria();
             }
             else
             {
-                // 🎯 INICIO NORMAL: Mostrar ventana y cargar todo
-                MainWindow.Activate();
-                TrayService = new TrayIconService(MainWindow);
-                IniciarServiciosCompletos();
-            }
-        }
-
-        // 🔥 NUEVO: Inicio optimizado cuando arranca con Windows
-        private async void IniciarConWindows()
-        {
-            // 🔥 Verificar si el usuario quiere minimizar al inicio
-            if (SettingsService.Current.MinimizeOnStartup)
-            {
-                // Opción 1: Iniciar OCULTO en bandeja (sin mostrar ventana)
-                // NO llamamos MainWindow.Activate(), la ventana permanece oculta
-                TrayService = new TrayIconService(MainWindow);
-                // TrayService.MostrarTray() no es necesario porque la ventana nunca se mostró
-            }
-            else
-            {
-                // Opción 2: Iniciar VISIBLE normalmente
-                MainWindow.Activate();
-                TrayService = new TrayIconService(MainWindow);
+                // 🎯 INICIO NORMAL: Mostrar ventana
+                CrearVentanaPrincipal().Activate();
             }
 
-            // ⏰ ESPERAR 3 segundos antes de iniciar servicios pesados
-            // Esto permite que Windows termine de cargar otros programas
-            await Task.Delay(3000);
-
-            // Ahora sí, cargar servicios pesados en segundo plano
             IniciarServiciosCompletos();
         }
 
         // 🔥 NUEVO: Iniciar servicios completos (detector de juegos, etc.)
-        private void IniciarServiciosCompletos()
+        private async void IniciarServiciosCompletos()
         {
-            // Crear detector de juegos
-            if (GameDetector == null)
-            {
-                GameDetector = new GameDetectorService();
-            }
+            // ⏰ Al arrancar con Windows, esperar 3 segundos para no competir con otros programas
+            if (_startedWithWindows) await Task.Delay(3000);
 
             // Solo iniciar si está activado en configuración
             if (SettingsService.Current.AutoDetectGames)
@@ -119,6 +103,128 @@ namespace SaviumDrive
 
         // 🔥 NUEVO: Método para saber si se inició con Windows
         public static bool StartedWithWindows() => _startedWithWindows;
+
+        // ===================== VENTANA PRINCIPAL Y BANDEJA =====================
+
+        private static MainWindow CrearVentanaPrincipal()
+        {
+            var ventana = new MainWindow();
+            ventana.Closed += (s, e) =>
+            {
+                // Si la ventana se destruyó de verdad (no solo se ocultó), olvidarla
+                if (!e.Handled && ReferenceEquals(MainWindow, ventana)) MainWindow = null;
+            };
+            MainWindow = ventana;
+            return ventana;
+        }
+
+        /// <summary>
+        /// Muestra la ventana principal (creándola si estaba liberada en la bandeja).
+        /// Si se pasa un parámetro, abre la biblioteca con él (ej. el juego detectado).
+        /// </summary>
+        public static void MostrarVentanaPrincipal(object parametroBiblioteca = null)
+        {
+            _dispatcher?.TryEnqueue(() =>
+            {
+                TrayService?.SetModoEficiencia(false);
+
+                if (MainWindow is MainWindow existente)
+                {
+                    existente.RestaurarYMostrarApp();
+                    if (parametroBiblioteca != null) existente.AbrirBiblioteca(parametroBiblioteca);
+                }
+                else
+                {
+                    var nueva = CrearVentanaPrincipal();
+                    nueva.NavegacionPendiente = parametroBiblioteca;
+                    nueva.Activate();
+                }
+            });
+        }
+
+        /// <summary>
+        /// La ventana se cierra con "Minimizar a la bandeja" activo.
+        /// Devuelve true si puede destruirse para liberar memoria, o false si solo se ocultó
+        /// porque hay una subida/descarga en curso (se liberará al terminar).
+        /// </summary>
+        public static bool PrepararCierreABandeja(MainWindow ventana)
+        {
+            TrayService?.MostrarIcono();
+
+            if (LibraryService != null && LibraryService.IsBusy)
+            {
+                TrayService?.OcultarVentana(ventana);
+                EventHandler<GlobalProgressArgs> alTerminar = null;
+                alTerminar = (s, e) =>
+                {
+                    if (e.IsActive) return;
+                    LibraryService.ProgressChanged -= alTerminar;
+                    _dispatcher?.TryEnqueue(() =>
+                    {
+                        // Si el usuario no la volvió a abrir mientras tanto, liberarla ahora
+                        if (ReferenceEquals(MainWindow, ventana) && !ventana.EstaVisible) ventana.CerrarParaLiberar();
+                    });
+                };
+                LibraryService.ProgressChanged += alTerminar;
+                return false;
+            }
+
+            ProgramarLiberarMemoria();
+            return true;
+        }
+
+        /// <summary>Tras destruir la ventana, recoger la memoria que dejó y pasar a modo eficiencia.</summary>
+        private static void ProgramarLiberarMemoria()
+        {
+            _dispatcher?.TryEnqueue(DispatcherQueuePriority.Low, async () =>
+            {
+                // Dar tiempo a XAML a soltar el árbol visual de la ventana cerrada
+                await Task.Delay(1500);
+                if (MainWindow != null) return; // se volvió a abrir
+
+                GC.Collect(GC.MaxGeneration, GCCollectionMode.Forced, blocking: true, compacting: true);
+                GC.WaitForPendingFinalizers();
+                GC.Collect(GC.MaxGeneration, GCCollectionMode.Forced, blocking: true, compacting: true);
+
+                // Devolver a Windows las páginas que ya no se usan (vuelven solas si se necesitan)
+                try { EmptyWorkingSet(System.Diagnostics.Process.GetCurrentProcess().Handle); } catch { }
+
+                TrayService?.SetModoEficiencia(true);
+            });
+        }
+
+        [System.Runtime.InteropServices.DllImport("psapi.dll")]
+        private static extern bool EmptyWorkingSet(IntPtr hProcess);
+
+        // --- DETECCIÓN DE JUEGOS ---
+        private static void OnGameClosed(object sender, GameSession session)
+        {
+            _dispatcher?.TryEnqueue(() =>
+            {
+                // Un fallo al crear el recordatorio no debe tumbar la app entera
+                try
+                {
+                    var reminderWindow = new BackupReminderWindow();
+                    reminderWindow.Closed += (s, args) =>
+                    {
+                        // Si el usuario dijo "SÍ": abrir la biblioteca con los datos del juego detectado
+                        if (reminderWindow.Result) MostrarVentanaPrincipal(session);
+                    };
+                    reminderWindow.Activate();
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"❌ Error mostrando el recordatorio de backup: {ex}");
+                }
+            });
+        }
+
+        public static void SalirAplicacion()
+        {
+            GameDetector?.Stop();
+            TrayService?.Dispose();
+            try { Current.Exit(); } catch { }
+        }
 
         public static void ReiniciarAplicacion()
         {

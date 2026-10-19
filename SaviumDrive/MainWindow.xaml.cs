@@ -59,6 +59,7 @@ namespace SaviumDrive
         private DispatcherTimer _splashTimer;
         private object _originalButtonContent;
         private bool _forceClosing = false;
+        private bool _liberandoABandeja = false;
         private string _paginaActual = "Home";
         private AppWindow _appWindow;
 
@@ -112,11 +113,7 @@ namespace SaviumDrive
             _originalButtonContent = btnLogin.Content;
             this.Closed += MainWindow_Closed;
 
-            // 2. Suscribirse al Detector de Juegos
-            if (App.GameDetector != null)
-            {
-                App.GameDetector.GameClosed += OnGameClosed;
-            }
+            // El recordatorio del detector de juegos lo gestiona App (funciona aunque no haya ventana)
 
             ActualizarEstiloBotones("Home");
             TxtLoginBtn.Text = ResourceHelper.GetString("Login_Button_Start");
@@ -314,40 +311,37 @@ namespace SaviumDrive
             });
         }
 
-        // --- DETECCIÓN DE JUEGOS ---
-        private void OnGameClosed(object sender, GameSession session)
+        // --- VENTANA Y BANDEJA ---
+
+        /// <summary>Página de biblioteca a abrir en cuanto termine el inicio de sesión (ej. juego detectado).</summary>
+        public object NavegacionPendiente { get; set; }
+
+        public bool EstaVisible
         {
-            this.DispatcherQueue.TryEnqueue(() =>
+            get
             {
-                // Un fallo al crear el recordatorio no debe tumbar la app entera
-                try
-                {
-                    // Abrir ventana de recordatorio independiente
-                    var reminderWindow = new BackupReminderWindow(); // Mensaje genérico
-
-                    reminderWindow.Closed += (s, args) =>
-                    {
-                        if (reminderWindow.Result)
-                        {
-                            // Si el usuario dijo "SÍ":
-                            RestaurarYMostrarApp();
-
-                            // Navegar a la librería pasando los datos del juego detectado
-                            ContentFrame.Navigate(typeof(LibraryPage), session);
-                            ActualizarEstiloBotones("Library");
-                        }
-                    };
-
-                    reminderWindow.Activate();
-                }
-                catch (Exception ex)
-                {
-                    System.Diagnostics.Debug.WriteLine($"❌ Error mostrando el recordatorio de backup: {ex}");
-                }
-            });
+                try { return _appWindow != null && _appWindow.IsVisible; }
+                catch { return false; }
+            }
         }
 
-        private void RestaurarYMostrarApp()
+        /// <summary>Abre la biblioteca con un parámetro (ahora, o al terminar el inicio de sesión).</summary>
+        public void AbrirBiblioteca(object parametro)
+        {
+            if (MainGrid.Visibility == Visibility.Visible)
+                NavegarExterna(typeof(LibraryPage), "Library", parametro);
+            else
+                NavegacionPendiente = parametro;
+        }
+
+        /// <summary>Destruye la ventana para liberar su memoria (la app sigue en la bandeja).</summary>
+        public void CerrarParaLiberar()
+        {
+            _liberandoABandeja = true;
+            try { this.Close(); } catch { }
+        }
+
+        public void RestaurarYMostrarApp()
         {
             try
             {
@@ -369,13 +363,26 @@ namespace SaviumDrive
         private void IniciarCargaInicial()
         {
             _splashTimer = new DispatcherTimer();
-            _splashTimer.Interval = TimeSpan.FromSeconds(1);
+            // Al reabrir desde la bandeja la sesión ya está cargada: casi sin espera
+            _splashTimer.Interval = App.LibraryService != null ? TimeSpan.FromMilliseconds(100) : TimeSpan.FromSeconds(1);
             _splashTimer.Tick += async (s, e) => { _splashTimer.Stop(); await VerificarSesionYRedirigir(); };
             _splashTimer.Start();
         }
 
         private async Task VerificarSesionYRedirigir()
         {
+            // Ventana recreada desde la bandeja: reutilizar la sesión de Drive ya abierta
+            if (App.LibraryService != null)
+            {
+                try
+                {
+                    await CargarDatosUsuario(App.LibraryService.DriveService);
+                    this.DispatcherQueue.TryEnqueue(() => { IrAlMain(); });
+                    return;
+                }
+                catch { }
+            }
+
             if (GoogleAuth.ExisteSesionGuardada())
             {
                 try
@@ -529,10 +536,11 @@ namespace SaviumDrive
             if (App.LibraryService == null)
             {
                 App.LibraryService = new GameLibraryService(service);
-
-                // Nos suscribimos para actualizar el Círculo Flotante
-                App.LibraryService.ProgressChanged += OnGlobalUploadProgress;
             }
+
+            // Nos suscribimos para actualizar el Círculo Flotante (cada ventana nueva se suscribe de nuevo)
+            App.LibraryService.ProgressChanged -= OnGlobalUploadProgress;
+            App.LibraryService.ProgressChanged += OnGlobalUploadProgress;
 
             this.DispatcherQueue.TryEnqueue(() =>
             {
@@ -593,8 +601,18 @@ namespace SaviumDrive
             MainGrid.Visibility = Visibility.Visible;
             try
             {
-                if (!ContentFrame.Navigate(typeof(HomePage))) ContentFrame.Content = new HomePage();
-                ActualizarEstiloBotones("Home");
+                if (NavegacionPendiente != null)
+                {
+                    // Abierta desde el recordatorio de backup: ir directo a la biblioteca
+                    var parametro = NavegacionPendiente;
+                    NavegacionPendiente = null;
+                    NavegarExterna(typeof(LibraryPage), "Library", parametro);
+                }
+                else
+                {
+                    if (!ContentFrame.Navigate(typeof(HomePage))) ContentFrame.Content = new HomePage();
+                    ActualizarEstiloBotones("Home");
+                }
 
                 // 🔥 Verificar si hay changelog para mostrar
                 CheckFirstRunAfterUpdate();
@@ -698,34 +716,63 @@ namespace SaviumDrive
         {
             if (_forceClosing)
             {
-                DesuscribirConectividad();
-                App.TrayService?.Dispose();
+                LimpiarAntesDeDestruir();
+                App.SalirAplicacion();
                 return;
             }
 
             // 🆕 GUARDAR POSICIÓN ANTES DE CERRAR
             GuardarPosicionVentana();
 
+            // Cierre diferido tras terminar una subida/descarga con la ventana oculta
+            if (_liberandoABandeja)
+            {
+                LimpiarAntesDeDestruir();
+                return;
+            }
+
             if (SettingsService.Current.MinimizeToTray)
             {
-                // Solo se oculta en la bandeja: la ventana sigue viva y debe seguir
-                // recibiendo los cambios de conectividad
-                args.Handled = true;
-                App.TrayService?.MostrarTray();
+                if (App.PrepararCierreABandeja(this))
+                {
+                    // La ventana se destruye para liberar memoria; la app sigue en la bandeja
+                    LimpiarAntesDeDestruir();
+                }
+                else
+                {
+                    // Hay una operación en curso: solo se oculta y se liberará al terminar
+                    args.Handled = true;
+                }
             }
             else
             {
-                DesuscribirConectividad();
-                App.TrayService?.Dispose();
+                LimpiarAntesDeDestruir();
+                App.SalirAplicacion();
             }
         }
 
-        private void DesuscribirConectividad()
+        /// <summary>
+        /// Suelta todo lo que mantiene viva a esta ventana desde los servicios (eventos),
+        /// para que su memoria se pueda recoger al destruirla.
+        /// </summary>
+        private void LimpiarAntesDeDestruir()
         {
+            _splashTimer?.Stop();
+
             if (App.NetworkService != null)
-            {
                 App.NetworkService.ConnectivityChanged -= OnConnectivityChanged;
+
+            if (App.LibraryService != null)
+                App.LibraryService.ProgressChanged -= OnGlobalUploadProgress;
+
+            // Salir de la página actual: sus OnNavigatedFrom/Unloaded quitan sus propias suscripciones
+            try
+            {
+                ContentFrame.Navigate(typeof(Page));
+                ContentFrame.BackStack.Clear();
+                ContentFrame.Content = null;
             }
+            catch { }
         }
 
         public void ForceClose()

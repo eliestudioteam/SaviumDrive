@@ -85,7 +85,7 @@ namespace SaviumDrive.Views
 
             TxtGameName.Text = _juego.Name;
             TxtSummary.Text = ResourceHelper.GetString("HistSummary", _juego.Versions.Count, _juego.ActiveVersion?.Label);
-            try { ImgCover.Source = new BitmapImage(new Uri(_juego.SafeCoverUrl)); } catch { }
+            ImgCover.Source = new BitmapImage(_juego.SafeCoverUri) { DecodePixelWidth = 64, DecodePixelType = DecodePixelType.Logical };
 
             Items.Clear();
             foreach (var v in _juego.Versions.OrderByDescending(v => v.Number))
