@@ -5,7 +5,6 @@ using System.IO;
 using System.Net.Http;
 using System.Text.Json;
 using System.Threading.Tasks;
-using Windows.Storage;
 
 namespace SaviumDrive.Services
 {
@@ -51,7 +50,7 @@ namespace SaviumDrive.Services
                 if (!IsNewerVersion(version, CURRENT_VERSION))
                     return null;
 
-                // Obtener URL de descarga del instalador (.msix o .exe)
+                // Obtener URL de descarga del instalador (.exe)
                 string downloadUrl = null;
                 long fileSize = 0;
 
@@ -60,7 +59,7 @@ namespace SaviumDrive.Services
                     foreach (var asset in assets.EnumerateArray())
                     {
                         string name = asset.GetProperty("name").GetString();
-                        if (name.EndsWith(".msix") || name.EndsWith(".exe"))
+                        if (name.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
                         {
                             downloadUrl = asset.GetProperty("browser_download_url").GetString();
                             fileSize = asset.GetProperty("size").GetInt64();
@@ -96,10 +95,10 @@ namespace SaviumDrive.Services
             try
             {
                 // Crear carpeta temporal
-                var tempFolder = ApplicationData.Current.TemporaryFolder;
+                string tempFolder = Path.Combine(Path.GetTempPath(), "SaviumDrive");
+                Directory.CreateDirectory(tempFolder);
                 string fileName = Path.GetFileName(new Uri(downloadUrl).LocalPath);
-                var tempFile = await tempFolder.CreateFileAsync(fileName, CreationCollisionOption.ReplaceExisting);
-                string filePath = tempFile.Path;
+                string filePath = Path.Combine(tempFolder, fileName);
 
                 // Descargar con progreso
                 using var response = await _httpClient.GetAsync(downloadUrl, HttpCompletionOption.ResponseHeadersRead);
@@ -200,10 +199,9 @@ del ""{batchPath}""
         {
             try
             {
-                var settings = ApplicationData.Current.LocalSettings;
-                settings.Values["LastUpdateVersion"] = updateInfo.Version;
-                settings.Values["LastUpdateChangelog"] = updateInfo.Changelog;
-                settings.Values["LastUpdateDate"] = DateTime.Now.ToString("O");
+                SettingsService.Current.LastUpdateVersion = updateInfo.Version;
+                SettingsService.Current.LastUpdateChangelog = updateInfo.Changelog;
+                SettingsService.Save();
             }
             catch (Exception ex)
             {
@@ -218,9 +216,8 @@ del ""{batchPath}""
         {
             try
             {
-                var settings = ApplicationData.Current.LocalSettings;
-                string lastVersion = settings.Values["LastUpdateVersion"] as string;
-                string lastChangelog = settings.Values["LastUpdateChangelog"] as string;
+                string lastVersion = SettingsService.Current.LastUpdateVersion;
+                string lastChangelog = SettingsService.Current.LastUpdateChangelog;
 
                 if (string.IsNullOrEmpty(lastVersion))
                     return (false, null, null);
@@ -229,7 +226,8 @@ del ""{batchPath}""
                 if (lastVersion != CURRENT_VERSION)
                 {
                     // Actualizar a la versión actual
-                    settings.Values["LastUpdateVersion"] = CURRENT_VERSION;
+                    SettingsService.Current.LastUpdateVersion = CURRENT_VERSION;
+                    SettingsService.Save();
                     return (true, lastVersion, lastChangelog);
                 }
 

@@ -33,23 +33,7 @@ namespace SaviumDrive.Services
             string iconPath = null;
             try
             {
-                try
-                {
-                    iconPath = Path.Combine(
-                        Windows.ApplicationModel.Package.Current.InstalledLocation.Path,
-                        "Assets",
-                        "tray-icon1024x1024.ico"
-                    );
-                }
-                catch (Exception ex)
-                {
-                    System.Diagnostics.Debug.WriteLine($"⚠️ Error obteniendo ruta del paquete: {ex.Message}");
-                }
-
-                if (string.IsNullOrEmpty(iconPath) || !File.Exists(iconPath))
-                {
-                    iconPath = Path.Combine(AppContext.BaseDirectory ?? string.Empty, "Assets", "tray-icon1024x1024.ico");
-                }
+                iconPath = Path.Combine(AppContext.BaseDirectory ?? string.Empty, "Assets", "tray-icon1024x1024.ico");
             }
             catch (Exception ex)
             {

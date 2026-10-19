@@ -1,4 +1,7 @@
-﻿using Google.Apis.Drive.v3;
+﻿using Google.Apis.Download;
+using Google.Apis.Drive.v3;
+using Google.Apis.Upload;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading;
@@ -15,10 +18,16 @@ namespace SaviumDrive.Services
             Service = service;
         }
 
+        // 🔥 Escapar valores para consultas 'q' de Drive (ej: "Assassin's Creed")
+        public static string EscaparQuery(string valor)
+        {
+            return (valor ?? "").Replace("\\", "\\\\").Replace("'", "\\'");
+        }
+
         public string GetOrCreateFolder(string folderName, string parentId = null)
         {
             var request = Service.Files.List();
-            string query = $"mimeType = 'application/vnd.google-apps.folder' and name = '{folderName}' and trashed = false";
+            string query = $"mimeType = 'application/vnd.google-apps.folder' and name = '{EscaparQuery(folderName)}' and trashed = false";
             if (parentId != null) query += $" and '{parentId}' in parents";
             request.Q = query;
             var result = request.Execute();
@@ -44,11 +53,19 @@ namespace SaviumDrive.Services
                 Parents = new List<string> { folderId }
             };
 
-            using (var stream = new FileStream(rutaLocal, FileMode.Open))
+            // FileShare.ReadWrite: el juego puede tener el archivo abierto
+            using (var stream = new FileStream(rutaLocal, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
             {
                 var request = Service.Files.Create(fileMetadata, stream, "application/octet-stream");
                 // Conectamos el token a la subida de Google
-                await request.UploadAsync(token);
+                var progreso = await request.UploadAsync(token);
+
+                // 🔥 UploadAsync NO lanza excepción al fallar: hay que revisar el estado
+                if (progreso.Status != UploadStatus.Completed)
+                {
+                    token.ThrowIfCancellationRequested();
+                    throw new IOException($"No se pudo subir '{Path.GetFileName(rutaLocal)}'", progreso.Exception);
+                }
             }
         }
 
@@ -56,7 +73,7 @@ namespace SaviumDrive.Services
         {
             var request = Service.Files.List();
             request.Q =
-                $"name = '{nombre}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false";
+                $"name = '{EscaparQuery(nombre)}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false";
             request.Fields = "files(id, name)";
             var result = request.Execute();
 
@@ -84,7 +101,14 @@ namespace SaviumDrive.Services
             var request = Service.Files.Get(fileId);
             using (var stream = new FileStream(rutaDestinoLocal, FileMode.Create))
             {
-                await request.DownloadAsync(stream, token);
+                var progreso = await request.DownloadAsync(stream, token);
+
+                // 🔥 DownloadAsync NO lanza excepción al fallar: hay que revisar el estado
+                if (progreso.Status != DownloadStatus.Completed)
+                {
+                    token.ThrowIfCancellationRequested();
+                    throw new IOException($"No se pudo descargar '{Path.GetFileName(rutaDestinoLocal)}'", progreso.Exception);
+                }
             }
         }
 
@@ -107,13 +131,34 @@ namespace SaviumDrive.Services
             await Service.Files.Delete(fileId).ExecuteAsync();
         }
 
-        public async Task<IList<Google.Apis.Drive.v3.Data.File>> ListarContenidoCarpeta(string folderId)
+        // 🔥 Lista TODAS las páginas (Drive devuelve máximo 100 por defecto)
+        public async Task<List<Google.Apis.Drive.v3.Data.File>> ListarArchivos(string query, string campos, CancellationToken token = default)
         {
-            var request = Service.Files.List();
-            request.Q = $"'{folderId}' in parents and trashed = false";
-            request.Fields = "files(id, name, mimeType)";
-            var result = await request.ExecuteAsync();
-            return result.Files;
+            var todos = new List<Google.Apis.Drive.v3.Data.File>();
+            string pageToken = null;
+
+            do
+            {
+                token.ThrowIfCancellationRequested();
+
+                var request = Service.Files.List();
+                request.Q = query;
+                request.Fields = $"nextPageToken, files({campos})";
+                request.PageSize = 1000;
+                request.PageToken = pageToken;
+
+                var result = await request.ExecuteAsync(token);
+                if (result.Files != null) todos.AddRange(result.Files);
+                pageToken = result.NextPageToken;
+            }
+            while (!string.IsNullOrEmpty(pageToken));
+
+            return todos;
+        }
+
+        public async Task<IList<Google.Apis.Drive.v3.Data.File>> ListarContenidoCarpeta(string folderId, CancellationToken token = default)
+        {
+            return await ListarArchivos($"'{folderId}' in parents and trashed = false", "id, name, mimeType", token);
         }
     }
 }
