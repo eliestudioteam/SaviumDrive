@@ -50,7 +50,9 @@ namespace SaviumDrive.Services
             var fileMetadata = new Google.Apis.Drive.v3.Data.File()
             {
                 Name = Path.GetFileName(rutaLocal),
-                Parents = new List<string> { folderId }
+                Parents = new List<string> { folderId },
+                // Conservar la fecha real del archivo (no la de subida) para poder comparar con el PC
+                ModifiedTimeDateTimeOffset = new DateTimeOffset(File.GetLastWriteTimeUtc(rutaLocal), TimeSpan.Zero)
             };
 
             // FileShare.ReadWrite: el juego puede tener el archivo abierto
@@ -95,7 +97,7 @@ namespace SaviumDrive.Services
 
         }
         // --- DESCARGA CANCELABLE ---
-        public async Task DescargarArchivo(string fileId, string rutaDestinoLocal, CancellationToken token)
+        public async Task DescargarArchivo(string fileId, string rutaDestinoLocal, CancellationToken token, DateTimeOffset? fechaOriginal = null)
         {
             token.ThrowIfCancellationRequested();
             var request = Service.Files.Get(fileId);
@@ -109,6 +111,12 @@ namespace SaviumDrive.Services
                     token.ThrowIfCancellationRequested();
                     throw new IOException($"No se pudo descargar '{Path.GetFileName(rutaDestinoLocal)}'", progreso.Exception);
                 }
+            }
+
+            // Devolver al archivo su fecha original (si no, parecería recién modificado)
+            if (fechaOriginal.HasValue)
+            {
+                try { File.SetLastWriteTimeUtc(rutaDestinoLocal, fechaOriginal.Value.UtcDateTime); } catch { }
             }
         }
 
@@ -126,9 +134,21 @@ namespace SaviumDrive.Services
             await updateRequest.ExecuteAsync();
         }
 
+        /// <summary>Borrado permanente: solo para restos internos (TEMP_, OLD_, configuración vieja).</summary>
         public async Task EliminarArchivoOCarpeta(string fileId)
         {
             await Service.Files.Delete(fileId).ExecuteAsync();
+        }
+
+        /// <summary>
+        /// Mueve a la papelera de Drive (se puede recuperar durante 30 días).
+        /// Para lo que elimina el usuario: juegos y versiones.
+        /// </summary>
+        public async Task EnviarAPapelera(string fileId)
+        {
+            var request = Service.Files.Update(new Google.Apis.Drive.v3.Data.File { Trashed = true }, fileId);
+            request.Fields = "id, trashed";
+            await request.ExecuteAsync();
         }
 
         // 🔥 Lista TODAS las páginas (Drive devuelve máximo 100 por defecto)
@@ -159,6 +179,65 @@ namespace SaviumDrive.Services
         public async Task<IList<Google.Apis.Drive.v3.Data.File>> ListarContenidoCarpeta(string folderId, CancellationToken token = default)
         {
             return await ListarArchivos($"'{folderId}' in parents and trashed = false", "id, name, mimeType", token);
+        }
+
+        /// <summary>
+        /// Bytes que ocupa una carpeta en Drive (recursivo). <paramref name="incluirEnRaiz"/> decide qué
+        /// elementos del primer nivel cuentan (ej. excluir otras versiones o restos TEMP_/OLD_).
+        /// </summary>
+        public async Task<long> CalcularTamanoCarpeta(string folderId, Func<Google.Apis.Drive.v3.Data.File, bool> incluirEnRaiz = null, CancellationToken token = default)
+        {
+            long total = 0;
+            var items = await ListarArchivos($"'{folderId}' in parents and trashed = false", "id, name, mimeType, size", token);
+            foreach (var item in items)
+            {
+                if (incluirEnRaiz != null && !incluirEnRaiz(item)) continue;
+
+                total += item.MimeType == "application/vnd.google-apps.folder"
+                    ? await CalcularTamanoCarpeta(item.Id, null, token)
+                    : item.Size ?? 0;
+            }
+            return total;
+        }
+
+        /// <summary>
+        /// Todos los archivos bajo una carpeta (recursivo), con tamaño y MD5.
+        /// Clave: ruta relativa con '/' (ej. "perfil/slot1.sav").
+        /// </summary>
+        public async Task<Dictionary<string, Google.Apis.Drive.v3.Data.File>> ListarArbolArchivos(string folderId, CancellationToken token = default)
+        {
+            var archivos = new Dictionary<string, Google.Apis.Drive.v3.Data.File>(StringComparer.OrdinalIgnoreCase);
+            await ListarArbolRecursivo(folderId, "", archivos, token);
+            return archivos;
+        }
+
+        private async Task ListarArbolRecursivo(string folderId, string prefijo, Dictionary<string, Google.Apis.Drive.v3.Data.File> archivos, CancellationToken token)
+        {
+            var items = await ListarArchivos($"'{folderId}' in parents and trashed = false",
+                                             "id, name, mimeType, size, md5Checksum, modifiedTime", token);
+            foreach (var item in items)
+            {
+                string ruta = prefijo + item.Name;
+                if (item.MimeType == "application/vnd.google-apps.folder")
+                    await ListarArbolRecursivo(item.Id, ruta + "/", archivos, token);
+                else
+                    archivos[ruta] = item;
+            }
+        }
+
+        /// <summary>Copia un archivo dentro de Drive (sin volver a subirlo), conservando su fecha.</summary>
+        public async Task CopiarArchivo(string fileId, string carpetaDestinoId, string nombre, DateTimeOffset? fechaModificacion, CancellationToken token)
+        {
+            token.ThrowIfCancellationRequested();
+            var copia = new Google.Apis.Drive.v3.Data.File
+            {
+                Name = nombre,
+                Parents = new List<string> { carpetaDestinoId },
+                ModifiedTimeDateTimeOffset = fechaModificacion
+            };
+            var request = Service.Files.Copy(copia, fileId);
+            request.Fields = "id";
+            await request.ExecuteAsync(token);
         }
     }
 }

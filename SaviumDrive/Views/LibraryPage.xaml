@@ -30,6 +30,18 @@
                     </StackPanel>
                     <ProgressBar x:Name="MainProgressBar" Width="200" Height="4" HorizontalAlignment="Left" Foreground="{ThemeResource AccentColor}" IsIndeterminate="True"/>
                 </StackPanel>
+
+                <!-- Buscar y ordenar -->
+                <StackPanel Orientation="Horizontal" Spacing="10" Margin="0,10,0,0">
+                    <AutoSuggestBox x:Name="TxtBuscar" x:Uid="LibSearch" Width="260"
+                                    QueryIcon="Find" TextChanged="TxtBuscar_TextChanged"/>
+                    <ComboBox x:Name="CmbOrden" x:Uid="LibSort" MinWidth="200"
+                              SelectionChanged="CmbOrden_SelectionChanged">
+                        <ComboBoxItem x:Uid="LibSortNameAZ" Tag="NombreAZ"/>
+                        <ComboBoxItem x:Uid="LibSortNameZA" Tag="NombreZA"/>
+                        <ComboBoxItem x:Uid="LibSortRecent" Tag="UltimoBackup"/>
+                    </ComboBox>
+                </StackPanel>
             </StackPanel>
 
             <Button x:Name="BtnMainAction" Grid.Column="1" Click="BtnMainAction_Click"
@@ -47,7 +59,7 @@
                 <DataTemplate x:DataType="models:GameConfig">
                     <Grid Width="160" Height="260" CornerRadius="8" Background="{ThemeResource ItemCardBackground}" Margin="0,0,15,15">
                         <ToolTipService.ToolTip>
-                            <ToolTip Content="{x:Bind LocalPath}"/>
+                            <ToolTip Content="{x:Bind RutaEnEstePc}"/>
                         </ToolTipService.ToolTip>
                         <Grid.RowDefinitions>
                             <RowDefinition Height="*"/>
@@ -99,6 +111,19 @@
                             </ComboBox.Resources>
                         </ComboBox>
 
+                        <!-- La carpeta de partidas no existe en este PC (ej. el juego se agregó en otro equipo) -->
+                        <Border Grid.Row="0" VerticalAlignment="Center" Margin="8,0"
+                                Background="#E6202020" CornerRadius="6" Padding="8"
+                                Visibility="{x:Bind NeedsRelink}">
+                            <StackPanel Spacing="6">
+                                <TextBlock x:Uid="CardFolderMissing" Foreground="White" FontSize="11"
+                                           TextWrapping="Wrap" TextAlignment="Center"/>
+                                <Button x:Uid="CardChooseFolder" Click="BtnRelink_Click" Tag="{x:Bind}"
+                                        HorizontalAlignment="Stretch" FontSize="11" Padding="6,4"
+                                        Style="{StaticResource StandardBtnStyle}"/>
+                            </StackPanel>
+                        </Border>
+
                         <!-- Acciones (sobre la versión activa) -->
                         <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Center" Padding="2,5">
 
@@ -144,6 +169,12 @@
                 </DataTemplate>
             </GridView.ItemTemplate>
         </GridView>
+
+        <!-- La búsqueda no encontró juegos (pero la biblioteca no está vacía) -->
+        <StackPanel x:Name="NoResultsState" Grid.Row="1" VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="10" Visibility="Collapsed">
+            <FontIcon Glyph="&#xE721;" FontFamily="Segoe MDL2 Assets" FontSize="40" Foreground="{ThemeResource TextTertiary}"/>
+            <TextBlock x:Uid="LibNoResults" Foreground="{ThemeResource TextSecondary}" FontWeight="SemiBold" HorizontalAlignment="Center"/>
+        </StackPanel>
 
         <StackPanel x:Name="EmptyState" Grid.Row="1" VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="15" Visibility="Collapsed">
             <FontIcon Glyph="&#xE7BC;" FontFamily="Segoe MDL2 Assets" FontSize="48" Foreground="{ThemeResource TextTertiary}"/>

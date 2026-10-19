@@ -18,5 +18,10 @@
 		<Compile Include="..\..\SaviumDrive\Services\UpdateVersioning.cs" Link="App\UpdateVersioning.cs" />
 		<Compile Include="..\..\SaviumDrive\Services\LibraryMerge.cs" Link="App\LibraryMerge.cs" />
 		<Compile Include="..\..\SaviumDrive\Models\GameConfig.cs" Link="App\GameConfig.cs" />
+		<Compile Include="..\..\SaviumDrive\Services\LibraryFilter.cs" Link="App\LibraryFilter.cs" />
+		<Compile Include="..\..\SaviumDrive\Services\LudusaviIndex.cs" Link="App\LudusaviIndex.cs" />
+		<Compile Include="..\..\SaviumDrive\Services\ZipBackup.cs" Link="App\ZipBackup.cs" />
+		<Compile Include="..\..\SaviumDrive\Services\BackupDiff.cs" Link="App\BackupDiff.cs" />
+		<Compile Include="..\..\SaviumDrive\Services\SaveTimestamps.cs" Link="App\SaveTimestamps.cs" />
 	</ItemGroup>
 </Project>

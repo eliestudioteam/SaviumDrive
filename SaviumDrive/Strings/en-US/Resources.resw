@@ -127,7 +127,7 @@
 	<data name="AlertRestoreSuccess" xml:space="preserve"><value>Files restored successfully.</value></data>
 	<data name="AlertOpCancelled" xml:space="preserve"><value>Operation cancelled.</value></data>
 	<data name="ConfirmDeleteTitle" xml:space="preserve"><value>Delete {0}?</value></data>
-	<data name="ConfirmDeleteMsg" xml:space="preserve"><value>This will delete the backup from Google Drive and this list. Files on your PC will NOT be touched.</value></data>
+	<data name="ConfirmDeleteMsg" xml:space="preserve"><value>This will move the backup to the Google Drive trash (you can recover it for 30 days) and remove it from this list. Files on your PC will NOT be touched.</value></data>
 	<data name="ConfirmDeleteBtn" xml:space="preserve"><value>Delete</value></data>
 	<data name="ConfirmRestoreTitle" xml:space="preserve"><value>Apply Backup</value></data>
 	<data name="ConfirmRestoreMsg" xml:space="preserve"><value>Files will be downloaded from the cloud and overwritten in:\n\n{0}\n\nAre you sure?</value></data>
@@ -181,7 +181,7 @@
 
 	<data name="AlertWarning" xml:space="preserve"><value>⚠️ Warning</value></data>
 	<data name="MsgDeletingIn" xml:space="preserve"><value>Backup will be deleted in {0} seconds...</value></data>
-	<data name="AlertDeleteSuccess" xml:space="preserve"><value>Backup deleted successfully</value></data>
+	<data name="AlertDeleteSuccess" xml:space="preserve"><value>Backup moved to the Google Drive trash. You can recover it from drive.google.com for 30 days.</value></data>
 	<data name="AlertBackupCreated" xml:space="preserve"><value>Backup created successfully</value></data>
 
 	<data name="StatusDeleting" xml:space="preserve"><value>Deleting...</value></data>
@@ -286,8 +286,8 @@
 	<data name="MsgBusyVersion" xml:space="preserve"><value>An operation is in progress. Wait for it to finish before switching or creating versions.</value></data>
 	<data name="AlertLocalFolderMissing" xml:space="preserve"><value>The save folder was not found on this PC:\n{0}</value></data>
 	<data name="AlertVersionCreated" xml:space="preserve"><value>{0} was created in the cloud. It is now the active version.</value></data>
-	<data name="AlertVersionDeleted" xml:space="preserve"><value>{0} was deleted from the cloud.</value></data>
-	<data name="ConfirmDeleteVersionMsg" xml:space="preserve"><value>This will delete {0} from Google Drive. Other versions and the files on your PC will NOT be touched.</value></data>
+	<data name="AlertVersionDeleted" xml:space="preserve"><value>{0} was moved to the Google Drive trash. You can recover it from drive.google.com for 30 days.</value></data>
+	<data name="ConfirmDeleteVersionMsg" xml:space="preserve"><value>This will move {0} to the Google Drive trash (you can recover it for 30 days). Other versions and the files on your PC will NOT be touched.</value></data>
 	<data name="HistBack.Text" xml:space="preserve"><value>Back to library</value></data>
 	<data name="HistTitle.Text" xml:space="preserve"><value>Version history</value></data>
 	<data name="HistSummary" xml:space="preserve"><value>{0} versions · Active: {1}</value></data>
@@ -305,4 +305,41 @@
 	<data name="HistSaveBtn" xml:space="preserve"><value>Save</value></data>
 	<data name="SetVersionNotice.Text" xml:space="preserve"><value>Notify when switching versions</value></data>
 	<data name="SetVersionNoticeDesc.Text" xml:space="preserve"><value>Shows a notice saying that actions will apply to the new active version</value></data>
+	<!-- Tamaño de cada versión en el historial -->
+	<data name="HistSize" xml:space="preserve"><value>Size in Drive: {0}</value></data>
+	<data name="HistSizeCalculating" xml:space="preserve"><value>Size in Drive: calculating...</value></data>
+	<data name="HistSizeUnavailable" xml:space="preserve"><value>Size in Drive: unavailable</value></data>
+	<data name="HistTotalSize" xml:space="preserve"><value>Total in Drive: {0}</value></data>
+	<data name="HistTotalCalculating" xml:space="preserve"><value>Total in Drive: calculating...</value></data>
+	<data name="HistTotalPartial" xml:space="preserve"><value>Total in Drive: at least {0} (some versions could not be calculated)</value></data>
+	<!-- Buscar y ordenar la biblioteca -->
+	<data name="LibSearch.PlaceholderText" xml:space="preserve"><value>Search game...</value></data>
+	<data name="LibSort.ToolTipService.ToolTip" xml:space="preserve"><value>Sort library</value></data>
+	<data name="LibSortNameAZ.Content" xml:space="preserve"><value>Name (A-Z)</value></data>
+	<data name="LibSortNameZA.Content" xml:space="preserve"><value>Name (Z-A)</value></data>
+	<data name="LibSortRecent.Content" xml:space="preserve"><value>Last backup</value></data>
+	<data name="LibNoResults.Text" xml:space="preserve"><value>No games match your search</value></data>
+	<!-- Ruta de partidas automática (Ludusavi) -->
+	<data name="PathHintSearching" xml:space="preserve"><value>🔍 Looking for the save folder...</value></data>
+	<data name="PathHintDownloading" xml:space="preserve"><value>⬇️ Downloading the save database (first time only)...</value></data>
+	<data name="PathHintFound" xml:space="preserve"><value>📂 Folder found automatically (Ludusavi database). Check it before saving.</value></data>
+	<data name="PathHintNotFound" xml:space="preserve"><value>The folder could not be found automatically. Choose it with Browse.</value></data>
+	<!-- Elegir carpeta en este PC -->
+	<data name="CardFolderMissing.Text" xml:space="preserve"><value>Folder not found on this PC</value></data>
+	<data name="CardChooseFolder.Content" xml:space="preserve"><value>Choose folder</value></data>
+	<data name="RelinkTitle" xml:space="preserve"><value>Choose the save folder on this PC</value></data>
+	<data name="RelinkMsg" xml:space="preserve"><value>This game's save folder does not exist on this PC:\n{0}\n\nChoose where the saves are here. It only changes on this PC: other computers keep using theirs.</value></data>
+	<data name="RelinkMsgRestore" xml:space="preserve"><value>This game's save folder does not exist on this PC:\n{0}\n\nChoose where you want to restore the saves (it can be an empty folder). It only changes on this PC: other computers keep using theirs.</value></data>
+	<data name="RelinkChooseBtn" xml:space="preserve"><value>Choose folder</value></data>
+	<!-- Backups comprimidos (.zip) -->
+	<data name="MsgCompressing" xml:space="preserve"><value>Compressing saves...</value></data>
+	<data name="MsgExtracting" xml:space="preserve"><value>Extracting saves...</value></data>
+	<!-- Subida incremental -->
+	<data name="MsgComparing" xml:space="preserve"><value>Comparing with the cloud...</value></data>
+	<data name="AlertUpdateNoChanges" xml:space="preserve"><value>No changes: the cloud backup was already up to date.</value></data>
+	<data name="AlertUpdateIncremental" xml:space="preserve"><value>Cloud backup updated.\n\nFiles uploaded (new or modified): {0}\nUnchanged (not uploaded again): {1}\nRemoved because they are no longer on your PC: {2}</value></data>
+	<!-- Aviso antes de restaurar -->
+	<data name="RestoreNewerTitle" xml:space="preserve"><value>Your save on this PC is newer</value></data>
+	<data name="RestoreNewerMsg" xml:space="preserve"><value>The files on your PC were modified on {0}, after the last cloud save of {1} ({2}).\n\nIf you restore, you will lose that progress. To keep it, use Save first.\n\nAre you sure you want to replace it?</value></data>
+	<data name="RestoreNewerBtn" xml:space="preserve"><value>Replace anyway</value></data>
 </root>

@@ -1,4 +1,4 @@
-using Microsoft.UI.Xaml;
+﻿using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media.Imaging;
 using Microsoft.UI.Xaml.Navigation;
@@ -13,8 +13,22 @@ using System.Threading.Tasks;
 namespace SaviumDrive.Views
 {
     /// <summary>Fila del historial (datos ya formateados para la vista).</summary>
-    public sealed class VersionItem
+    public sealed class VersionItem : System.ComponentModel.INotifyPropertyChanged
     {
+        public event System.ComponentModel.PropertyChangedEventHandler PropertyChanged;
+
+        private string _tamanoText;
+        /// <summary>Tamaño en Drive; se rellena después de mostrar la lista.</summary>
+        public string TamanoText
+        {
+            get => _tamanoText;
+            set
+            {
+                _tamanoText = value;
+                PropertyChanged?.Invoke(this, new System.ComponentModel.PropertyChangedEventArgs(nameof(TamanoText)));
+            }
+        }
+
         public GameVersion Version { get; set; }
         public string Label { get; set; }
         public bool IsActive { get; set; }
@@ -33,6 +47,7 @@ namespace SaviumDrive.Views
         private string _juegoId;
         private GameConfig _juego;
         private bool _ocupado;
+        private System.Threading.CancellationTokenSource _ctsTamanos;
 
         public VersionHistoryPage()
         {
@@ -44,6 +59,12 @@ namespace SaviumDrive.Views
             base.OnNavigatedTo(e);
             _juegoId = e.Parameter as string;
             await Cargar();
+        }
+
+        protected override void OnNavigatedFrom(NavigationEventArgs e)
+        {
+            base.OnNavigatedFrom(e);
+            _ctsTamanos?.Cancel();
         }
 
         private async Task Cargar()
@@ -76,10 +97,48 @@ namespace SaviumDrive.Views
                     IsActive = v.Id == _juego.ActiveVersion?.Id,
                     CreatedText = ResourceHelper.GetString("HistCreated", FormatearFecha(v.CreatedAt)),
                     LastBackupText = ResourceHelper.GetString("HistLastSaved", FormatearFecha(v.LastBackup)),
+                    TamanoText = ResourceHelper.GetString("HistSizeCalculating"),
                     DescriptionText = v.HasDescription ? v.Description : ResourceHelper.GetString("HistNoDesc"),
                     DescriptionOpacity = v.HasDescription ? 1 : 0.6
                 });
             }
+
+            _ = CargarTamanos(_juego, Items.ToList());
+        }
+
+        /// <summary>Calcula en segundo plano cuánto ocupa cada versión en Drive y el total.</summary>
+        private async Task CargarTamanos(GameConfig juego, System.Collections.Generic.List<VersionItem> filas)
+        {
+            _ctsTamanos?.Cancel();
+            var cts = new System.Threading.CancellationTokenSource();
+            _ctsTamanos = cts;
+
+            TxtTotalSize.Text = ResourceHelper.GetString("HistTotalCalculating");
+            long total = 0;
+            bool completo = true;
+
+            foreach (var fila in filas)
+            {
+                try
+                {
+                    long bytes = await App.LibraryService.CalcularTamanoVersion(juego, fila.Version, cts.Token);
+                    if (cts.IsCancellationRequested) return;
+                    fila.TamanoText = ResourceHelper.GetString("HistSize", GameLibraryService.FormatBytes(bytes));
+                    total += bytes;
+                }
+                catch (OperationCanceledException) { return; }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"⚠️ No se pudo calcular el tamaño de {fila.Label}: {ex.Message}");
+                    fila.TamanoText = ResourceHelper.GetString("HistSizeUnavailable");
+                    completo = false;
+                }
+            }
+
+            if (cts.IsCancellationRequested) return;
+            TxtTotalSize.Text = completo
+                ? ResourceHelper.GetString("HistTotalSize", GameLibraryService.FormatBytes(total))
+                : ResourceHelper.GetString("HistTotalPartial", GameLibraryService.FormatBytes(total));
         }
 
         private static string FormatearFecha(DateTime fecha)

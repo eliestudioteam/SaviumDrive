@@ -109,6 +109,143 @@ namespace SaviumDrive.Tests
             Assert.Equal(250, archivos.Select(f => f.Id).Distinct().Count());
         }
 
+        // --- Papelera ---
+
+        [Fact]
+        public async Task EnviarAPapelera_MarcaComoTrashedSinBorrarDefinitivamente()
+        {
+            string cuerpo = null;
+            var handler = new FakeDriveHandler(req =>
+            {
+                if (req.Method == HttpMethod.Patch) cuerpo = req.Content?.ReadAsStringAsync().Result;
+                return FakeDriveHandler.Json("{\"id\":\"juego-1\",\"trashed\":true}");
+            });
+            var manager = new DriveManager(FakeDrive.CreateService(handler));
+
+            await manager.EnviarAPapelera("juego-1");
+
+            var peticion = Assert.Single(handler.Requests);
+            Assert.Equal(HttpMethod.Patch, peticion.Method);
+            Assert.EndsWith("/files/juego-1", peticion.RequestUri.AbsolutePath);
+            Assert.Contains("\"trashed\":true", cuerpo);
+            Assert.DoesNotContain(handler.Requests, r => r.Method == HttpMethod.Delete);
+        }
+
+        [Fact]
+        public async Task EliminarArchivoOCarpeta_BorraDefinitivamente()
+        {
+            var handler = new FakeDriveHandler(req => new HttpResponseMessage(HttpStatusCode.NoContent));
+            var manager = new DriveManager(FakeDrive.CreateService(handler));
+
+            await manager.EliminarArchivoOCarpeta("temp-1");
+
+            Assert.Equal(HttpMethod.Delete, Assert.Single(handler.Requests).Method);
+        }
+
+        // --- Árbol de archivos y copias (subida incremental) ---
+
+        [Fact]
+        public async Task ListarArbolArchivos_RecorreSubcarpetasConRutasRelativas()
+        {
+            var handler = new FakeDriveHandler(req =>
+            {
+                string q = FakeDrive.QueryParam(req, "q") ?? "";
+                if (q.Contains("'raiz' in parents"))
+                    return FakeDriveHandler.Json("{\"files\":[" +
+                        "{\"id\":\"f1\",\"name\":\"config.ini\",\"mimeType\":\"text/plain\",\"size\":\"3\",\"md5Checksum\":\"aaa\"}," +
+                        "{\"id\":\"d1\",\"name\":\"perfil\",\"mimeType\":\"application/vnd.google-apps.folder\"}]}");
+                if (q.Contains("'d1' in parents"))
+                    return FakeDriveHandler.Json("{\"files\":[{\"id\":\"f2\",\"name\":\"slot1.sav\",\"mimeType\":\"application/octet-stream\",\"size\":\"20\",\"md5Checksum\":\"bbb\"}]}");
+                return FakeDriveHandler.Json("{\"files\":[]}");
+            });
+            var manager = new DriveManager(FakeDrive.CreateService(handler));
+
+            var arbol = await manager.ListarArbolArchivos("raiz");
+
+            Assert.Equal(2, arbol.Count);
+            Assert.Equal("aaa", arbol["config.ini"].Md5Checksum);
+            Assert.Equal(20, arbol["perfil/slot1.sav"].Size);
+            Assert.Contains("md5Checksum", FakeDrive.QueryParam(handler.Requests[0], "fields"));
+        }
+
+        [Fact]
+        public async Task CopiarArchivo_CopiaDentroDeDriveSinSubirContenido()
+        {
+            string cuerpo = null;
+            var handler = new FakeDriveHandler(req =>
+            {
+                cuerpo = req.Content?.ReadAsStringAsync().Result;
+                return FakeDriveHandler.Json("{\"id\":\"copia-1\"}");
+            });
+            var manager = new DriveManager(FakeDrive.CreateService(handler));
+            var fecha = new DateTimeOffset(2026, 3, 14, 9, 30, 0, TimeSpan.Zero);
+
+            await manager.CopiarArchivo("original-1", "temp-1", "slot1.sav", fecha, CancellationToken.None);
+
+            var peticion = Assert.Single(handler.Requests);
+            Assert.Equal(HttpMethod.Post, peticion.Method);
+            Assert.EndsWith("/files/original-1/copy", peticion.RequestUri.AbsolutePath);
+            Assert.DoesNotContain("upload", peticion.RequestUri.AbsolutePath);
+            Assert.Contains("\"parents\":[\"temp-1\"]", cuerpo);
+            Assert.Contains("\"name\":\"slot1.sav\"", cuerpo);
+            Assert.Contains("\"modifiedTime\":\"2026-03-14T09:30:00", cuerpo);
+        }
+
+        // --- Tamaño de carpetas (historial de versiones) ---
+
+        /// <summary>
+        /// Carpeta raíz de un juego con V1 dentro (saves/) junto a otra versión (Version_2/) y restos TEMP_/OLD_.
+        /// </summary>
+        private static FakeDriveHandler DriveConVersiones() => new FakeDriveHandler(req =>
+        {
+            string q = FakeDrive.QueryParam(req, "q") ?? "";
+            if (q.Contains("'raiz' in parents"))
+                return FakeDriveHandler.Json("{\"files\":[" +
+                    "{\"id\":\"saves\",\"name\":\"saves\",\"mimeType\":\"application/vnd.google-apps.folder\"}," +
+                    "{\"id\":\"v2\",\"name\":\"Version_2\",\"mimeType\":\"application/vnd.google-apps.folder\"}," +
+                    "{\"id\":\"temp\",\"name\":\"TEMP_saves\",\"mimeType\":\"application/vnd.google-apps.folder\"}," +
+                    "{\"id\":\"suelto\",\"name\":\"leeme.txt\",\"mimeType\":\"text/plain\",\"size\":\"5\"}]}");
+            if (q.Contains("'saves' in parents"))
+                return FakeDriveHandler.Json("{\"files\":[" +
+                    "{\"id\":\"a\",\"name\":\"a.sav\",\"mimeType\":\"application/octet-stream\",\"size\":\"1000\"}," +
+                    "{\"id\":\"sub\",\"name\":\"perfil\",\"mimeType\":\"application/vnd.google-apps.folder\"}]}");
+            if (q.Contains("'sub' in parents"))
+                return FakeDriveHandler.Json("{\"files\":[{\"id\":\"b\",\"name\":\"b.sav\",\"mimeType\":\"application/octet-stream\",\"size\":\"250\"}]}");
+            if (q.Contains("'v2' in parents"))
+                return FakeDriveHandler.Json("{\"files\":[{\"id\":\"c\",\"name\":\"c.sav\",\"mimeType\":\"application/octet-stream\",\"size\":\"9000\"}]}");
+            if (q.Contains("'temp' in parents"))
+                return FakeDriveHandler.Json("{\"files\":[{\"id\":\"d\",\"name\":\"d.sav\",\"mimeType\":\"application/octet-stream\",\"size\":\"777\"}]}");
+            return FakeDriveHandler.Json("{\"files\":[]}");
+        });
+
+        [Fact]
+        public async Task CalcularTamanoCarpeta_SumaArchivosYSubcarpetas()
+        {
+            var manager = new DriveManager(FakeDrive.CreateService(DriveConVersiones()));
+
+            Assert.Equal(1250, await manager.CalcularTamanoCarpeta("saves"));
+            Assert.Equal(9000, await manager.CalcularTamanoCarpeta("v2"));
+        }
+
+        [Fact]
+        public async Task CalcularTamanoCarpeta_FiltroEnRaiz_ExcluyeOtrasVersionesYRestos()
+        {
+            var manager = new DriveManager(FakeDrive.CreateService(DriveConVersiones()));
+
+            // Tamaño de V1 (en la raíz del juego): sin Version_2 ni TEMP_
+            long v1 = await manager.CalcularTamanoCarpeta("raiz", item =>
+                item.Id != "v2" && !item.Name.StartsWith("TEMP_") && !item.Name.StartsWith("OLD_"));
+
+            Assert.Equal(1000 + 250 + 5, v1);
+        }
+
+        [Fact]
+        public async Task CalcularTamanoCarpeta_SinFiltro_CuentaTodo()
+        {
+            var manager = new DriveManager(FakeDrive.CreateService(DriveConVersiones()));
+            Assert.Equal(1000 + 250 + 9000 + 777 + 5, await manager.CalcularTamanoCarpeta("raiz"));
+        }
+
         // --- Descargas ---
 
         [Fact]
@@ -124,6 +261,23 @@ namespace SaviumDrive.Tests
             await manager.DescargarArchivo("archivo-1", destino, CancellationToken.None);
 
             Assert.Equal("partida guardada", File.ReadAllText(destino));
+        }
+
+        [Fact]
+        public async Task DescargarArchivo_ConFechaOriginal_LaRestauraEnElArchivo()
+        {
+            var handler = new FakeDriveHandler(req => new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new ByteArrayContent(Encoding.UTF8.GetBytes("partida"))
+            });
+            var manager = new DriveManager(FakeDrive.CreateService(handler));
+            string destino = Path.Combine(_tempDir, "save.dat");
+            var original = new DateTimeOffset(2026, 3, 14, 9, 30, 0, TimeSpan.Zero);
+
+            await manager.DescargarArchivo("archivo-1", destino, CancellationToken.None, original);
+
+            // Sin esto el archivo tendría la fecha de la descarga y parecería más nuevo que el backup
+            Assert.Equal(original.UtcDateTime, File.GetLastWriteTimeUtc(destino));
         }
 
         [Theory]
@@ -161,6 +315,32 @@ namespace SaviumDrive.Tests
             await manager.SubirArchivo(archivo, "carpeta-1", CancellationToken.None);
 
             Assert.Contains(handler.Requests, r => r.Method == HttpMethod.Put && r.RequestUri.ToString() == sesion);
+        }
+
+        [Fact]
+        public async Task SubirArchivo_EnviaLaFechaOriginalDelArchivo()
+        {
+            const string sesion = "https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable&upload_id=abc";
+            string metadatos = null;
+            var handler = new FakeDriveHandler(req =>
+            {
+                if (req.Method == HttpMethod.Post)
+                {
+                    metadatos = req.Content?.ReadAsStringAsync().Result;
+                    var r = new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("") };
+                    r.Headers.Location = new Uri(sesion);
+                    return r;
+                }
+                return FakeDriveHandler.Json("{\"id\":\"subido-1\"}");
+            });
+            var manager = new DriveManager(FakeDrive.CreateService(handler));
+            string archivo = CrearArchivo("save.dat", "datos");
+            File.SetLastWriteTimeUtc(archivo, new DateTime(2026, 3, 14, 9, 30, 0, DateTimeKind.Utc));
+
+            await manager.SubirArchivo(archivo, "carpeta-1", CancellationToken.None);
+
+            Assert.NotNull(metadatos);
+            Assert.Contains("\"modifiedTime\":\"2026-03-14T09:30:00", metadatos);
         }
 
         [Theory]
