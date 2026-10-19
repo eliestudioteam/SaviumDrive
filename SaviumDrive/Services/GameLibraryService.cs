@@ -112,22 +112,7 @@ namespace SaviumDrive.Services
 
                 string idMadre = _driveManager.GetOrCreateFolder("SaviumBackups");
                 idJuegoRaiz = _driveManager.GetOrCreateFolder(nombre, idMadre);
-                var infoCarpeta = new DirectoryInfo(rutaLocal);
-                string idCarpetaContenido = _driveManager.GetOrCreateFolder(infoCarpeta.Name, idJuegoRaiz);
-
-                long totalBytes = GetDirectorySize(rutaLocal);
-                long bytesSubidos = 0;
-                string totalStr = FormatBytes(totalBytes);
-
-                await SubirDirectorioRecursivo(rutaLocal, idCarpetaContenido, token, (nombreArchivo, pesoArchivo) =>
-                {
-                    token.ThrowIfCancellationRequested(); // Verificar cancelación en cada archivo
-                    bytesSubidos += pesoArchivo;
-                    int porcentaje = totalBytes > 0 ? (int)((double)bytesSubidos / totalBytes * 100) : 0;
-                    string progresoStr = $"{FormatBytes(bytesSubidos)} / {totalStr}";
-
-                    NotifyProgress(nombre, porcentaje, "StatusUploading", string.Format(GetStr("MsgUploadingSize"), nombreArchivo, progresoStr), true);
-                });
+                var (comprimido, huella) = await SubirContenido(rutaLocal, idJuegoRaiz, nombre, token);
 
                 var ahora = DateTime.UtcNow;
                 var nuevoJuego = new GameConfig
@@ -145,7 +130,9 @@ namespace SaviumDrive.Services
                     Number = 1,
                     CreatedAt = ahora,
                     LastBackup = ahora,
-                    DriveFolderId = idJuegoRaiz
+                    DriveFolderId = idJuegoRaiz,
+                    Comprimido = comprimido,
+                    HuellaContenido = huella
                 };
                 nuevoJuego.Versions.Add(v1);
                 nuevoJuego.ActiveVersionId = v1.Id;
@@ -268,6 +255,7 @@ namespace SaviumDrive.Services
                 NotifyProgress(nombreProgreso, 0, "StatusUploading", GetStr("MsgPrepUpdate"), true);
 
                 if (version == null || string.IsNullOrEmpty(version.DriveFolderId)) throw new Exception("ID Inválido");
+                if (version.Comprimido) { await ActualizarBackupZip(juego, version, nombreProgreso, token); return; }
                 string idBase = version.DriveFolderId;
 
                 // 1️⃣ OBTENER CARPETA ORIGINAL (la que contiene los archivos del juego)
@@ -352,6 +340,197 @@ namespace SaviumDrive.Services
         }
 
 
+        // ===================== BACKUPS COMPRIMIDOS (.zip) =====================
+
+        private static string CarpetaTemporalZip()
+        {
+            string dir = Path.Combine(Path.GetTempPath(), "SaviumDrive", Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(dir);
+            return dir;
+        }
+
+        /// <summary>
+        /// Sube el contenido de una versión dentro de su carpeta de Drive: como un solo .zip si hay muchos
+        /// archivos, o archivo por archivo (en una subcarpeta con el nombre de la carpeta local) si no.
+        /// </summary>
+        private async Task<(bool comprimido, string huella)> SubirContenido(string rutaLocal, string idCarpetaVersion, string nombreProgreso, CancellationToken token)
+        {
+            if (ZipBackup.ConvieneComprimir(rutaLocal))
+            {
+                string huella = await Task.Run(() => ZipBackup.HuellaCarpeta(rutaLocal), token);
+                await SubirZip(rutaLocal, idCarpetaVersion, ZipBackup.NombreZip(rutaLocal), nombreProgreso, token);
+                return (true, huella);
+            }
+
+            string idContenido = _driveManager.GetOrCreateFolder(new DirectoryInfo(rutaLocal).Name, idCarpetaVersion);
+
+            long totalBytes = GetDirectorySize(rutaLocal);
+            long bytesSubidos = 0;
+            string totalStr = FormatBytes(totalBytes);
+
+            await SubirDirectorioRecursivo(rutaLocal, idContenido, token, (nombreArchivo, pesoArchivo) =>
+            {
+                token.ThrowIfCancellationRequested(); // Verificar cancelación en cada archivo
+                bytesSubidos += pesoArchivo;
+                int porcentaje = totalBytes > 0 ? (int)((double)bytesSubidos / totalBytes * 100) : 0;
+                string progresoStr = $"{FormatBytes(bytesSubidos)} / {totalStr}";
+
+                NotifyProgress(nombreProgreso, porcentaje, "StatusUploading", string.Format(GetStr("MsgUploadingSize"), nombreArchivo, progresoStr), true);
+            });
+
+            return (false, null);
+        }
+
+        /// <summary>Comprime la carpeta en un .zip temporal y lo sube con el nombre indicado.</summary>
+        private async Task SubirZip(string rutaLocal, string idCarpetaDestino, string nombreEnDrive, string nombreProgreso, CancellationToken token)
+        {
+            string dirTemporal = CarpetaTemporalZip();
+            try
+            {
+                string zipLocal = Path.Combine(dirTemporal, nombreEnDrive);
+
+                NotifyProgress(nombreProgreso, -1, "StatusUploading", GetStr("MsgCompressing"), true);
+                await Task.Run(() => ZipBackup.Comprimir(rutaLocal, zipLocal), token);
+
+                token.ThrowIfCancellationRequested();
+                string tamano = FormatBytes(new FileInfo(zipLocal).Length);
+                NotifyProgress(nombreProgreso, -1, "StatusUploading", string.Format(GetStr("MsgUploadingSize"), nombreEnDrive, tamano), true);
+                await Task.Run(() => _driveManager.SubirArchivo(zipLocal, idCarpetaDestino, token));
+            }
+            finally
+            {
+                try { Directory.Delete(dirTemporal, true); } catch { }
+            }
+        }
+
+        private async Task<Google.Apis.Drive.v3.Data.File> BuscarZipDeVersion(GameConfig juego, GameVersion version, CancellationToken token)
+        {
+            string nombreZip = ZipBackup.NombreZip(juego.LocalPath);
+            var items = await _driveManager.ListarContenidoCarpeta(version.DriveFolderId, token);
+            return items.FirstOrDefault(i => i.Name == nombreZip && i.MimeType != "application/vnd.google-apps.folder")
+                   ?? throw new Exception("El backup comprimido de esta versión no se encontró en Drive");
+        }
+
+        /// <summary>Actualiza una versión comprimida: si el contenido no cambió no sube nada; si cambió, reemplaza el .zip de forma segura.</summary>
+        private async Task ActualizarBackupZip(GameConfig juego, GameVersion version, string nombreProgreso, CancellationToken token)
+        {
+            var zipActual = await BuscarZipDeVersion(juego, version, token);
+
+            NotifyProgress(nombreProgreso, -1, "StatusUploading", GetStr("MsgScanning"), true);
+            string huella = await Task.Run(() => ZipBackup.HuellaCarpeta(juego.LocalPath), token);
+
+            if (!string.IsNullOrEmpty(version.HuellaContenido) && huella == version.HuellaContenido)
+            {
+                // Nada cambió: el .zip en Drive ya está al día
+                await MarcarGuardadoZip(juego, version, huella);
+                return;
+            }
+
+            // Subir el nuevo .zip como TEMP_ (sin tocar el actual) y luego intercambiar
+            string nombreZip = zipActual.Name;
+            string nombreTemporal = $"TEMP_{nombreZip}";
+            var items = await _driveManager.ListarContenidoCarpeta(version.DriveFolderId, token);
+            foreach (var resto in items.Where(i => i.Name == nombreTemporal)) await _driveManager.EliminarArchivoOCarpeta(resto.Id);
+
+            await SubirZip(juego.LocalPath, version.DriveFolderId, nombreTemporal, nombreProgreso, token);
+            var zipNuevo = (await _driveManager.ListarContenidoCarpeta(version.DriveFolderId, token))
+                .FirstOrDefault(i => i.Name == nombreTemporal)
+                ?? throw new Exception("No se encontró el backup recién subido");
+
+            try
+            {
+                await _driveManager.RenombrarArchivo(zipActual.Id, $"OLD_{nombreZip}");
+                try
+                {
+                    await _driveManager.RenombrarArchivo(zipNuevo.Id, nombreZip);
+                }
+                catch
+                {
+                    try { await _driveManager.RenombrarArchivo(zipActual.Id, nombreZip); } catch { }
+                    throw;
+                }
+            }
+            catch
+            {
+                // No dejar el .zip nuevo a medias: el anterior sigue intacto
+                try { await _driveManager.EliminarArchivoOCarpeta(zipNuevo.Id); } catch { }
+                throw;
+            }
+
+            try { await _driveManager.EliminarArchivoOCarpeta(zipActual.Id); } catch { }
+            await MarcarGuardadoZip(juego, version, huella);
+        }
+
+        private async Task MarcarGuardadoZip(GameConfig juego, GameVersion version, string huella)
+        {
+            var ahora = DateTime.UtcNow;
+            juego.LastBackup = ahora;
+            version.LastBackup = ahora;
+            version.HuellaContenido = huella;
+            await ModificarJuego(juego.Id, j =>
+            {
+                j.LastBackup = ahora;
+                var v = j.FindVersion(version.Id);
+                if (v != null) { v.LastBackup = ahora; v.HuellaContenido = huella; }
+            });
+        }
+
+        /// <summary>Restaura una versión comprimida: descarga el .zip, lo extrae aparte y cambia las carpetas de forma segura.</summary>
+        private async Task RestaurarZip(GameConfig juego, GameVersion version, string nombreProgreso, CancellationToken token)
+        {
+            string rutaOriginal = juego.LocalPath;
+            string nombreLocal = new DirectoryInfo(rutaOriginal).Name;
+            string contenedor = Path.GetDirectoryName(rutaOriginal);
+            if (string.IsNullOrEmpty(contenedor)) throw new Exception("Ruta local inválida");
+
+            string rutaTemporal = Path.Combine(contenedor, $"TEMP_{nombreLocal}");
+            string dirZip = CarpetaTemporalZip();
+            try
+            {
+                var zip = await BuscarZipDeVersion(juego, version, token);
+                string zipLocal = Path.Combine(dirZip, zip.Name);
+
+                NotifyProgress(nombreProgreso, -1, "StatusDownloading",
+                    string.Format(GetStr("MsgDownloadingSize"), zip.Name, FormatBytes(zip.Size ?? 0)), true);
+                await _driveManager.DescargarArchivo(zip.Id, zipLocal, token);
+
+                token.ThrowIfCancellationRequested();
+                NotifyProgress(nombreProgreso, -1, "StatusDownloading", GetStr("MsgExtracting"), true);
+                if (Directory.Exists(rutaTemporal)) Directory.Delete(rutaTemporal, true);
+                await Task.Run(() => ZipBackup.Extraer(zipLocal, rutaTemporal), token);
+
+                // 🛡️ No reemplazar las partidas locales con un backup vacío
+                if (ZipBackup.ContarArchivos(rutaTemporal) == 0) throw new Exception("El backup en Drive está vacío o no se encontró");
+
+                // Intercambiar carpetas sin borrar nada antes de tiempo
+                string rutaVieja = Path.Combine(contenedor, $"OLD_{nombreLocal}");
+                if (Directory.Exists(rutaVieja)) Directory.Delete(rutaVieja, true);
+
+                bool habiaOriginal = Directory.Exists(rutaOriginal);
+                if (habiaOriginal) Directory.Move(rutaOriginal, rutaVieja);
+                try
+                {
+                    Directory.Move(rutaTemporal, rutaOriginal);
+                }
+                catch
+                {
+                    if (habiaOriginal) { try { Directory.Move(rutaVieja, rutaOriginal); } catch { } }
+                    throw;
+                }
+
+                if (habiaOriginal) { try { Directory.Delete(rutaVieja, true); } catch { } }
+            }
+            catch
+            {
+                if (Directory.Exists(rutaTemporal)) { try { Directory.Delete(rutaTemporal, true); } catch { } }
+                throw;
+            }
+            finally
+            {
+                try { Directory.Delete(dirZip, true); } catch { }
+            }
+        }
+
         // 🔥 RESTAURAR JUEGO CON CARPETA TEMPORAL LOCAL Y PROGRESO DETALLADO
         public async Task RestaurarJuego(GameConfig juego, GameVersion version, CancellationToken token)
         {
@@ -365,6 +544,7 @@ namespace SaviumDrive.Services
                 NotifyProgress(nombreProgreso, 0, "StatusDownloading", GetStr("MsgConnectingDrive"), true);
 
                 if (version == null || string.IsNullOrEmpty(version.DriveFolderId)) throw new Exception("ID inválido");
+                if (version.Comprimido) { await RestaurarZip(juego, version, nombreProgreso, token); return; }
 
                 // 1️⃣ CREAR CARPETA TEMPORAL LOCAL (junto a la carpeta original)
                 string directorioContenedor = Path.GetDirectoryName(juego.LocalPath);
@@ -664,21 +844,7 @@ namespace SaviumDrive.Services
 
                 // Drive: <Juego>/Version_N/<carpeta de partidas>
                 idCarpetaVersion = _driveManager.GetOrCreateFolder($"Version_{numero}", juego.DriveFolderId);
-                string idContenido = _driveManager.GetOrCreateFolder(new DirectoryInfo(juego.LocalPath).Name, idCarpetaVersion);
-
-                long totalBytes = GetDirectorySize(juego.LocalPath);
-                long bytesSubidos = 0;
-                string totalStr = FormatBytes(totalBytes);
-
-                await SubirDirectorioRecursivo(juego.LocalPath, idContenido, token, (nombreArchivo, pesoArchivo) =>
-                {
-                    token.ThrowIfCancellationRequested();
-                    bytesSubidos += pesoArchivo;
-                    int porcentaje = totalBytes > 0 ? (int)((double)bytesSubidos / totalBytes * 100) : 0;
-                    string progresoStr = $"{FormatBytes(bytesSubidos)} / {totalStr}";
-
-                    NotifyProgress(nombreProgreso, porcentaje, "StatusUploading", string.Format(GetStr("MsgUploadingSize"), nombreArchivo, progresoStr), true);
-                });
+                var (comprimido, huella) = await SubirContenido(juego.LocalPath, idCarpetaVersion, nombreProgreso, token);
 
                 var ahora = DateTime.UtcNow;
                 var nueva = new GameVersion
@@ -687,7 +853,9 @@ namespace SaviumDrive.Services
                     Description = (descripcion ?? "").Trim(),
                     CreatedAt = ahora,
                     LastBackup = ahora,
-                    DriveFolderId = idCarpetaVersion
+                    DriveFolderId = idCarpetaVersion,
+                    Comprimido = comprimido,
+                    HuellaContenido = huella
                 };
 
                 await ModificarJuego(juego.Id, j =>
