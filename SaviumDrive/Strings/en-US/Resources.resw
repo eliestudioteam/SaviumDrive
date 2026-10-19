@@ -305,6 +305,9 @@
 	<data name="HistSaveBtn" xml:space="preserve"><value>Save</value></data>
 	<data name="SetVersionNotice.Text" xml:space="preserve"><value>Notify when switching versions</value></data>
 	<data name="SetVersionNoticeDesc.Text" xml:space="preserve"><value>Shows a notice saying that actions will apply to the new active version</value></data>
+	<!-- Backups comprimidos (.zip) -->
+	<data name="MsgCompressing" xml:space="preserve"><value>Compressing saves...</value></data>
+	<data name="MsgExtracting" xml:space="preserve"><value>Extracting saves...</value></data>
 	<!-- Subida incremental -->
 	<data name="MsgComparing" xml:space="preserve"><value>Comparing with the cloud...</value></data>
 	<data name="AlertUpdateNoChanges" xml:space="preserve"><value>No changes: the cloud backup was already up to date.</value></data>

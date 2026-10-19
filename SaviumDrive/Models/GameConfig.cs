@@ -19,6 +19,12 @@ namespace SaviumDrive.Models
         public DateTime LastBackup { get; set; }
         public string DriveFolderId { get; set; }
 
+        /// <summary>El backup está en un solo .zip (carpetas con muchos archivos) en vez de archivo por archivo.</summary>
+        public bool Comprimido { get; set; }
+
+        /// <summary>Huella del contenido subido (solo en versiones comprimidas): si no cambia, no se vuelve a subir.</summary>
+        public string HuellaContenido { get; set; }
+
         [JsonIgnore]
         public string Label => $"V{Number}";
 
