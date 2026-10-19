@@ -23,6 +23,9 @@ namespace SaviumDrive.Services
         public int WindowWidth { get; set; } = 1280;
         public int WindowHeight { get; set; } = 720;
 
+        // Orden de la biblioteca (NombreAZ, NombreZA, UltimoBackup)
+        public string LibrarySort { get; set; } = "NombreAZ";
+
         // Mostrar "Ahora todas las acciones serán sobre esta versión" al cambiar de versión
         public bool ShowVersionSwitchNotice { get; set; } = true;
 

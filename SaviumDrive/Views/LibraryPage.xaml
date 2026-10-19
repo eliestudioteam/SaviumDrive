@@ -30,6 +30,18 @@
                     </StackPanel>
                     <ProgressBar x:Name="MainProgressBar" Width="200" Height="4" HorizontalAlignment="Left" Foreground="{ThemeResource AccentColor}" IsIndeterminate="True"/>
                 </StackPanel>
+
+                <!-- Buscar y ordenar -->
+                <StackPanel Orientation="Horizontal" Spacing="10" Margin="0,10,0,0">
+                    <AutoSuggestBox x:Name="TxtBuscar" x:Uid="LibSearch" Width="260"
+                                    QueryIcon="Find" TextChanged="TxtBuscar_TextChanged"/>
+                    <ComboBox x:Name="CmbOrden" x:Uid="LibSort" MinWidth="200"
+                              SelectionChanged="CmbOrden_SelectionChanged">
+                        <ComboBoxItem x:Uid="LibSortNameAZ" Tag="NombreAZ"/>
+                        <ComboBoxItem x:Uid="LibSortNameZA" Tag="NombreZA"/>
+                        <ComboBoxItem x:Uid="LibSortRecent" Tag="UltimoBackup"/>
+                    </ComboBox>
+                </StackPanel>
             </StackPanel>
 
             <Button x:Name="BtnMainAction" Grid.Column="1" Click="BtnMainAction_Click"
@@ -139,6 +151,12 @@
                 </DataTemplate>
             </GridView.ItemTemplate>
         </GridView>
+
+        <!-- La búsqueda no encontró juegos (pero la biblioteca no está vacía) -->
+        <StackPanel x:Name="NoResultsState" Grid.Row="1" VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="10" Visibility="Collapsed">
+            <FontIcon Glyph="&#xE721;" FontFamily="Segoe MDL2 Assets" FontSize="40" Foreground="{ThemeResource TextTertiary}"/>
+            <TextBlock x:Uid="LibNoResults" Foreground="{ThemeResource TextSecondary}" FontWeight="SemiBold" HorizontalAlignment="Center"/>
+        </StackPanel>
 
         <StackPanel x:Name="EmptyState" Grid.Row="1" VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="15" Visibility="Collapsed">
             <FontIcon Glyph="&#xE7BC;" FontFamily="Segoe MDL2 Assets" FontSize="48" Foreground="{ThemeResource TextTertiary}"/>
