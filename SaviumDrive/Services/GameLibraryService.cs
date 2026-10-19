@@ -727,6 +727,21 @@ namespace SaviumDrive.Services
         }
 
         // --- SINCRONIZACIÓN Y CARGA ---
+        /// <summary>Lee games.json sin necesitar Drive ni una instancia del servicio.</summary>
+        public static List<GameConfig> LeerBibliotecaLocal()
+        {
+            string ruta = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "SaviumDrive", "games.json");
+            if (!File.Exists(ruta)) return new List<GameConfig>();
+            try
+            {
+                string json = File.ReadAllText(ruta);
+                var container = JsonConvert.DeserializeObject<LibraryContainer>(json);
+                var juegos = container?.Games ?? JsonConvert.DeserializeObject<List<GameConfig>>(json) ?? new List<GameConfig>();
+                return MigrarVersiones(juegos);
+            }
+            catch { return new List<GameConfig>(); }
+        }
+
         public async Task<List<GameConfig>> CargarSoloLocal()
         {
             if (File.Exists(_localFilePath))

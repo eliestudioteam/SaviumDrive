@@ -5,17 +5,17 @@ using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
-using System.Timers;
+using System.Threading;
 
 namespace SaviumDrive.Services
 {
-    public class GameSession
-    {
-        public string Name { get; set; }
-        public string ExecutablePath { get; set; }
-        public DateTime StartTime { get; set; }
-    }
-
+    /// <summary>
+    /// Detecta juegos en primer plano y avisa (GameClosed) cuando se cierran.
+    /// - Reconoce los juegos instalados de Steam, Epic y GOG y usa su nombre real.
+    /// - Ignora los procesos de los lanzadores (steamwebhelper, Epic, Galaxy...).
+    /// - Sigue varios juegos a la vez y agrupa los procesos de cada uno (lanzador + juego).
+    /// - No avisa de sesiones de menos de un minuto.
+    /// </summary>
     public class GameDetectorService
     {
         // --- P/INVOKE ---
@@ -23,241 +23,241 @@ namespace SaviumDrive.Services
         private static extern IntPtr GetForegroundWindow();
         [DllImport("user32.dll")]
         private static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint lpdwProcessId);
-        [DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Auto)]
+        [DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
         private static extern int GetClassName(IntPtr hWnd, StringBuilder lpClassName, int nMaxCount);
         [DllImport("user32.dll")]
         [return: MarshalAs(UnmanagedType.Bool)]
         private static extern bool GetWindowRect(IntPtr hWnd, out RECT lpRect);
         [DllImport("user32.dll")]
-        private static extern int GetSystemMetrics(int nIndex);
+        private static extern IntPtr MonitorFromWindow(IntPtr hwnd, uint dwFlags);
+        [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+        private static extern bool GetMonitorInfo(IntPtr hMonitor, ref MONITORINFO lpmi);
+        [DllImport("kernel32.dll", SetLastError = true)]
+        private static extern IntPtr OpenProcess(uint access, bool inherit, int pid);
+        [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
+        private static extern bool QueryFullProcessImageName(IntPtr hProcess, int flags, StringBuilder exeName, ref int size);
+        [DllImport("kernel32.dll")]
+        private static extern bool GetExitCodeProcess(IntPtr hProcess, out uint exitCode);
+        [DllImport("kernel32.dll")]
+        private static extern bool CloseHandle(IntPtr handle);
 
         [StructLayout(LayoutKind.Sequential)]
         public struct RECT { public int Left; public int Top; public int Right; public int Bottom; }
 
-        private const int SM_CXSCREEN = 0;
-        private const int SM_CYSCREEN = 1;
+        [StructLayout(LayoutKind.Sequential)]
+        private struct MONITORINFO { public int cbSize; public RECT rcMonitor; public RECT rcWork; public uint dwFlags; }
 
-        private Timer _timer;
-        private int _activePid = 0;
-        private string _activeProcessName = "";
-        private string _activeProcessPath = "";
+        private const uint PROCESS_QUERY_LIMITED_INFORMATION = 0x1000;
+        private const uint STILL_ACTIVE = 259;
+        private const uint MONITOR_DEFAULTTONEAREST = 2;
+
+        private readonly TimeSpan IntervaloRevision;
+        private static readonly TimeSpan CaducidadCatalogo = TimeSpan.FromMinutes(10);
+        private const int MaximoEnCache = 300;
+
+        private readonly System.Threading.Timer _timer;
+        private readonly object _bloqueo = new object();
+        private readonly GameSessionTracker _tracker;
+        private bool _activo;
+
+        // Clasificación por ejecutable (para no volver a analizar cada 4 segundos)
+        private readonly Dictionary<string, Clasificacion> _cache = new Dictionary<string, Clasificacion>(StringComparer.OrdinalIgnoreCase);
+        private GameCatalog _catalogo;
 
         public event EventHandler<GameSession> GameClosed;
 
-        // Caché de resultados (Qué es juego y qué no)
-        private Dictionary<string, bool> _processCache = new Dictionary<string, bool>();
+        public GameDetectorService() : this(TimeSpan.FromSeconds(4), GameSessionTracker.DuracionMinimaPorDefecto) { }
 
-        // 🔥 NUEVO: Caché de procesos fallidos para no reintentar y evitar lag
-        private HashSet<int> _failedPids = new HashSet<int>();
-
-        // Lista Negra (Apps comunes que no son juegos)
-        private readonly HashSet<string> _blacklist = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        /// <summary>Con intervalo y duración mínima propios (para pruebas).</summary>
+        public GameDetectorService(TimeSpan intervalo, TimeSpan duracionMinima)
         {
-            "explorer", "searchhost", "taskmgr", "saviumdrive", "chrome", "firefox", "msedge", "opera", "brave",
-            "discord", "spotify", "code", "devenv", "notepad", "calculator", "lockapp", "teams", "slack",
-            "shellexperiencehost", "applicationframehost", "systemsettings", "whatsapp", "telegram",
-            "vlc", "mpc-hc64", "potplayer", "photos", "movies", "netflix", "hulu", "primevideo", "plex",
-            "obs64", "steam", "epicgameslauncher", "origin", "battlenet", "gog galaxy", "uplay", "xbox",
-            "winword", "excel", "powerpoint", "outlook", "photoshop", "illustrator", "premiere",
-            "startmenuexperiencehost", "textinputhost", "ctfmon", "widgets", "claude"
-        };
-
-        // Lista Blanca (Emuladores y exes conocidos)
-        private readonly HashSet<string> _whitelistExes = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-        {
-            "rpcs3", "yuzu", "cemu", "dolphin", "pcsx2", "xenia", "retroarch", "snes9x", "project64",
-            "citra", "ryujinx", "dosbox", "scummvm", "ppsspp", "mame"
-        };
-
-        public GameDetectorService()
-        {
-            _timer = new Timer(4000);
-            _timer.Elapsed += CheckForegroundWindow;
+            IntervaloRevision = intervalo;
+            _tracker = new GameSessionTracker(duracionMinima);
+            _timer = new System.Threading.Timer(_ => Revisar(), null, Timeout.Infinite, Timeout.Infinite);
         }
 
-        public void Start() { if (!_timer.Enabled) _timer.Start(); }
-        public void Stop() { _timer.Stop(); ResetTracking(); }
+        /// <summary>Juegos abiertos que se están siguiendo ahora mismo.</summary>
+        public int JuegosAbiertos { get { lock (_bloqueo) return _tracker.JuegosAbiertos; } }
 
-        private void ResetTracking()
+        public void Start()
         {
-            _activePid = 0;
-            _activeProcessName = "";
-            _activeProcessPath = "";
-        }
-
-        private void CheckForegroundWindow(object sender, ElapsedEventArgs e)
-        {
-            // 1. MODO VIGILANCIA (Si ya hay juego activo)
-            if (_activePid != 0)
+            lock (_bloqueo)
             {
-                if (!IsProcessRunning(_activePid))
-                {
-                    FireGameClosed();
-                    ResetTracking();
-                }
-                return;
+                if (_activo) return;
+                _activo = true;
+                _timer.Change(IntervaloRevision, Timeout.InfiniteTimeSpan);
             }
+        }
 
-            // 2. MODO DETECCIÓN
-            try
+        public void Stop()
+        {
+            lock (_bloqueo)
             {
-                IntPtr handle = GetForegroundWindow();
-                if (handle == IntPtr.Zero) return;
+                _activo = false;
+                _timer.Change(Timeout.Infinite, Timeout.Infinite);
+                _tracker.Limpiar();
+            }
+        }
 
-                GetWindowThreadProcessId(handle, out uint pid);
-                if (pid == 0 || pid == (uint)_activePid) return;
-
-                // 🔥 OPTIMIZACIÓN: Si este proceso ya falló antes, ignorarlo para no generar excepciones
-                if (_failedPids.Contains((int)pid)) return;
-
-                Process process = null;
+        private void Revisar()
+        {
+            List<GameSession> cerradas;
+            lock (_bloqueo)
+            {
+                if (!_activo) return;
                 try
                 {
-                    process = Process.GetProcessById((int)pid);
+                    // 1. ¿Terminó algún juego? (todos sus procesos cerrados)
+                    cerradas = _tracker.Revisar(ProcesoSigueAbierto, DateTime.UtcNow);
+
+                    // 2. ¿Hay un juego en primer plano?
+                    DetectarPrimerPlano();
                 }
-                catch
+                catch (Exception ex)
                 {
-                    _failedPids.Add((int)pid); // Marcar como fallido
-                    return;
+                    Debug.WriteLine($"⚠️ Detector de juegos: {ex.Message}");
+                    cerradas = new List<GameSession>();
                 }
-
-                string processName = process.ProcessName;
-                if (string.IsNullOrEmpty(processName)) return;
-
-                if (_blacklist.Contains(processName)) return;
-
-                if (_processCache.ContainsKey(processName))
+                finally
                 {
-                    if (_processCache[processName]) StartTracking(process);
-                    return;
+                    // Sin solapamientos: la siguiente revisión empieza cuando termina esta
+                    if (_activo) _timer.Change(IntervaloRevision, Timeout.InfiniteTimeSpan);
                 }
-
-                // Intentar analizar (Capturando errores para no saturar el log)
-                bool isGame = false;
-                try
-                {
-                    isGame = AnalyzeHeuristic(process, handle);
-                }
-                catch
-                {
-                    // Si falla el análisis, agregar a lista de fallidos para no insistir
-                    _failedPids.Add((int)pid);
-                    return;
-                }
-
-                if (!_processCache.ContainsKey(processName))
-                    _processCache.Add(processName, isGame);
-
-                if (isGame) StartTracking(process);
             }
-            catch { /* Silencio total */ }
+
+            foreach (var sesion in cerradas)
+            {
+                Debug.WriteLine($"🏁 JUEGO CERRADO: {sesion.Name} ({sesion.Duration:hh\\:mm\\:ss})");
+                GameClosed?.Invoke(this, sesion);
+            }
         }
 
-        private bool AnalyzeHeuristic(Process p, IntPtr windowHandle)
+        private void DetectarPrimerPlano()
         {
-            // 1. WHITELIST (Rápido y seguro)
-            if (_whitelistExes.Contains(p.ProcessName)) return true;
+            IntPtr ventana = GetForegroundWindow();
+            if (ventana == IntPtr.Zero) return;
+            GetWindowThreadProcessId(ventana, out uint pidU);
+            int pid = (int)pidU;
+            if (pid == 0 || pid == Environment.ProcessId || _tracker.EstaSiguiendo(pid)) return;
 
-            // 2. VENTANA (Motores)
-            StringBuilder className = new StringBuilder(256);
-            GetClassName(windowHandle, className, className.Capacity);
-            string wClass = className.ToString();
+            string exe = RutaDelProceso(pid);
+            string nombreProceso = string.IsNullOrEmpty(exe) ? NombreDelProceso(pid) : Path.GetFileNameWithoutExtension(exe);
+            if (string.IsNullOrEmpty(nombreProceso)) return;
 
-            string[] gameClasses = {
-                "UnrealWindow", "UnityWndClass", "LaunchUnrealUWindowsClient", "GODOT_WINDOW",
-                "Gamemaker", "SDL_app", "SFML_Window", "Panda3D"
+            string claveCache = exe ?? nombreProceso;
+            if (!_cache.TryGetValue(claveCache, out var clasificacion))
+            {
+                clasificacion = Clasificar(ventana, exe, nombreProceso);
+                if (_cache.Count >= MaximoEnCache) _cache.Clear();
+                _cache[claveCache] = clasificacion;
+                Debug.WriteLine($"🔎 {nombreProceso}: {(clasificacion.EsJuego ? "JUEGO" : "no es juego")} ({clasificacion.Motivo})");
+            }
+
+            if (!clasificacion.EsJuego) return;
+
+            _tracker.Registrar(clasificacion.Clave, pid, new GameSession
+            {
+                Name = clasificacion.Nombre,
+                ExecutablePath = exe,
+                Store = clasificacion.Instalado?.Tienda,
+                SteamAppId = clasificacion.Instalado?.SteamAppId,
+                InstallDir = clasificacion.Instalado?.CarpetaInstalacion ?? GameClassifier.CarpetaDelJuego(exe)
+            }, DateTime.UtcNow);
+        }
+
+        private Clasificacion Clasificar(IntPtr ventana, string exe, string nombreProceso)
+        {
+            // Recargar el catálogo de vez en cuando (juegos instalados o desinstalados)
+            if (_catalogo == null || DateTime.UtcNow - _catalogo.CargadoEn > CaducidadCatalogo)
+            {
+                _catalogo = GameCatalog.Cargar();
+                _cache.Clear(); // un juego recién instalado ya no debe seguir como "no es juego"
+            }
+
+            var info = new InfoProceso
+            {
+                NombreProceso = nombreProceso,
+                RutaExe = exe,
+                ClaseVentana = ClaseDeVentana(ventana),
+                PantallaCompleta = EsPantallaCompleta(ventana),
+                EsAppElectron = EsElectron(exe)
             };
-            if (gameClasses.Any(c => wClass.Contains(c, StringComparison.OrdinalIgnoreCase))) return true;
 
-            // 3. PANTALLA COMPLETA
-            if (IsFullscreen(windowHandle)) return true;
-
-            // 4. ARCHIVOS (ADN) - Aquí es donde solían ocurrir las excepciones
-            try
+            if (!string.IsNullOrEmpty(exe))
             {
-                string path = p.MainModule?.FileName; // Esto puede lanzar Win32Exception
-                if (!string.IsNullOrEmpty(path))
+                try
                 {
-                    string folder = Path.GetDirectoryName(path);
-                    if (Directory.Exists(folder))
-                    {
-                        // Apps Electron (Claude, Discord, VS Code...) traen d3dcompiler/vulkan y parecían juegos
-                        if (File.Exists(Path.Combine(folder, "resources", "app.asar")))
-                            return false;
-
-                        string lowerPath = path.ToLower();
-                        if (lowerPath.Contains("\\games\\") || lowerPath.Contains("\\juegos\\") || lowerPath.Contains("repack"))
-                            return true;
-
-                        string[] gameDlls = {
-                            "steam_api", "unityplayer", "galaxy64", "eossdk", "fmod", "wwise",
-                            "d3dcompiler", "opengl32", "vulkan", "physx", "havok"
-                        };
-
-                        var files = Directory.EnumerateFiles(folder, "*.dll", SearchOption.TopDirectoryOnly);
-                        foreach (var f in files)
-                        {
-                            if (gameDlls.Any(dll => f.ToLower().Contains(dll))) return true;
-                        }
-                    }
+                    var version = FileVersionInfo.GetVersionInfo(exe);
+                    info.NombreProducto = version.ProductName;
+                    info.Descripcion = version.FileDescription;
                 }
-            }
-            catch
-            {
-                // Si no tenemos acceso al módulo, no podemos saber si es juego por archivos.
-                // Retornamos falso pero NO marcamos como fallido globalmente, 
-                // tal vez en otro momento sí tengamos acceso o se detecte por pantalla completa.
-                return false;
+                catch { }
             }
 
-            return false;
+            return GameClassifier.Clasificar(info, _catalogo, DllsDeCarpeta);
         }
 
-        private bool IsFullscreen(IntPtr hWnd)
+        // ===================== AYUDANTES DE WINDOWS =====================
+
+        /// <summary>Ruta del .exe con permisos mínimos (funciona también con procesos que no se pueden abrir del todo).</summary>
+        private static string RutaDelProceso(int pid)
+        {
+            IntPtr h = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, false, pid);
+            if (h == IntPtr.Zero) return null;
+            try
+            {
+                var sb = new StringBuilder(1024);
+                int tam = sb.Capacity;
+                return QueryFullProcessImageName(h, 0, sb, ref tam) ? sb.ToString(0, tam) : null;
+            }
+            finally { CloseHandle(h); }
+        }
+
+        private static string NombreDelProceso(int pid)
+        {
+            try { using var p = Process.GetProcessById(pid); return p.ProcessName; }
+            catch { return null; }
+        }
+
+        /// <summary>True si el proceso sigue abierto (sin crear objetos Process cada vez).</summary>
+        private static bool ProcesoSigueAbierto(int pid)
+        {
+            IntPtr h = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, false, pid);
+            if (h == IntPtr.Zero) return false;
+            try { return GetExitCodeProcess(h, out uint codigo) && codigo == STILL_ACTIVE; }
+            finally { CloseHandle(h); }
+        }
+
+        private static string ClaseDeVentana(IntPtr ventana)
+        {
+            var sb = new StringBuilder(256);
+            return GetClassName(ventana, sb, sb.Capacity) > 0 ? sb.ToString() : "";
+        }
+
+        /// <summary>La ventana cubre todo su monitor (vale también con varios monitores).</summary>
+        private static bool EsPantallaCompleta(IntPtr ventana)
+        {
+            if (!GetWindowRect(ventana, out RECT r)) return false;
+            var info = new MONITORINFO { cbSize = Marshal.SizeOf<MONITORINFO>() };
+            if (!GetMonitorInfo(MonitorFromWindow(ventana, MONITOR_DEFAULTTONEAREST), ref info)) return false;
+            var m = info.rcMonitor;
+            return r.Left <= m.Left && r.Top <= m.Top && r.Right >= m.Right && r.Bottom >= m.Bottom;
+        }
+
+        private static bool EsElectron(string exe)
         {
             try
             {
-                GetWindowRect(hWnd, out RECT rect);
-                int screenWidth = GetSystemMetrics(SM_CXSCREEN);
-                int screenHeight = GetSystemMetrics(SM_CYSCREEN);
-                return (rect.Right - rect.Left) >= screenWidth && (rect.Bottom - rect.Top) >= screenHeight;
+                string carpeta = Path.GetDirectoryName(exe ?? "");
+                return !string.IsNullOrEmpty(carpeta) && File.Exists(Path.Combine(carpeta, "resources", "app.asar"));
             }
             catch { return false; }
         }
 
-        private bool IsProcessRunning(int pid)
+        private static IEnumerable<string> DllsDeCarpeta(string carpeta)
         {
-            try
-            {
-                Process.GetProcessById(pid);
-                return true;
-            }
-            catch
-            {
-                return false;
-            }
-        }
-
-        private void StartTracking(Process p)
-        {
-            try
-            {
-                _activePid = p.Id;
-                _activeProcessName = p.ProcessName;
-                try { _activeProcessPath = p.MainModule?.FileName; } catch { }
-                System.Diagnostics.Debug.WriteLine($"🎮 JUEGO DETECTADO E INICIADO: {_activeProcessName}");
-            }
-            catch { ResetTracking(); }
-        }
-
-        private void FireGameClosed()
-        {
-            System.Diagnostics.Debug.WriteLine($"🏁 JUEGO CERRADO: {_activeProcessName}");
-            GameClosed?.Invoke(this, new GameSession
-            {
-                Name = _activeProcessName,
-                ExecutablePath = _activeProcessPath
-            });
+            try { return Directory.EnumerateFiles(carpeta, "*.dll", SearchOption.TopDirectoryOnly).Select(Path.GetFileName).ToList(); }
+            catch { return Enumerable.Empty<string>(); }
         }
     }
 }

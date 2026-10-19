@@ -170,6 +170,30 @@ Solo Linux:
         }
 
         [Fact]
+        public void LeerManifest_GuardaElIdDeSteam()
+        {
+            Assert.Equal("866510", Leer().Single(j => j.Nombre == "!Anyway!").SteamId);
+            Assert.Null(Leer().Single(j => j.Nombre == "Elden Ring").SteamId); // el fragmento de prueba no lo trae
+        }
+
+        [Fact]
+        public void BuscarPorSteamId_EncuentraElJuegoSinDependerDelNombre()
+        {
+            var juego = LudusaviIndex.BuscarPorSteamId(Indice(), "866510");
+            Assert.Equal("!Anyway!", juego?.Nombre);
+            Assert.Equal("866510", juego.SteamId);
+            Assert.Null(LudusaviIndex.BuscarPorSteamId(Indice(), "999999"));
+        }
+
+        [Fact]
+        public void Indice_AntiguoSinIdDeSteam_SigueFuncionando()
+        {
+            var juego = LudusaviIndex.Buscar(new StringReader("minecraft\tMinecraft\t<winAppData>/.minecraft/saves\n"), "minecraft");
+            Assert.Equal("Minecraft", juego.Nombre);
+            Assert.Null(juego.SteamId);
+        }
+
+        [Fact]
         public void Buscar_JuegoDesconocido_DevuelveNull()
         {
             Assert.Null(LudusaviIndex.Buscar(Indice(), "No Existe Este Juego"));

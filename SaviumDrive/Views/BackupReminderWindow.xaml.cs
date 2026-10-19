@@ -1,5 +1,6 @@
 ﻿using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
+using SaviumDrive.Helpers;
 using SaviumDrive.Services;
 using System;
 
@@ -9,6 +10,22 @@ namespace SaviumDrive.Views
     {
         private AppWindow _appWindow;
         public bool Result { get; private set; } = false;
+
+        /// <summary>
+        /// Recordatorio al cerrar un juego. Si <paramref name="nombreEnBiblioteca"/> no es null, el juego ya
+        /// tiene backup y se ofrece guardarlo ahora; si no, configurarlo.
+        /// </summary>
+        public BackupReminderWindow(string nombreJuego, string nombreEnBiblioteca) : this()
+        {
+            if (string.IsNullOrWhiteSpace(nombreJuego)) return;
+
+            TxtMessage.Text = ResourceHelper.GetString("DetectorMsgGame", nombreJuego);
+            if (nombreEnBiblioteca != null)
+            {
+                TxtSubMessage.Text = ResourceHelper.GetString("DetectorSubMsgSave", nombreEnBiblioteca);
+                BtnYes.Content = ResourceHelper.GetString("BtnSaveNow");
+            }
+        }
 
         public BackupReminderWindow()
         {

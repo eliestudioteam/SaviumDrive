@@ -204,11 +204,14 @@ namespace SaviumDrive
                 // Un fallo al crear el recordatorio no debe tumbar la app entera
                 try
                 {
-                    var reminderWindow = new BackupReminderWindow();
+                    // ¿Ya está en la biblioteca? Entonces se ofrece guardar su backup en vez de configurarlo
+                    var enBiblioteca = BuscarEnBiblioteca(session.Name);
+                    var reminderWindow = new BackupReminderWindow(session.Name, enBiblioteca?.DisplayName);
                     reminderWindow.Closed += (s, args) =>
                     {
-                        // Si el usuario dijo "SÍ": abrir la biblioteca con los datos del juego detectado
-                        if (reminderWindow.Result) MostrarVentanaPrincipal(session);
+                        if (!reminderWindow.Result) return;
+                        if (enBiblioteca != null) MostrarVentanaPrincipal(new SolicitudGuardarBackup { JuegoId = enBiblioteca.Id });
+                        else MostrarVentanaPrincipal(session); // abrir la biblioteca con los datos del juego detectado
                     };
                     reminderWindow.Activate();
                 }
@@ -217,6 +220,19 @@ namespace SaviumDrive
                     System.Diagnostics.Debug.WriteLine($"❌ Error mostrando el recordatorio de backup: {ex}");
                 }
             });
+        }
+
+        /// <summary>Juego de la biblioteca con el mismo nombre (sin mayúsculas, espacios ni símbolos), o null.</summary>
+        private static Models.GameConfig BuscarEnBiblioteca(string nombre)
+        {
+            string buscado = LudusaviIndex.Normalizar(nombre);
+            if (buscado.Length == 0) return null;
+            try
+            {
+                return GameLibraryService.LeerBibliotecaLocal()
+                    .FirstOrDefault(j => LudusaviIndex.Normalizar(j.Name) == buscado);
+            }
+            catch { return null; }
         }
 
         public static void SalirAplicacion()

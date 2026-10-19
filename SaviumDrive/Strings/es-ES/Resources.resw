@@ -341,4 +341,9 @@
 	<data name="RestoreNewerTitle" xml:space="preserve"><value>Tu partida en este PC es más nueva</value></data>
 	<data name="RestoreNewerMsg" xml:space="preserve"><value>Los archivos de tu PC se modificaron el {0}, después del último guardado de {1} en la nube ({2}).\n\nSi restauras, perderás ese progreso. Para conservarlo, usa primero Guardar.\n\n¿Seguro que quieres reemplazarla?</value></data>
 	<data name="RestoreNewerBtn" xml:space="preserve"><value>Reemplazar de todos modos</value></data>
+	<!-- Detector inteligente de juegos -->
+	<data name="DetectorMsgGame" xml:space="preserve"><value>Terminaste de jugar a {0}.</value></data>
+	<data name="DetectorSubMsgSave" xml:space="preserve"><value>Ya está en tu biblioteca. ¿Quieres guardar el backup de {0} ahora?</value></data>
+	<data name="BtnSaveNow" xml:space="preserve"><value>Guardar ahora</value></data>
+	<data name="PathHintGuessed" xml:space="preserve"><value>📂 Carpeta encontrada en una ubicación habitual. Revísala antes de guardar.</value></data>
 </root>

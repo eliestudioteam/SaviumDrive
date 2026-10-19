@@ -31,6 +31,10 @@ namespace SaviumDrive.Views
         private bool _rutaAutomatica = false;
         private CancellationTokenSource _ctsRuta;
 
+        // Juego detectado al cerrarse: con su ID de Steam la carpeta se encuentra aunque el nombre varíe
+        private string _nombreDetectado;
+        private string _steamAppIdDetectado;
+
         public AddGameDialog(Window window)
         {
             this.InitializeComponent();
@@ -42,21 +46,15 @@ namespace SaviumDrive.Views
             _searchTimer.Tick += SearchTimer_Tick;
         }
 
-        public void AutoFill(string name, string exePath)
+        public void AutoFill(string name, string exePath, string steamAppId = null)
         {
+            _nombreDetectado = name;
+            _steamAppIdDetectado = steamAppId;
             TxtGameName.Text = name;
-            string rutaAdivinada = IntentarAdivinarRutaSave(name);
+            TxtGamePath.PlaceholderText = "Por favor, selecciona la carpeta de saves...";
 
-            if (!string.IsNullOrEmpty(rutaAdivinada))
-            {
-                TxtGamePath.Text = rutaAdivinada;
-                _rutaAutomatica = true;
-            }
-            else
-            {
-                TxtGamePath.PlaceholderText = "Por favor, selecciona la carpeta de saves...";
-                _ = BuscarRutaAutomatica(name);
-            }
+            // Primero la base de datos de Ludusavi (por ID de Steam o por nombre); si no, las carpetas habituales
+            _ = BuscarRutaAutomatica(name);
         }
 
         /// <summary>Busca en la base de datos de Ludusavi dónde guarda partidas el juego y rellena la carpeta si existe.</summary>
@@ -71,7 +69,9 @@ namespace SaviumDrive.Views
             MostrarPistaRuta(LudusaviService.IndiceDisponible ? "PathHintSearching" : "PathHintDownloading");
 
             string carpeta = null;
-            try { carpeta = await LudusaviService.BuscarCarpetaAsync(nombre, cts.Token); }
+            // El ID de Steam solo vale mientras el nombre sea el del juego detectado
+            string steamAppId = string.Equals(nombre, _nombreDetectado, StringComparison.Ordinal) ? _steamAppIdDetectado : null;
+            try { carpeta = await LudusaviService.BuscarCarpetaAsync(nombre, steamAppId, cts.Token); }
             catch (OperationCanceledException) { return; }
             catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"⚠️ Ludusavi: {ex.Message}"); }
 
@@ -79,11 +79,19 @@ namespace SaviumDrive.Views
             if (cts.IsCancellationRequested || _ctsRuta != cts) return;
             if (!string.IsNullOrEmpty(TxtGamePath.Text) && !_rutaAutomatica) { MostrarPistaRuta(null); return; }
 
+            string pista = "PathHintFound";
+            if (carpeta == null)
+            {
+                // Sin datos en Ludusavi: probar las carpetas habituales (Mis juegos, AppData, Saved Games...)
+                carpeta = IntentarAdivinarRutaSave(nombre);
+                pista = "PathHintGuessed";
+            }
+
             if (carpeta != null)
             {
                 TxtGamePath.Text = carpeta;
                 _rutaAutomatica = true;
-                MostrarPistaRuta("PathHintFound");
+                MostrarPistaRuta(pista);
             }
             else
             {
