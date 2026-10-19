@@ -20,6 +20,8 @@ namespace SaviumDrive.Services
         public string Descripcion { get; set; }
         /// <summary>App Electron (Claude, Discord, VS Code...): traen DLL gráficas y parecían juegos.</summary>
         public bool EsAppElectron { get; set; }
+        /// <summary>Título de la ventana: da el nombre cuando el .exe es un intérprete (javaw de Minecraft...).</summary>
+        public string TituloVentana { get; set; }
     }
 
     public sealed class Clasificacion
@@ -50,7 +52,7 @@ namespace SaviumDrive.Services
             "galaxyclient", "galaxyclient helper", "galaxycommunication", "gog galaxy",
             "eadesktop", "eabackgroundservice", "ealauncher", "origin", "originwebhelperservice",
             "upc", "ubisoftconnect", "uplaywebcore", "battle.net", "agent", "riotclientservices", "riotclientux",
-            "xbox", "xboxpcapp", "gamebar", "gamebarftserver", "nvidia overlay", "nvcontainer", "radeonsoftware",
+            "xbox", "xboxpcapp", "gamebar", "minecraftlauncher", "rockstarservice", "itch", "gamebarftserver", "nvidia overlay", "nvcontainer", "radeonsoftware",
             // Informes de errores y ayudantes de motores
             "unitycrashhandler64", "unitycrashhandler32", "crashreportclient", "crashpad_handler", "werfault"
         };
@@ -62,11 +64,21 @@ namespace SaviumDrive.Services
             "citra", "citra-qt", "ryujinx", "dosbox", "scummvm", "ppsspp", "ppssppwindows64", "mame", "duckstation-qt"
         };
 
-        // Clases de ventana de motores de juego
+        // Clases de ventana de motores de juego (GLFW/LWJGL: Minecraft Java y otros juegos en Java)
         private static readonly string[] ClasesDeMotor =
         {
-            "UnrealWindow", "UnityWndClass", "LaunchUnrealUWindowsClient", "GODOT_WINDOW", "Gamemaker", "SDL_app", "SFML_Window", "Panda3D"
+            "UnrealWindow", "UnityWndClass", "LaunchUnrealUWindowsClient", "GODOT_WINDOW", "Gamemaker", "SDL_app", "SFML_Window", "Panda3D",
+            "GLFW30", "LWJGL"
         };
+
+        // Intérpretes que ejecutan el juego: su .exe y su carpeta no dicen nada, el nombre sale del título de la ventana
+        private static readonly HashSet<string> Interpretes = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "javaw", "java", "python", "pythonw", "love", "nw", "mono"
+        };
+
+        /// <summary>True si el .exe es un intérprete (javaw, python...): el juego se reconoce por el título de su ventana.</summary>
+        public static bool EsInterprete(string nombreProceso) => nombreProceso != null && Interpretes.Contains(nombreProceso);
 
         // DLL propias de juegos. Las genéricas (d3dcompiler, vulkan, opengl32) también las usan navegadores
         // y lanzadores como steamwebhelper, así que ya no cuentan.
@@ -96,7 +108,15 @@ namespace SaviumDrive.Services
             // 2. El .exe está en la carpeta de un juego instalado (Steam/Epic/GOG): es ese juego, con su nombre real
             var instalado = GameStores.BuscarPorEjecutable(juegos, exe);
             if (instalado != null)
-                return Juego(p, instalado, $"juego de {instalado.Tienda}");
+                return Juego(p, instalado, $"juego de {instalado.Tienda}", catalogo);
+
+            // Juego sin tienda que el usuario ya agregó desde el aviso
+            var aprendidos = catalogo?.Aprendidos;
+            if (aprendidos != null && aprendidos.Count > 0 && aprendidos.ContainsKey(ClaveDe(p, null)))
+                return Juego(p, null, "agregado por el usuario", catalogo);
+
+            // Lanzadores propios de juegos sin tienda (Minecraft Launcher, Hytale Launcher...): el juego es el proceso que abren
+            if (p.NombreProceso.Contains("launcher", StringComparison.OrdinalIgnoreCase)) { noEs.Motivo = "lanzador"; return noEs; }
 
             if (!string.IsNullOrEmpty(exe))
             {
@@ -114,22 +134,22 @@ namespace SaviumDrive.Services
             if (p.EsAppElectron) { noEs.Motivo = "app Electron"; return noEs; }
 
             // 6. Emuladores conocidos
-            if (Emuladores.Contains(p.NombreProceso)) return Juego(p, null, "emulador");
+            if (Emuladores.Contains(p.NombreProceso)) return Juego(p, null, "emulador", catalogo);
 
             // 7. Ventana de un motor de juego
             string clase = p.ClaseVentana ?? "";
-            if (ClasesDeMotor.Any(c => clase.Contains(c, StringComparison.OrdinalIgnoreCase))) return Juego(p, null, "ventana de motor");
+            if (ClasesDeMotor.Any(c => clase.Contains(c, StringComparison.OrdinalIgnoreCase))) return Juego(p, null, "ventana de motor", catalogo);
 
             // 8. DLL propias de juegos junto al .exe
             if (!string.IsNullOrEmpty(exe) && dllsDeCarpeta != null)
             {
                 var dlls = dllsDeCarpeta(Path.GetDirectoryName(exe)) ?? Enumerable.Empty<string>();
                 if (dlls.Any(d => DllsDeJuego.Any(g => d.Contains(g, StringComparison.OrdinalIgnoreCase))))
-                    return Juego(p, null, "DLL de juego");
+                    return Juego(p, null, "DLL de juego", catalogo);
             }
 
             // 9. Pantalla completa (juegos sueltos sin tienda ni motor reconocible)
-            if (p.PantallaCompleta) return Juego(p, null, "pantalla completa");
+            if (p.PantallaCompleta) return Juego(p, null, "pantalla completa", catalogo);
 
             noEs.Motivo = "sin señales de juego";
             return noEs;
@@ -145,16 +165,40 @@ namespace SaviumDrive.Services
             PartesDeInstaladores.Any(parte => nombreProceso.Contains(parte, StringComparison.OrdinalIgnoreCase))
             && !nombreProceso.EndsWith("_EAC", StringComparison.OrdinalIgnoreCase); // RocketLeague_EAC.exe es el juego con su antitrampas
 
-        private static Clasificacion Juego(InfoProceso p, JuegoInstalado instalado, string motivo)
+        private static Clasificacion Juego(InfoProceso p, JuegoInstalado instalado, string motivo, GameCatalog catalogo)
         {
-            return new Clasificacion
+            string clave = ClaveDe(p, instalado);
+            string nombre = NombreReal(p, instalado);
+            // Manda el nombre que eligió el usuario al agregarlo
+            if (catalogo?.Aprendidos != null && catalogo.Aprendidos.TryGetValue(clave, out var aprendido) && !string.IsNullOrWhiteSpace(aprendido))
+                nombre = aprendido;
+
+            return new Clasificacion { EsJuego = true, Instalado = instalado, Nombre = nombre, Clave = clave, Motivo = motivo };
+        }
+
+        /// <summary>
+        /// Identifica el juego: carpeta de instalación o del juego. Con un intérprete (javaw...), el nombre sacado del título,
+        /// porque su carpeta es la de Java y la comparten todos los juegos en Java.
+        /// </summary>
+        public static string ClaveDe(InfoProceso p, JuegoInstalado instalado)
+        {
+            if (instalado == null && EsInterprete(p.NombreProceso))
             {
-                EsJuego = true,
-                Instalado = instalado,
-                Nombre = NombreReal(p, instalado),
-                Clave = (instalado?.CarpetaInstalacion ?? CarpetaDelJuego(p.RutaExe) ?? p.RutaExe ?? p.NombreProceso).ToLowerInvariant(),
-                Motivo = motivo
-            };
+                string titulo = NombreDesdeTitulo(p.TituloVentana);
+                if (!string.IsNullOrEmpty(titulo)) return "titulo:" + titulo.ToLowerInvariant();
+            }
+            return (instalado?.CarpetaInstalacion ?? CarpetaDelJuego(p.RutaExe) ?? p.RutaExe ?? p.NombreProceso).ToLowerInvariant();
+        }
+
+        /// <summary>"Minecraft* 1.21.4 - Singleplayer" → "Minecraft". Quita versiones, "*" y lo que va tras " - ".</summary>
+        public static string NombreDesdeTitulo(string titulo)
+        {
+            if (string.IsNullOrWhiteSpace(titulo)) return null;
+            string s = Regex.Split(titulo, @"\s[-–|:]\s")[0];
+            s = s.Replace("*", " ");
+            s = Regex.Replace(s, @"\s+v?\d+(\.\d+)+\S*", " ", RegexOptions.IgnoreCase); // versiones: 1.21.4, v0.3.1-beta
+            s = Limpiar(s);
+            return EsNombreUtil(s) ? s : null;
         }
 
         // ===================== NOMBRE REAL =====================
@@ -179,6 +223,10 @@ namespace SaviumDrive.Services
         public static string NombreReal(InfoProceso p, JuegoInstalado instalado)
         {
             if (!string.IsNullOrWhiteSpace(instalado?.Nombre)) return Limpiar(instalado.Nombre);
+
+            // javaw.exe, python.exe...: ni el .exe ni su carpeta son del juego
+            if (EsInterprete(p?.NombreProceso))
+                return NombreDesdeTitulo(p.TituloVentana) ?? Limpiar(p.NombreProceso);
 
             foreach (var candidato in new[] { p?.NombreProducto, p?.Descripcion })
             {

@@ -25,6 +25,8 @@ namespace SaviumDrive.Services
         private static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint lpdwProcessId);
         [DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
         private static extern int GetClassName(IntPtr hWnd, StringBuilder lpClassName, int nMaxCount);
+        [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+        private static extern int GetWindowText(IntPtr hWnd, StringBuilder text, int maxCount);
         [DllImport("user32.dll")]
         [return: MarshalAs(UnmanagedType.Bool)]
         private static extern bool GetWindowRect(IntPtr hWnd, out RECT lpRect);
@@ -144,10 +146,13 @@ namespace SaviumDrive.Services
             string nombreProceso = string.IsNullOrEmpty(exe) ? NombreDelProceso(pid) : Path.GetFileNameWithoutExtension(exe);
             if (string.IsNullOrEmpty(nombreProceso)) return;
 
-            string claveCache = exe ?? nombreProceso;
+            // Con un intérprete (javaw...) cada juego se distingue por el título de su ventana
+            string titulo = GameClassifier.EsInterprete(nombreProceso) ? TituloDeVentana(ventana) : null;
+            if (_catalogo != null && _catalogo.VersionAprendidos != LearnedGames.Version) _cache.Clear();
+            string claveCache = (exe ?? nombreProceso) + (titulo != null ? "|" + GameClassifier.NombreDesdeTitulo(titulo) : "");
             if (!_cache.TryGetValue(claveCache, out var clasificacion))
             {
-                clasificacion = Clasificar(ventana, exe, nombreProceso);
+                clasificacion = Clasificar(ventana, exe, nombreProceso, titulo);
                 if (_cache.Count >= MaximoEnCache) _cache.Clear();
                 _cache[claveCache] = clasificacion;
                 Debug.WriteLine($"🔎 {nombreProceso}: {(clasificacion.EsJuego ? "JUEGO" : "no es juego")} ({clasificacion.Motivo})");
@@ -161,14 +166,17 @@ namespace SaviumDrive.Services
                 ExecutablePath = exe,
                 Store = clasificacion.Instalado?.Tienda,
                 SteamAppId = clasificacion.Instalado?.SteamAppId,
-                InstallDir = clasificacion.Instalado?.CarpetaInstalacion ?? GameClassifier.CarpetaDelJuego(exe)
+                InstallDir = clasificacion.Instalado?.CarpetaInstalacion
+                             ?? (GameClassifier.EsInterprete(nombreProceso) ? null : GameClassifier.CarpetaDelJuego(exe)),
+                Clave = clasificacion.Clave
             }, DateTime.UtcNow);
         }
 
-        private Clasificacion Clasificar(IntPtr ventana, string exe, string nombreProceso)
+        private Clasificacion Clasificar(IntPtr ventana, string exe, string nombreProceso, string titulo)
         {
-            // Recargar el catálogo de vez en cuando (juegos instalados o desinstalados)
-            if (_catalogo == null || DateTime.UtcNow - _catalogo.CargadoEn > CaducidadCatalogo)
+            // Recargar el catálogo de vez en cuando (juegos instalados o desinstalados) o si el usuario agregó un juego
+            if (_catalogo == null || DateTime.UtcNow - _catalogo.CargadoEn > CaducidadCatalogo
+                || _catalogo.VersionAprendidos != LearnedGames.Version)
             {
                 _catalogo = GameCatalog.Cargar();
                 _cache.Clear(); // un juego recién instalado ya no debe seguir como "no es juego"
@@ -180,7 +188,8 @@ namespace SaviumDrive.Services
                 RutaExe = exe,
                 ClaseVentana = ClaseDeVentana(ventana),
                 PantallaCompleta = EsPantallaCompleta(ventana),
-                EsAppElectron = EsElectron(exe)
+                EsAppElectron = EsElectron(exe),
+                TituloVentana = titulo
             };
 
             if (!string.IsNullOrEmpty(exe))
@@ -226,6 +235,12 @@ namespace SaviumDrive.Services
             if (h == IntPtr.Zero) return false;
             try { return GetExitCodeProcess(h, out uint codigo) && codigo == STILL_ACTIVE; }
             finally { CloseHandle(h); }
+        }
+
+        private static string TituloDeVentana(IntPtr ventana)
+        {
+            var sb = new StringBuilder(256);
+            return GetWindowText(ventana, sb, sb.Capacity) > 0 ? sb.ToString() : null;
         }
 
         private static string ClaseDeVentana(IntPtr ventana)

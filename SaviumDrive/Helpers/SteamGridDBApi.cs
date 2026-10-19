@@ -23,22 +23,25 @@ namespace SaviumDrive.Helpers
         }
 
         // 🔥 CAMBIO: Ahora devuelve una Lista de strings
-        public async Task<List<string>> BuscarPortadas(string nombreJuego)
+        public async Task<List<string>> BuscarPortadas(string nombreJuego, string steamAppId = null)
         {
             var resultados = new List<string>();
             try
             {
                 var client = _client;
                 {
-                    // 1. Buscar ID
-                    string searchUrl = $"{BASE_URL}/search/autocomplete/{Uri.EscapeDataString(nombreJuego)}";
-                    var responseSearch = await client.GetStringAsync(searchUrl);
-                    var jsonSearch = JObject.Parse(responseSearch);
-
-                    if ((bool)jsonSearch["success"] && jsonSearch["data"].HasValues)
+                    // 1. Buscar ID: por el de Steam si se conoce (exacto) y, si no, por el nombre
+                    int? gameId = await IdPorSteam(steamAppId);
+                    if (gameId == null)
                     {
-                        var primerJuego = jsonSearch["data"][0];
-                        int gameId = (int)primerJuego["id"];
+                        string searchUrl = $"{BASE_URL}/search/autocomplete/{Uri.EscapeDataString(nombreJuego.Trim())}";
+                        var jsonSearch = JObject.Parse(await client.GetStringAsync(searchUrl));
+                        if ((bool)jsonSearch["success"] && jsonSearch["data"].HasValues)
+                            gameId = (int)jsonSearch["data"][0]["id"];
+                    }
+
+                    if (gameId != null)
+                    {
 
                         // 2. Buscar imágenes verticales (Grid)
                         // style=alternate,material,blurred para variedad
@@ -65,6 +68,17 @@ namespace SaviumDrive.Helpers
             catch { }
 
             return resultados;
+        }
+
+        private static async Task<int?> IdPorSteam(string steamAppId)
+        {
+            if (string.IsNullOrEmpty(steamAppId) || !long.TryParse(steamAppId, out _)) return null;
+            try
+            {
+                var json = JObject.Parse(await _client.GetStringAsync($"{BASE_URL}/games/steam/{steamAppId}"));
+                return (bool)json["success"] ? (int?)json["data"]?["id"] : null;
+            }
+            catch { return null; } // SteamGridDB no conoce ese ID: se busca por nombre
         }
     }
 }

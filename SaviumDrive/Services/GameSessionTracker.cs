@@ -17,6 +17,8 @@ namespace SaviumDrive.Services
         public string Store { get; set; }
         public string SteamAppId { get; set; }
         public string InstallDir { get; set; }
+        /// <summary>Clave del detector: con ella se recuerda el juego cuando el usuario lo agrega.</summary>
+        public string Clave { get; set; }
         public TimeSpan Duration => EndTime - StartTime;
     }
 

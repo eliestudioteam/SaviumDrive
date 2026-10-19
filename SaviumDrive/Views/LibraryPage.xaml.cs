@@ -283,6 +283,9 @@ namespace SaviumDrive.Views
                                 _cts.Token // ⬅️ ESTO FALTABA
                             );
 
+                            // Desde el aviso del detector: la próxima vez se reconoce con este nombre (juegos sin tienda incluidos)
+                            if (session != null) LearnedGames.Aprender(session.Clave, dialog.GameName);
+
                             _todos.Add(nuevoJuego);
                             AplicarFiltro();
                             await MostrarAlerta(ResourceHelper.GetString("AlertSuccess"), ResourceHelper.GetString("AlertBackupCreated"));

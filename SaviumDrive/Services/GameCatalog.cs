@@ -19,7 +19,11 @@ namespace SaviumDrive.Services
         /// <summary>Bibliotecas de juegos dentro de las carpetas de lanzadores (ej. Steam\steamapps).</summary>
         public List<string> CarpetasDeBibliotecas { get; } = new List<string>();
 
+        /// <summary>Juegos que el usuario ya agregó desde el aviso: clave del detector → nombre que eligió.</summary>
+        public Dictionary<string, string> Aprendidos { get; set; } = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
         public DateTime CargadoEn { get; private set; }
+        public int VersionAprendidos { get; private set; }
 
         /// <summary>Lee lo que tenga cada tienda; si una no está instalada o falla, se sigue con las demás.</summary>
         public static GameCatalog Cargar()
@@ -29,6 +33,8 @@ namespace SaviumDrive.Services
             Intentar(catalogo.CargarEpic);
             Intentar(catalogo.CargarGog);
             Intentar(catalogo.AgregarOtrosLanzadores);
+            catalogo.VersionAprendidos = LearnedGames.Version;
+            Intentar(() => catalogo.Aprendidos = LearnedGames.Leer());
             catalogo.CargadoEn = DateTime.UtcNow;
             return catalogo;
         }
@@ -121,6 +127,9 @@ namespace SaviumDrive.Services
                 Path.Combine(pf, "Electronic Arts", "EA Desktop"),
                 Path.Combine(pf86, "Battle.net"),
                 Path.Combine(pf86, "Origin"),
+                Path.Combine(pf, "Riot Games", "Riot Client"),
+                Path.Combine(pf86, "Rockstar Games", "Launcher"),
+                Path.Combine(pf, "Rockstar Games", "Launcher"),
             })
             {
                 if (Directory.Exists(ruta)) CarpetasDeLanzadores.Add(ruta);
