@@ -55,6 +55,7 @@ namespace SaviumDrive.Views
                     TxtProgressDetail.Text = last.DetailMessage;
                 }
                 SuscribirProgreso();
+                if (App.LibraryService.Cancelando) MostrarCancelando();
             }
 
             // 🔥 DETECTAR SI VIENE DESDE HOMEPAGE CON ACCIÓN RÁPIDA
@@ -114,6 +115,7 @@ namespace SaviumDrive.Views
                     }
 
                     TxtProgressDetail.Text = e.DetailMessage;
+                    if (App.LibraryService.Cancelando) MostrarCancelando();
                 }
                 else
                 {
@@ -209,6 +211,7 @@ namespace SaviumDrive.Views
         private void SetBusyState(bool busy, string messageKey)
         {
             _isBusy = busy;
+            BtnMainAction.IsEnabled = true;
             if (busy)
             {
                 _cts = new CancellationTokenSource();
@@ -234,13 +237,30 @@ namespace SaviumDrive.Views
             }
         }
 
+        private void MostrarCancelando()
+        {
+            BtnMainAction.IsEnabled = false;
+            BtnText.Text = ResourceHelper.GetString("Login_Button_Cancelling");
+            MainProgressBar.IsIndeterminate = true;
+            TxtProgressDetail.Text = ResourceHelper.GetString("Login_Button_Cancelling");
+        }
+
         private async void BtnMainAction_Click(object sender, RoutedEventArgs e)
         {
             if (_isBusy)
             {
-                // 🔥 CANCELAR LA OPERACIÓN ACTUAL
+                // Cancelar la operación real (puede haberla empezado otra instancia de esta página).
+                // La barra se queda en "Cancelando..." hasta que la operación termine de verdad.
                 _cts?.Cancel();
-                SetBusyState(false, "MsgIdle");
+                if (App.LibraryService != null && App.LibraryService.IsBusy)
+                {
+                    App.LibraryService.CancelarOperacionActual();
+                    MostrarCancelando();
+                }
+                else
+                {
+                    SetBusyState(false, "MsgIdle");
+                }
             }
             else
             {

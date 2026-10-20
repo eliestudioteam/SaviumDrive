@@ -52,6 +52,19 @@ namespace SaviumDrive.Tests
             Assert.Equal("Saves.zip", ZipBackup.NombreZip(_origen));
         }
 
+        // --- Cancelar ---
+
+        [Fact]
+        public void Comprimir_Cancelado_SeDetieneSinTerminarElZip()
+        {
+            for (int i = 0; i < 20; i++) Archivo($"slot{i}.sav", "datos");
+            using var cts = new System.Threading.CancellationTokenSource();
+            cts.Cancel();
+
+            Assert.ThrowsAny<OperationCanceledException>(() => ZipBackup.Comprimir(_origen, Path.Combine(_raiz, "a.zip"), cts.Token));
+            Assert.ThrowsAny<OperationCanceledException>(() => ZipBackup.HuellaCarpeta(_origen, cts.Token));
+        }
+
         // --- Comprimir y extraer ---
 
         [Fact]

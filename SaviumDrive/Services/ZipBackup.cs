@@ -6,6 +6,7 @@ using System.IO.Compression;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
+using System.Threading;
 
 namespace SaviumDrive.Services
 {
@@ -25,7 +26,7 @@ namespace SaviumDrive.Services
         /// Comprime el contenido de la carpeta (sin la carpeta raíz). Lee con FileShare.ReadWrite porque
         /// el juego puede tener los archivos abiertos, y conserva fechas y carpetas vacías.
         /// </summary>
-        public static void Comprimir(string carpeta, string zipDestino)
+        public static void Comprimir(string carpeta, string zipDestino, CancellationToken token = default)
         {
             if (File.Exists(zipDestino)) File.Delete(zipDestino);
 
@@ -39,12 +40,13 @@ namespace SaviumDrive.Services
 
             foreach (var archivo in Directory.EnumerateFiles(carpeta, "*", SearchOption.AllDirectories))
             {
+                token.ThrowIfCancellationRequested(); // una carpeta grande tarda: cancelar entre archivos
                 var entrada = zip.CreateEntry(RutaEntrada(carpeta, archivo), CompressionLevel.Optimal);
                 entrada.LastWriteTime = AFechaZip(File.GetLastWriteTime(archivo));
 
                 using var origen = new FileStream(archivo, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
                 using var destino = entrada.Open();
-                origen.CopyTo(destino);
+                origen.CopyToAsync(destino, token).GetAwaiter().GetResult();
             }
         }
 
@@ -59,12 +61,16 @@ namespace SaviumDrive.Services
         /// Huella del contenido (rutas, tamaños y MD5). Si no cambia, el .zip en Drive ya está al día
         /// y no hace falta volver a subirlo.
         /// </summary>
-        public static string HuellaCarpeta(string carpeta)
+        public static string HuellaCarpeta(string carpeta, CancellationToken token = default)
         {
             var lineas = Directory.EnumerateFiles(carpeta, "*", SearchOption.AllDirectories)
                 .Select(archivo => (ruta: RutaEntrada(carpeta, archivo).ToLowerInvariant(), archivo))
                 .OrderBy(x => x.ruta, StringComparer.Ordinal)
-                .Select(x => $"{x.ruta}|{new FileInfo(x.archivo).Length}|{Md5Hex(x.archivo)}");
+                .Select(x =>
+                {
+                    token.ThrowIfCancellationRequested();
+                    return $"{x.ruta}|{new FileInfo(x.archivo).Length}|{Md5Hex(x.archivo)}";
+                });
 
             using var sha = SHA256.Create();
             return Convert.ToHexString(sha.ComputeHash(Encoding.UTF8.GetBytes(string.Join("\n", lineas)))).ToLowerInvariant();

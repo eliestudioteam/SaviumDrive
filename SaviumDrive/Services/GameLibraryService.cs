@@ -34,6 +34,14 @@ namespace SaviumDrive.Services
 
         public bool IsBusy { get; private set; } = false;
 
+        // Operación en curso (subir, actualizar, restaurar, nueva versión): se cancela desde aquí,
+        // así funciona aunque la página que la empezó ya no exista (el usuario cambió de sección y volvió)
+        private CancellationTokenSource _ctsOperacion;
+        private readonly object _bloqueoOperacion = new object();
+
+        /// <summary>Se pidió cancelar y la operación todavía está terminando (borrando lo subido, etc.).</summary>
+        public bool Cancelando { get; private set; }
+
         /// <summary>Sesión de Drive ya autenticada (para reutilizarla al reabrir la ventana).</summary>
         public Google.Apis.Drive.v3.DriveService DriveService => _driveManager.Service;
 
@@ -58,6 +66,8 @@ namespace SaviumDrive.Services
         private void NotifyProgress(string gameName, int percent, string opKey, string detail, bool active)
         {
             IsBusy = active;
+            // Mientras se cancela, no volver a decir "Subiendo..."
+            if (active && Cancelando) { percent = -1; opKey = "Login_Button_Cancelling"; detail = GetStr("Login_Button_Cancelling"); }
 
             string opText = "";
             if (!string.IsNullOrEmpty(opKey)) opText = GetStr(opKey);
@@ -103,9 +113,53 @@ namespace SaviumDrive.Services
 
        
 
+        // --- CANCELACIÓN ---
+
+        /// <summary>Cancela la operación en curso, la haya empezado la página que sea.</summary>
+        public void CancelarOperacionActual()
+        {
+            lock (_bloqueoOperacion)
+            {
+                if (_ctsOperacion == null) return;
+                Cancelando = true;
+                try { _ctsOperacion.Cancel(); } catch (ObjectDisposedException) { }
+            }
+            if (IsBusy) NotifyProgress(LastProgressArgs?.GameName ?? "", -1, "", "", true);
+        }
+
+        private async Task<T> ConOperacion<T>(Func<CancellationToken, Task<T>> operacion, CancellationToken externo)
+        {
+            var cts = CancellationTokenSource.CreateLinkedTokenSource(externo);
+            lock (_bloqueoOperacion) { _ctsOperacion = cts; Cancelando = false; }
+            try { return await operacion(cts.Token); }
+            finally
+            {
+                lock (_bloqueoOperacion)
+                {
+                    if (_ctsOperacion == cts) { _ctsOperacion = null; Cancelando = false; }
+                }
+                cts.Dispose();
+            }
+        }
+
+        private Task ConOperacion(Func<CancellationToken, Task> operacion, CancellationToken externo) =>
+            ConOperacion<bool>(async t => { await operacion(t); return true; }, externo);
+
+        public Task<GameConfig> AgregarJuegoNuevo(string nombre, string rutaLocal, string coverUrl, CancellationToken token) =>
+            ConOperacion(t => AgregarJuegoNuevoCore(nombre, rutaLocal, coverUrl, t), token);
+
+        public Task<ResultadoActualizacion> ActualizarBackup(GameConfig juego, GameVersion version, CancellationToken token) =>
+            ConOperacion(t => ActualizarBackupCore(juego, version, t), token);
+
+        public Task RestaurarJuego(GameConfig juego, GameVersion version, CancellationToken token) =>
+            ConOperacion(t => RestaurarJuegoCore(juego, version, t), token);
+
+        public Task<GameVersion> CrearNuevaVersion(GameConfig juego, string descripcion, CancellationToken token) =>
+            ConOperacion(t => CrearNuevaVersionCore(juego, descripcion, t), token);
+
         // --- OPERACIONES (Actualizadas con StatusUploading / StatusDownloading) ---
 
-        public async Task<GameConfig> AgregarJuegoNuevo(string nombre, string rutaLocal, string coverUrl, CancellationToken token)
+        private async Task<GameConfig> AgregarJuegoNuevoCore(string nombre, string rutaLocal, string coverUrl, CancellationToken token)
         {
             string idJuegoRaiz = null; // Para hacer rollback
 
@@ -248,7 +302,7 @@ namespace SaviumDrive.Services
         }
 
         // 🔥 ACTUALIZAR BACKUP CON CARPETA TEMPORAL (No destruir archivos viejos)
-        public async Task<ResultadoActualizacion> ActualizarBackup(GameConfig juego, GameVersion version, CancellationToken token)
+        private async Task<ResultadoActualizacion> ActualizarBackupCore(GameConfig juego, GameVersion version, CancellationToken token)
         {
             string idCarpetaTemporal = null;
             string nombreCarpetaOriginal = null;
@@ -404,7 +458,7 @@ namespace SaviumDrive.Services
         {
             if (ZipBackup.ConvieneComprimir(rutaLocal))
             {
-                string huella = await Task.Run(() => ZipBackup.HuellaCarpeta(rutaLocal), token);
+                string huella = await Task.Run(() => ZipBackup.HuellaCarpeta(rutaLocal, token), token);
                 await SubirZip(rutaLocal, idCarpetaVersion, $"{nombreEnDrive}.zip", nombreProgreso, token);
                 return (true, huella);
             }
@@ -437,7 +491,7 @@ namespace SaviumDrive.Services
                 string zipLocal = Path.Combine(dirTemporal, nombreEnDrive);
 
                 NotifyProgress(nombreProgreso, -1, "StatusUploading", GetStr("MsgCompressing"), true);
-                await Task.Run(() => ZipBackup.Comprimir(rutaLocal, zipLocal), token);
+                await Task.Run(() => ZipBackup.Comprimir(rutaLocal, zipLocal, token), token);
 
                 token.ThrowIfCancellationRequested();
                 string tamano = FormatBytes(new FileInfo(zipLocal).Length);
@@ -464,7 +518,7 @@ namespace SaviumDrive.Services
             var zipActual = await BuscarZipDeVersion(juego, version, token);
 
             NotifyProgress(nombreProgreso, -1, "StatusUploading", GetStr("MsgScanning"), true);
-            string huella = await Task.Run(() => ZipBackup.HuellaCarpeta(juego.RutaEnEstePc), token);
+            string huella = await Task.Run(() => ZipBackup.HuellaCarpeta(juego.RutaEnEstePc, token), token);
 
             if (!string.IsNullOrEmpty(version.HuellaContenido) && huella == version.HuellaContenido)
             {
@@ -603,7 +657,7 @@ namespace SaviumDrive.Services
         }
 
         // 🔥 RESTAURAR JUEGO CON CARPETA TEMPORAL LOCAL Y PROGRESO DETALLADO
-        public async Task RestaurarJuego(GameConfig juego, GameVersion version, CancellationToken token)
+        private async Task RestaurarJuegoCore(GameConfig juego, GameVersion version, CancellationToken token)
         {
             string rutaCarpetaTemporal = null;
             string rutaCarpetaOriginal = juego.RutaEnEstePc;
@@ -916,7 +970,7 @@ namespace SaviumDrive.Services
         }
 
         /// <summary>Sube la carpeta local como una versión nueva (V2, V3...) y la deja como activa.</summary>
-        public async Task<GameVersion> CrearNuevaVersion(GameConfig juego, string descripcion, CancellationToken token)
+        private async Task<GameVersion> CrearNuevaVersionCore(GameConfig juego, string descripcion, CancellationToken token)
         {
             string idCarpetaVersion = null;
             int numero = juego.NextVersionNumber;
