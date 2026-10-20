@@ -15,6 +15,9 @@
 		<WindowsPackageType>None</WindowsPackageType>
 		<!-- Incluir el runtime de Windows App SDK junto al .exe (el usuario no necesita instalar nada) -->
 		<WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
+		<!-- Idiomas de la app: solo se copian los recursos de librerías en español e inglés
+		     (los .mui de WinUI se filtran en el target QuitarIdiomasDeWinUI, al final) -->
+		<SatelliteResourceLanguages>es;es-ES;en;en-US</SatelliteResourceLanguages>
 		<!-- Recolector de basura en modo ahorro: la app pasa casi todo el tiempo en la bandeja -->
 		<ServerGarbageCollection>false</ServerGarbageCollection>
 		<ConcurrentGarbageCollection>false</ConcurrentGarbageCollection>
@@ -120,4 +123,15 @@
 	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
 	  <Optimize>True</Optimize>
 	</PropertyGroup>
+
+	<!-- El runtime de WinUI incluido (WindowsAppSDKSelfContained) trae los textos de sus controles en ~90 idiomas
+	     (carpetas af-ZA, de-DE, ja-JP... con Microsoft.ui.xaml.dll.mui). La app solo está en español e inglés:
+	     se copian solo esos. Si se agrega un idioma, añadirlo también aquí.
+	     Windows App SDK descomprime el runtime en obj\...\MsixContent y no copia lo que esté en MicrosoftWindowsAppSDKFilesExcluded. -->
+	<Target Name="QuitarIdiomasDeWinUI" AfterTargets="ExtractMicrosoftWindowsAppSDKMsixFiles" BeforeTargets="AddMicrosoftWindowsAppSDKPayloadFilesFromMsix">
+		<ItemGroup>
+			<MicrosoftWindowsAppSDKFilesExcluded Include="$(MicrosoftWindowsAppSDKMsixContent)\**\*.mui"
+			                                     Exclude="$(MicrosoftWindowsAppSDKMsixContent)\es*\**;$(MicrosoftWindowsAppSDKMsixContent)\en*\**" />
+		</ItemGroup>
+	</Target>
 </Project>
