@@ -348,4 +348,5 @@
 	<data name="PathHintGuessed" xml:space="preserve"><value>📂 Carpeta encontrada en una ubicación habitual. Revísala antes de guardar.</value></data>
 	<data name="MsgTimeLeft" xml:space="preserve"><value>quedan {0}</value></data>
 	<data name="MsgCompressingCount" xml:space="preserve"><value>{0} de {1} archivos</value></data>
+	<data name="ChangelogGitHubBtn.Text" xml:space="preserve"><value>Ver en GitHub</value></data>
 </root>

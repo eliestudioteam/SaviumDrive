@@ -1,205 +1,135 @@
 // Views/ChangelogWindow.xaml.cs
-using Microsoft.UI;
+// Novedades de la versiÃ³n instalada: se muestra una vez, al abrir la app tras actualizar.
+using Microsoft.UI.Text;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Documents;
 using Microsoft.UI.Xaml.Media;
+using SaviumDrive.Helpers;
 using SaviumDrive.Services;
 using System;
-using System.Text.RegularExpressions;
-using SaviumDrive.Helpers;
 
 namespace SaviumDrive.Views
 {
     public sealed partial class ChangelogWindow : Window
     {
+        private readonly string _version;
 
         public ChangelogWindow(string version, string changelog)
         {
             this.InitializeComponent();
+            _version = version;
 
-            // Configurar ventana
-            SetupWindow();
+            Raiz.RequestedTheme = SettingsService.Current.DarkMode ? ElementTheme.Dark : ElementTheme.Light;
+            ConfigurarVentana();
 
-            // Aplicar tema
-            if (this.Content is FrameworkElement root)
-            {
-                root.RequestedTheme = SettingsService.Current.DarkMode ? ElementTheme.Dark : ElementTheme.Light;
-            }
-
-            // Mostrar información
-            TxtVersionInfo.Text = string.Format(
-                ResourceHelper.GetString("ChangelogVersionInfo"),
-                version
-            );
-
-            // Parsear y mostrar changelog
-            ParseAndDisplayChangelog(changelog);
+            TxtVersionInfo.Text = string.Format(ResourceHelper.GetString("ChangelogVersionInfo"), version);
+            Mostrar(changelog);
         }
 
-        private void SetupWindow()
+        private void ConfigurarVentana()
         {
-            // Obtener AppWindow para personalización
-            IntPtr hWnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
-            WindowId wndId = Win32Interop.GetWindowIdFromWindow(hWnd);
-            var appWindow = AppWindow.GetFromWindowId(wndId);
-
-            if (appWindow != null)
-            {
-                // Tamaño de ventana
-                appWindow.Resize(new Windows.Graphics.SizeInt32(600, 700));
-
-                // Centrar ventana
-                var displayArea = DisplayArea.GetFromWindowId(wndId, DisplayAreaFallback.Primary);
-                if (displayArea != null)
-                {
-                    var centerX = (displayArea.WorkArea.Width - 600) / 2;
-                    var centerY = (displayArea.WorkArea.Height - 700) / 2;
-                    appWindow.Move(new Windows.Graphics.PointInt32(centerX, centerY));
-                }
-            }
-
-            this.Title = "What's New - Savium Drive";
             ExtendsContentIntoTitleBar = true;
-            SetTitleBar(null); // Sin barra de título personalizada
+            SetTitleBar(AppTitleBar);
+            Title = ResourceHelper.GetString("ChangelogTitle/Text") + " - Savium Drive";
+
+            IntPtr hWnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
+            var appWindow = AppWindow.GetFromWindowId(Microsoft.UI.Win32Interop.GetWindowIdFromWindow(hWnd));
+            if (appWindow == null) return;
+
+            // Se puede agrandar para leer notas largas, pero no hacerla tan pequeÃ±a que no se lea
+            var tamano = WindowSizing.AjustarYCentrar(appWindow, hWnd, 640, 720);
+            if (appWindow.Presenter is OverlappedPresenter presenter)
+            {
+                presenter.IsMinimizable = false;
+                presenter.PreferredMinimumWidth = Math.Min(tamano.Width, (int)(480 * WindowSizing.Escala(hWnd)));
+                presenter.PreferredMinimumHeight = Math.Min(tamano.Height, (int)(420 * WindowSizing.Escala(hWnd)));
+            }
         }
 
-        private void ParseAndDisplayChangelog(string markdown)
-        {
-            if (string.IsNullOrWhiteSpace(markdown))
-            {
-                markdown = ResourceHelper.GetString("ChangelogNoInfo");
-            }
+        // ===================== MARKDOWN â†’ TEXTO CON FORMATO =====================
 
+        private static readonly Brush Acento = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 0x00, 0x8E, 0xFF));
+
+        private void Mostrar(string markdown)
+        {
             ChangelogContent.Blocks.Clear();
-
-            // Parsear Markdown simple a RichTextBlock
-            var lines = markdown.Split(new[] { "\r\n", "\n" }, StringSplitOptions.None);
-            Paragraph currentParagraph = new Paragraph();
-
-            foreach (var line in lines)
+            var bloques = ChangelogMarkdown.Analizar(markdown);
+            if (bloques.Count == 0)
             {
-                if (string.IsNullOrWhiteSpace(line))
-                {
-                    if (currentParagraph.Inlines.Count > 0)
-                    {
-                        ChangelogContent.Blocks.Add(currentParagraph);
-                        currentParagraph = new Paragraph();
-                    }
-                    continue;
-                }
-
-                // Detectar títulos (## Titulo)
-                if (line.StartsWith("## "))
-                {
-                    if (currentParagraph.Inlines.Count > 0)
-                    {
-                        ChangelogContent.Blocks.Add(currentParagraph);
-                        currentParagraph = new Paragraph();
-                    }
-
-                    var heading = new Paragraph();
-                    var run = new Run { Text = line.Substring(3).Trim() };
-                    run.FontSize = 18;
-                    run.FontWeight = Microsoft.UI.Text.FontWeights.SemiBold;
-                    run.Foreground = new SolidColorBrush(
-                        SettingsService.Current.DarkMode ? Colors.White : Colors.Black
-                    );
-                    heading.Inlines.Add(run);
-                    heading.Margin = new Thickness(0, 15, 0, 8);
-                    ChangelogContent.Blocks.Add(heading);
-                    continue;
-                }
-
-                // Detectar sub-títulos (### Subtitulo)
-                if (line.StartsWith("### "))
-                {
-                    if (currentParagraph.Inlines.Count > 0)
-                    {
-                        ChangelogContent.Blocks.Add(currentParagraph);
-                        currentParagraph = new Paragraph();
-                    }
-
-                    var subHeading = new Paragraph();
-                    var run = new Run { Text = line.Substring(4).Trim() };
-                    run.FontSize = 15;
-                    run.FontWeight = Microsoft.UI.Text.FontWeights.SemiBold;
-                    run.Foreground = new SolidColorBrush(
-                        SettingsService.Current.DarkMode ? Colors.LightGray : Colors.DarkGray
-                    );
-                    subHeading.Inlines.Add(run);
-                    subHeading.Margin = new Thickness(0, 10, 0, 5);
-                    ChangelogContent.Blocks.Add(subHeading);
-                    continue;
-                }
-
-                // Detectar listas (- Item o * Item)
-                if (line.TrimStart().StartsWith("- ") || line.TrimStart().StartsWith("* "))
-                {
-                    var bulletParagraph = new Paragraph();
-                    bulletParagraph.Margin = new Thickness(20, 4, 0, 4);
-
-                    var bullet = new Run { Text = "• " };
-                    bullet.Foreground = new SolidColorBrush(
-                        Windows.UI.Color.FromArgb(255, 0, 229, 255) // AccentColor
-                    );
-                    bulletParagraph.Inlines.Add(bullet);
-
-                    var text = line.TrimStart().Substring(2).Trim();
-
-                    // Detectar texto en negrita (**texto**)
-                    text = ProcessBoldText(text, bulletParagraph);
-
-                    ChangelogContent.Blocks.Add(bulletParagraph);
-                    continue;
-                }
-
-                // Texto normal
-                var normalRun = new Run { Text = line };
-                currentParagraph.Inlines.Add(normalRun);
-                currentParagraph.Inlines.Add(new LineBreak());
+                var vacio = new Paragraph();
+                vacio.Inlines.Add(new Run { Text = ResourceHelper.GetString("ChangelogNoInfo") });
+                ChangelogContent.Blocks.Add(vacio);
+                return;
             }
 
-            if (currentParagraph.Inlines.Count > 0)
+            bool primero = true;
+            foreach (var bloque in bloques)
             {
-                ChangelogContent.Blocks.Add(currentParagraph);
+                var p = new Paragraph();
+                switch (bloque.Tipo)
+                {
+                    case TipoBloqueMd.Titulo:
+                        p.FontWeight = FontWeights.SemiBold;
+                        p.FontSize = bloque.Nivel <= 2 ? 18 : 15;
+                        p.Margin = new Thickness(0, primero ? 0 : 16, 0, 6);
+                        AgregarTramos(p, bloque);
+                        break;
+
+                    case TipoBloqueMd.Vineta:
+                    case TipoBloqueMd.Numerado:
+                        // SangrÃ­a colgante: el texto largo se alinea con el de la primera lÃ­nea, no con la viÃ±eta
+                        double sangria = 18 + bloque.Nivel * 20;
+                        p.Margin = new Thickness(sangria, 3, 0, 3);
+                        p.TextIndent = -16;
+                        string marca = bloque.Tipo == TipoBloqueMd.Numerado ? bloque.Numero : (bloque.Nivel == 0 ? "â€¢" : "â—¦");
+                        p.Inlines.Add(new Run { Text = marca + "  ", Foreground = Acento, FontWeight = FontWeights.Bold });
+                        AgregarTramos(p, bloque);
+                        break;
+
+                    case TipoBloqueMd.Separador:
+                        p.Margin = new Thickness(0, 6, 0, 6);
+                        p.Inlines.Add(new Run { Text = "â€”â€”â€”", Foreground = Acento });
+                        break;
+
+                    default:
+                        p.Margin = new Thickness(0, 4, 0, 8);
+                        AgregarTramos(p, bloque);
+                        break;
+                }
+                ChangelogContent.Blocks.Add(p);
+                primero = false;
             }
         }
 
-        private string ProcessBoldText(string text, Paragraph paragraph)
+        private static void AgregarTramos(Paragraph p, BloqueMd bloque)
         {
-            // Regex para detectar **texto en negrita**
-            var regex = new Regex(@"\*\*(.*?)\*\*");
-            int lastIndex = 0;
-
-            foreach (Match match in regex.Matches(text))
+            foreach (var t in bloque.Tramos)
             {
-                // Texto antes del match
-                if (match.Index > lastIndex)
+                switch (t.Tipo)
                 {
-                    paragraph.Inlines.Add(new Run { Text = text.Substring(lastIndex, match.Index - lastIndex) });
+                    case TipoTramoMd.Negrita: p.Inlines.Add(new Run { Text = t.Texto, FontWeight = FontWeights.Bold }); break;
+                    case TipoTramoMd.Cursiva: p.Inlines.Add(new Run { Text = t.Texto, FontStyle = Windows.UI.Text.FontStyle.Italic }); break;
+                    case TipoTramoMd.Codigo: p.Inlines.Add(new Run { Text = t.Texto, FontFamily = new FontFamily("Consolas"), Foreground = Acento }); break;
+                    case TipoTramoMd.Salto: p.Inlines.Add(new LineBreak()); break;
+                    case TipoTramoMd.Enlace when Uri.TryCreate(t.Url, UriKind.Absolute, out var uri):
+                        var enlace = new Hyperlink { NavigateUri = uri, Foreground = Acento };
+                        enlace.Inlines.Add(new Run { Text = t.Texto });
+                        p.Inlines.Add(enlace);
+                        break;
+                    default: p.Inlines.Add(new Run { Text = t.Texto }); break;
                 }
-
-                // Texto en negrita
-                var boldRun = new Run { Text = match.Groups[1].Value };
-                boldRun.FontWeight = Microsoft.UI.Text.FontWeights.Bold;
-                paragraph.Inlines.Add(boldRun);
-
-                lastIndex = match.Index + match.Length;
             }
-
-            // Texto restante
-            if (lastIndex < text.Length)
-            {
-                paragraph.Inlines.Add(new Run { Text = text.Substring(lastIndex) });
-            }
-
-            return string.Empty; // Ya procesado
         }
 
-        private void BtnClose_Click(object sender, RoutedEventArgs e)
+        // ===================== BOTONES =====================
+
+        private async void BtnGitHub_Click(object sender, RoutedEventArgs e)
         {
-            this.Close();
+            try { await Windows.System.Launcher.LaunchUriAsync(new Uri(UpdateService.PaginaDeVersion(_version))); }
+            catch { }
         }
+
+        private void BtnClose_Click(object sender, RoutedEventArgs e) => Close();
     }
 }

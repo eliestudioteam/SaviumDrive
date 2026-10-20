@@ -25,6 +25,10 @@ namespace SaviumDrive.Services
         private const string CURRENT_VERSION = "1.0.0"; // Actualiza esto con cada release
         private static readonly HttpClient _httpClient = CreateHttpClient();
 
+        /// <summary>Página de la versión en GitHub (notas completas, descargas).</summary>
+        public static string PaginaDeVersion(string version) =>
+            $"https://github.com/eliestudioteam/SaviumDrive/releases/tag/v{(version ?? "").TrimStart('v')}";
+
         // Las cabeceras se configuran una sola vez: el cliente es estático y compartido
         private static HttpClient CreateHttpClient()
         {

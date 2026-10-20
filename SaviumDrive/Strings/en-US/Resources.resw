@@ -349,4 +349,5 @@
 	<data name="PathHintGuessed" xml:space="preserve"><value>📂 Folder found in a usual location. Check it before saving.</value></data>
 	<data name="MsgTimeLeft" xml:space="preserve"><value>{0} left</value></data>
 	<data name="MsgCompressingCount" xml:space="preserve"><value>{0} of {1} files</value></data>
+	<data name="ChangelogGitHubBtn.Text" xml:space="preserve"><value>View on GitHub</value></data>
 </root>
