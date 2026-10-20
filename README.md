@@ -170,7 +170,7 @@ Cada cambio se compila (Debug y Release, x64 y x86) y se prueba automáticamente
 ## Privacidad
 
 - Tus partidas se guardan **en tu Google Drive**, en la carpeta `SaviumBackups`. Savium Drive no tiene servidores propios ni recoge datos.
-- El inicio de sesión usa el flujo oficial de Google (OAuth) y la sesión se guarda solo en tu PC (en `%LOCALAPPDATA%SaviumDrive`).
+- El inicio de sesión usa el flujo oficial de Google (OAuth) y la sesión se guarda solo en tu PC (en `%LOCALAPPDATA%\SaviumDrive`).
 - Solo se consultan servicios públicos para la portada (SteamGridDB) y la ubicación de las partidas (base de datos de Ludusavi).
 
 ## Tecnologías
