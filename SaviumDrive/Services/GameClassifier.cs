@@ -24,6 +24,7 @@ namespace SaviumDrive.Services
         public string TituloVentana { get; set; }
     }
 
+    /// <summary>Resultado de clasificar un proceso: si es un juego, cuál y por qué.</summary>
     public sealed class Clasificacion
     {
         public bool EsJuego { get; set; }
@@ -35,6 +36,11 @@ namespace SaviumDrive.Services
         public string Motivo { get; set; }
     }
 
+    /// <summary>
+    /// Reglas para decidir si un proceso es un juego, en este orden: procesos que nunca son juegos,
+    /// juegos instalados de una tienda, juegos agregados por el usuario, lanzadores, programas de Windows,
+    /// apps Electron, emuladores, ventanas de motores de juego, DLL propias de juegos y pantalla completa.
+    /// </summary>
     public static class GameClassifier
     {
         // Procesos que nunca son juegos (lanzadores, sus ayudantes, overlays, navegadores, apps comunes...)
@@ -169,7 +175,7 @@ namespace SaviumDrive.Services
         {
             string clave = ClaveDe(p, instalado);
             string nombre = NombreReal(p, instalado);
-            // Manda el nombre que eligió el usuario al agregarlo
+            // Tiene prioridad el nombre que eligió el usuario al agregarlo
             if (catalogo?.Aprendidos != null && catalogo.Aprendidos.TryGetValue(clave, out var aprendido) && !string.IsNullOrWhiteSpace(aprendido))
                 nombre = aprendido;
 
@@ -190,7 +196,8 @@ namespace SaviumDrive.Services
             return (instalado?.CarpetaInstalacion ?? CarpetaDelJuego(p.RutaExe) ?? p.RutaExe ?? p.NombreProceso).ToLowerInvariant();
         }
 
-        /// <summary>"Minecraft* 1.21.4 - Singleplayer" → "Minecraft". Quita versiones, "*" y lo que va tras " - ".</summary>
+        /// <summary>Nombre del juego a partir del título de su ventana: "Minecraft* 1.21.4 - Singleplayer" da "Minecraft".
+        /// Quita versiones, "*" y lo que va tras " - ".</summary>
         public static string NombreDesdeTitulo(string titulo)
         {
             if (string.IsNullOrWhiteSpace(titulo)) return null;

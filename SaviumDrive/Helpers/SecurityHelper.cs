@@ -9,12 +9,13 @@ using Google.Apis.Auth.OAuth2.Responses;
 namespace SaviumDrive.Core
 {
     /// <summary>
-    /// Helpers de seguridad adicionales para la aplicación
+    /// Comprobaciones sobre la sesión guardada de Google y el identificador de este equipo.
     /// </summary>
     public static class SecurityHelpers
     {
         /// <summary>
-        /// Valida que el token almacenado no haya sido manipulado
+        /// Comprueba que los archivos de la sesión guardada existan y no estén vacíos (un archivo vacío o
+        /// cortado haría fallar el inicio de sesión automático).
         /// </summary>
         public static async Task<bool> ValidarIntegridadToken(string tokenPath)
         {
@@ -41,18 +42,16 @@ namespace SaviumDrive.Core
         }
 
         /// <summary>
-        /// Verifica que el token no haya expirado (antes de intentar usarlo)
+        /// True si el token de acceso todavía no ha caducado (con 5 minutos de margen).
         /// </summary>
         public static bool TokenEsValido(TokenResponse token)
         {
             if (token == null) return false;
 
-            // Si tiene IssuedUtc y ExpiresInSeconds, verificar expiración
             if (token.IssuedUtc != default && token.ExpiresInSeconds.HasValue)
             {
                 var expiration = token.IssuedUtc.AddSeconds(token.ExpiresInSeconds.Value);
 
-                // Agregar buffer de 5 minutos
                 if (DateTime.UtcNow >= expiration.AddMinutes(-5))
                 {
                     return false;
@@ -63,7 +62,7 @@ namespace SaviumDrive.Core
         }
 
         /// <summary>
-        /// Limpia tokens antiguos y archivos temporales
+        /// Borra los archivos de sesión que llevan más de 90 días sin modificarse.
         /// </summary>
         public static void LimpiarDatosAntiguos(string tokenPath)
         {
@@ -71,7 +70,6 @@ namespace SaviumDrive.Core
             {
                 if (!Directory.Exists(tokenPath)) return;
 
-                // Buscar archivos modificados hace más de 90 días
                 var files = Directory.GetFiles(tokenPath);
                 foreach (var file in files)
                 {
@@ -89,13 +87,14 @@ namespace SaviumDrive.Core
         }
 
         /// <summary>
-        /// Genera un identificador único para el dispositivo (para auditoría)
+        /// Identificador estable de este equipo y usuario de Windows (hash del nombre del equipo y del usuario).
+        /// Permite que cada PC recuerde su propia carpeta de partidas para un mismo juego
+        /// (ver <c>GameConfig.RutasPorEquipo</c>). No se envía a ningún servidor.
         /// </summary>
         public static string ObtenerDeviceId()
         {
             try
             {
-                // Usar información del sistema para crear un ID único
                 string computerName = Environment.MachineName;
                 string userName = Environment.UserName;
                 string combined = $"{computerName}-{userName}";
@@ -113,13 +112,12 @@ namespace SaviumDrive.Core
         }
 
         /// <summary>
-        /// Valida que el Client ID tenga el formato correcto
+        /// True si el Client ID tiene el formato de Google (termina en .apps.googleusercontent.com).
         /// </summary>
         public static bool ValidarClientId(string clientId)
         {
             if (string.IsNullOrWhiteSpace(clientId)) return false;
 
-            // Los Client IDs de Google terminan en .apps.googleusercontent.com
             return clientId.EndsWith(".apps.googleusercontent.com");
         }
     }

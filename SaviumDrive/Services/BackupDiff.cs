@@ -22,6 +22,7 @@ namespace SaviumDrive.Services
 
     public static class BackupDiff
     {
+        /// <summary>Rutas relativas de los archivos según cómo están respecto al backup.</summary>
         public sealed class Resultado
         {
             public List<string> SinCambios { get; } = new List<string>();

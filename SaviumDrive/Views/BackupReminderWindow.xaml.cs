@@ -6,6 +6,10 @@ using System;
 
 namespace SaviumDrive.Views
 {
+    /// <summary>
+    /// Aviso que aparece al cerrar un juego. Ventana pequeña, siempre encima y de tamaño fijo.
+    /// <see cref="Result"/> indica si el usuario aceptó (guardar o agregar el juego).
+    /// </summary>
     public sealed partial class BackupReminderWindow : Window
     {
         private AppWindow _appWindow;

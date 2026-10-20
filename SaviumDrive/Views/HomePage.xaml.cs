@@ -13,6 +13,7 @@ using System.Threading.Tasks;
 
 namespace SaviumDrive.Views
 {
+    /// <summary>Panel de inicio: estado de la conexión, número de juegos, espacio en Drive y últimos backups.</summary>
     public sealed partial class HomePage : Page
     {
         private bool _isConnected = true;
@@ -37,14 +38,14 @@ namespace SaviumDrive.Views
         {
             try
             {
-                // 🔥 VERIFICAR CONECTIVIDAD PRIMERO
+                // Estado de la conexión
                 if (App.NetworkService != null)
                 {
                     _isConnected = await App.NetworkService.IsConnectedAsync();
                     ActualizarEstadoConexion();
                 }
 
-                // Limpiar visualmente
+                // Valores provisionales mientras se carga
                 TxtGamesCount.Text = "-";
                 TxtStorageUsed.Text = "-";
                 TxtStorageRemaining.Text = "-";
@@ -55,14 +56,14 @@ namespace SaviumDrive.Views
                 var servicio = App.LibraryService;
                 if (servicio == null) return;
 
-                // 1️⃣ CARGAR JUEGOS LOCALES (instantáneo)
+                // 1. Biblioteca local (instantáneo)
                 var juegos = await servicio.CargarSoloLocal();
                 int total = juegos.Count;
 
                 // Contador de juegos
                 TxtGamesCount.Text = ResourceHelper.GetString("MsgGamesCount", total);
 
-                // 2️⃣ MOSTRAR LOS ÚLTIMOS 3 BACKUPS INSTANTÁNEAMENTE
+                // 2. Los 3 últimos backups
                 var ultimosBackups = juegos
                     .OrderByDescending(j => j.LastBackup)
                     .Take(3)
@@ -85,7 +86,7 @@ namespace SaviumDrive.Views
                     RecentBackupsPanel.Visibility = Visibility.Collapsed;
                 }
 
-                // 3️⃣ CALCULAR ALMACENAMIENTO EN SEGUNDO PLANO (sin trabar UI)
+                // 3. Espacio en Drive en segundo plano (puede tardar varios segundos)
                 _ctsAlmacenamiento?.Cancel();
                 var cts = new CancellationTokenSource();
                 _ctsAlmacenamiento = cts;
@@ -123,7 +124,7 @@ namespace SaviumDrive.Views
             });
         }
 
-        // 🔥 MÉTODO SIMPLIFICADO - USA LOS NOMBRES DIRECTAMENTE
+        /// <summary>Muestra "Conectado" o "Sin conexión" en la tarjeta de estado.</summary>
         private void ActualizarEstadoConexion()
         {
             if (_isConnected)
@@ -144,11 +145,11 @@ namespace SaviumDrive.Views
         {
             try
             {
-                // 1️⃣ Calcular espacio total de backups
+                // 1. Espacio que ocupan los backups
                 long espacioBackups = await servicio.CalcularEspacioBackupsEnDrive();
                 if (token.IsCancellationRequested) return; // se salió de la página o se cerró la sesión
 
-                // 2️⃣ Obtener cuota real del usuario (Drive + Gmail + Fotos + todo)
+                // 2. Cuota de la cuenta (Drive, Gmail y Fotos la comparten)
                 var cuota = await servicio.ObtenerCuotaDrive();
                 if (token.IsCancellationRequested) return;
 
@@ -167,10 +168,10 @@ namespace SaviumDrive.Views
                 long usadoTotalCuenta = cuota.Value.usado;
                 long totalCuenta = cuota.Value.total;
 
-                // 3️⃣ Progreso basado solo en backups
+                // 3. La barra muestra la parte de la cuota que ocupan los backups
                 double percent = totalCuenta > 0 ? (double)espacioBackups / totalCuenta * 100 : 0;
 
-                // 4️⃣ Actualizar UI
+                // 4. Mostrar los resultados
                 DispatcherQueue.TryEnqueue(() =>
                 {
                     TxtStorageUsed.Text = $"Backups: {FormatBytes(espacioBackups)}";
@@ -193,16 +194,16 @@ namespace SaviumDrive.Views
             }
         }
 
+        /// <summary>Fila de "Respaldos recientes": portada, nombre, carpeta y fecha del último backup.</summary>
         private Grid CrearItemBackup(GameConfig juego)
         {
-            // Detectar tema actual
             bool isDark = this.ActualTheme == ElementTheme.Dark;
 
             var grid = new Grid
             {
                 Margin = new Thickness(0, 0, 0, 10),
                 Padding = new Thickness(15),
-                // ✅ Color directo según tema
+                // Colores según el tema (el elemento se crea en código, sin recursos de tema)
                 Background = new SolidColorBrush(isDark ?
                     Windows.UI.Color.FromArgb(255, 58, 58, 58) :  // Dark
                     Windows.UI.Color.FromArgb(255, 231, 230, 230)),   // Light
@@ -242,7 +243,6 @@ namespace SaviumDrive.Views
                 Text = juego.DisplayName,
                 FontSize = 16,
                 FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
-                // ✅ Blanco en ambos temas
                 Foreground = new SolidColorBrush(isDark ?
                     Windows.UI.Color.FromArgb(255, 255, 255, 255) :
                     Microsoft.UI.Colors.Black),
@@ -252,7 +252,6 @@ namespace SaviumDrive.Views
             {
                 Text = juego.RutaEnEstePc,
                 FontSize = 11,
-                // ✅ Blanco en Light, gris claro en Dark
                 Foreground = new SolidColorBrush(isDark ?
                     Windows.UI.Color.FromArgb(255, 255, 255, 255) : 
                     Microsoft.UI.Colors.Black),

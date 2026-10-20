@@ -18,7 +18,7 @@
             <TextBlock x:Name="TxtAppTitle" x:Uid="AppTitle" Foreground="{ThemeResource TextSecondary}" FontSize="10" FontWeight="Bold" VerticalAlignment="Center" Margin="15,0,0,0" CharacterSpacing="200"/>
         </Grid>
 
-        <!-- 🔥 INFOBAR DE CONEXIÓN -->
+        <!-- Aviso de conexión perdida -->
         <InfoBar x:Name="NoInternetBar"
          Grid.Row="1"
          Severity="Error"
@@ -34,7 +34,7 @@
         </InfoBar>
 
         <Grid Grid.Row="2">
-            <!-- SPLASH -->
+            <!-- Pantalla de carga (mientras se comprueba la sesión guardada) -->
             <Grid x:Name="SplashGrid" Visibility="Visible">
                 <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="10">
 
@@ -47,7 +47,7 @@
                 </StackPanel>
             </Grid>
 
-            <!-- LOGIN -->
+            <!-- Inicio de sesión con Google -->
             <Grid x:Name="LoginGrid" Visibility="Collapsed">
                 <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="30">
                     <TextBlock x:Name="TxtLoginTitle" x:Uid="LoginTitle" FontSize="28" Foreground="{ThemeResource TextPrimary}" FontWeight="SemiBold" HorizontalAlignment="Center"/>
@@ -61,14 +61,14 @@
                 </StackPanel>
             </Grid>
 
-            <!-- MAIN GRID -->
+            <!-- App: menú lateral y páginas (ContentFrame) -->
             <Grid x:Name="MainGrid" Visibility="Collapsed">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="250"/>
                     <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
 
-                <!-- BARRA LATERAL -->
+                <!-- Menú lateral con la cuenta y la navegación -->
                 <Grid Grid.Column="0" Background="{ThemeResource NavBackground}">
                     <Grid>
                         <Grid.RowDefinitions>
@@ -121,7 +121,7 @@
                     <Frame x:Name="ContentFrame"/>
                 </Grid>
 
-                <!-- 🔥 INDICADOR FLOTANTE -->
+                <!-- Indicador flotante de la operación en curso (visible en cualquier página) -->
                 <Grid x:Name="GlobalUploadIndicator" 
                       Grid.Column="1" 
                       Translation="0,0,10"

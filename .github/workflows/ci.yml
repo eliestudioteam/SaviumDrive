@@ -1,3 +1,5 @@
+# Integración continua: en cada push a main y en cada pull request se compila la app en las cuatro
+# combinaciones (Debug/Release, x64/x86) y se ejecutan las pruebas unitarias de tests/SaviumDrive.Tests.
 name: CI
 
 on:
@@ -41,6 +43,7 @@ jobs:
       - name: Ejecutar pruebas
         run: dotnet test tests/SaviumDrive.Tests/SaviumDrive.Tests.csproj -c Release -nologo --logger "trx;LogFileName=resultados.trx" --results-directory TestResults
 
+      # Resultados descargables desde la ejecución en GitHub, también si alguna prueba falla
       - name: Guardar resultados
         if: always()
         uses: actions/upload-artifact@v4

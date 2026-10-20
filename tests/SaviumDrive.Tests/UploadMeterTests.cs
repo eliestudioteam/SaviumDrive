@@ -45,7 +45,7 @@ namespace SaviumDrive.Tests
             Assert.Equal(1_000_000, m.BytesPorSegundo, 0);
 
             _ahora = _ahora.AddMilliseconds(900);
-            m.ProgresoArchivo(4_000_000);           // 3 MB/s en esta muestra → 0.7·1 + 0.3·3 = 1.6 MB/s
+            m.ProgresoArchivo(4_000_000);           // 3 MB/s en esta muestra; suavizado: 0.7·1 + 0.3·3 = 1.6 MB/s
             Assert.Equal(1_600_000, m.BytesPorSegundo, 0);
         }
 

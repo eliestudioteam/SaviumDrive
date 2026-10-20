@@ -9,6 +9,7 @@ using System.Text;
 
 namespace SaviumDrive.Services
 {
+    /// <summary>Órdenes de la biblioteca. El nombre se guarda en la configuración (LibrarySort).</summary>
     public enum OrdenBiblioteca
     {
         NombreAZ,
@@ -38,7 +39,7 @@ namespace SaviumDrive.Services
             };
         }
 
-        /// <summary>Minúsculas y sin acentos ("Pokémon" → "pokemon"); conserva espacios para buscar varias palabras.</summary>
+        /// <summary>Minúsculas y sin acentos ("Pokémon" da "pokemon"); conserva los espacios para buscar varias palabras.</summary>
         public static string Normalizar(string texto)
         {
             if (string.IsNullOrWhiteSpace(texto)) return "";
@@ -51,6 +52,7 @@ namespace SaviumDrive.Services
             return sb.ToString().Normalize(NormalizationForm.FormC);
         }
 
+        /// <summary>Orden guardado en la configuración; si no es válido, de la A a la Z.</summary>
         public static OrdenBiblioteca DesdeTexto(string valor) =>
             Enum.TryParse(valor, out OrdenBiblioteca orden) ? orden : OrdenBiblioteca.NombreAZ;
     }

@@ -58,7 +58,7 @@
 		<PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
 		<!-- Herramientas de compilación de recursos (PRI): permiten compilar sin el componente WinUI de Visual Studio -->
 		<PackageReference Include="Microsoft.Windows.SDK.BuildTools.MSIX" Version="1.7.20250829.1" />
-		<!-- ⬇️ NUEVO: Bandeja del sistema -->
+		<!-- Icono de la bandeja del sistema -->
 		<PackageReference Include="H.NotifyIcon.WinUI" Version="2.3.2" />
 	</ItemGroup>
 	<ItemGroup>

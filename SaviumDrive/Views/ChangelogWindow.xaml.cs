@@ -11,6 +11,7 @@ using System;
 
 namespace SaviumDrive.Views
 {
+    /// <summary>Ventana de novedades con las notas de la versión (Markdown de GitHub Releases).</summary>
     public sealed partial class ChangelogWindow : Window
     {
         private readonly string _version;
@@ -47,7 +48,7 @@ namespace SaviumDrive.Views
             }
         }
 
-        // ===================== MARKDOWN → TEXTO CON FORMATO =====================
+        // ===================== DE MARKDOWN A TEXTO CON FORMATO =====================
 
         private static readonly Brush Acento = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 0x00, 0x8E, 0xFF));
 

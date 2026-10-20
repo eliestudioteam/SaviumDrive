@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 
 namespace SaviumDrive.Services
 {
+    /// <summary>Datos de una versión publicada en GitHub Releases.</summary>
     public class UpdateInfo
     {
         public string Version { get; set; }
@@ -17,12 +18,18 @@ namespace SaviumDrive.Services
         public long Size { get; set; }
     }
 
+    /// <summary>
+    /// Actualizaciones a partir de las releases de GitHub: busca si hay una versión más nueva, descarga
+    /// el instalador, lo ejecuta y, en el primer arranque tras actualizar, aporta las notas de la versión
+    /// para la ventana de novedades.
+    /// </summary>
     public class UpdateService
     {
         // Endpoint JSON de la API (la URL github.com/.../releases/latest devuelve HTML)
         private const string GITHUB_API_URL = "https://api.github.com/repos/eliestudioteam/SaviumDrive/releases/latest";
         private const string GITHUB_RELEASES_BY_TAG_URL = "https://api.github.com/repos/eliestudioteam/SaviumDrive/releases/tags/";
-        private const string CURRENT_VERSION = "1.0.0"; // Actualiza esto con cada release
+        // Versión de esta compilación: hay que actualizarla con cada release (debe coincidir con la etiqueta vX.Y.Z)
+        private const string CURRENT_VERSION = "1.0.0";
         private static readonly HttpClient _httpClient = CreateHttpClient();
 
         /// <summary>Página de la versión en GitHub (notas completas, descargas).</summary>
@@ -40,7 +47,7 @@ namespace SaviumDrive.Services
         }
 
         /// <summary>
-        /// Verifica si hay una nueva versión disponible
+        /// Datos de la última release si es más nueva que esta versión y trae un instalador (.exe); si no, null.
         /// </summary>
         public async Task<UpdateInfo> CheckForUpdatesAsync()
         {
@@ -53,15 +60,14 @@ namespace SaviumDrive.Services
                 using var doc = JsonDocument.Parse(json);
                 var root = doc.RootElement;
 
-                // Obtener versión (tag_name sin el prefijo 'v')
+                // La etiqueta de la release es la versión con prefijo "v" (v1.2.0)
                 string tagName = root.GetProperty("tag_name").GetString();
                 string version = tagName.TrimStart('v');
 
-                // Comparar versiones
                 if (!UpdateVersioning.IsNewerVersion(version, CURRENT_VERSION))
                     return null;
 
-                // Obtener URL de descarga del instalador (.exe)
+                // El instalador es el primer archivo .exe adjunto a la release
                 string downloadUrl = null;
                 long fileSize = 0;
 
@@ -124,19 +130,17 @@ namespace SaviumDrive.Services
         }
 
         /// <summary>
-        /// Descarga el instalador con reporte de progreso
+        /// Descarga el instalador a %TEMP%\SaviumDrive informando del porcentaje. Devuelve la ruta del archivo.
         /// </summary>
         public async Task<string> DownloadUpdateAsync(string downloadUrl, IProgress<int> progress)
         {
             try
             {
-                // Crear carpeta temporal
                 string tempFolder = Path.Combine(Path.GetTempPath(), "SaviumDrive");
                 Directory.CreateDirectory(tempFolder);
                 string fileName = Path.GetFileName(new Uri(downloadUrl).LocalPath);
                 string filePath = Path.Combine(tempFolder, fileName);
 
-                // Descargar con progreso
                 using var response = await _httpClient.GetAsync(downloadUrl, HttpCompletionOption.ResponseHeadersRead);
                 response.EnsureSuccessStatusCode();
 
@@ -170,13 +174,13 @@ namespace SaviumDrive.Services
         }
 
         /// <summary>
-        /// Instala la actualización descargada
+        /// Lanza el instalador descargado. Lo hace un script .bat que espera 2 segundos, para que la app
+        /// tenga tiempo de cerrarse y el instalador pueda reemplazar sus archivos.
         /// </summary>
         public void InstallUpdate(string installerPath)
         {
             try
             {
-                // Crear un script batch que espere a que la app se cierre y ejecute el instalador
                 string batchPath = Path.Combine(Path.GetTempPath(), "update_savium.bat");
                 string batchContent = $@"
 @echo off
@@ -186,7 +190,6 @@ del ""{batchPath}""
 ";
                 File.WriteAllText(batchPath, batchContent);
 
-                // Ejecutar el batch
                 Process.Start(new ProcessStartInfo
                 {
                     FileName = batchPath,
@@ -202,7 +205,7 @@ del ""{batchPath}""
         }
 
         /// <summary>
-        /// Guarda información de la última actualización instalada
+        /// Recuerda la versión descargada y sus notas para mostrarlas en el primer arranque tras instalarla.
         /// </summary>
         public void SaveUpdateInfo(UpdateInfo updateInfo)
         {
@@ -219,7 +222,8 @@ del ""{batchPath}""
         }
 
         /// <summary>
-        /// Verifica si es la primera ejecución después de actualizar
+        /// True la primera vez que se abre esta versión tras una actualización, con la versión y sus notas
+        /// (null si el actualizador no las guardó; entonces se piden a GitHub).
         /// </summary>
         public (bool isFirstRun, string version, string changelog) CheckFirstRunAfterUpdate()
         {
@@ -249,9 +253,7 @@ del ""{batchPath}""
             }
         }
 
-        /// <summary>
-        /// Formatea el tamaño del archivo
-        /// </summary>
+        /// <summary>Tamaño legible ("12.5 MB").</summary>
         public static string FormatFileSize(long bytes)
         {
             string[] sizes = { "B", "KB", "MB", "GB" };

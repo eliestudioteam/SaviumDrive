@@ -81,6 +81,7 @@ namespace SaviumDrive.Services
         /// <summary>Juegos abiertos que se están siguiendo ahora mismo.</summary>
         public int JuegosAbiertos { get { lock (_bloqueo) return _tracker.JuegosAbiertos; } }
 
+        /// <summary>Empieza a revisar el primer plano cada pocos segundos.</summary>
         public void Start()
         {
             lock (_bloqueo)
@@ -91,6 +92,7 @@ namespace SaviumDrive.Services
             }
         }
 
+        /// <summary>Deja de revisar y olvida los juegos abiertos.</summary>
         public void Stop()
         {
             lock (_bloqueo)
@@ -117,7 +119,7 @@ namespace SaviumDrive.Services
                 }
                 catch (Exception ex)
                 {
-                    Debug.WriteLine($"⚠️ Detector de juegos: {ex.Message}");
+                    Debug.WriteLine($"Detector de juegos: {ex.Message}");
                     cerradas = new List<GameSession>();
                 }
                 finally
@@ -129,7 +131,7 @@ namespace SaviumDrive.Services
 
             foreach (var sesion in cerradas)
             {
-                Debug.WriteLine($"🏁 JUEGO CERRADO: {sesion.Name} ({sesion.Duration:hh\\:mm\\:ss})");
+                Debug.WriteLine($"JUEGO CERRADO: {sesion.Name} ({sesion.Duration:hh\\:mm\\:ss})");
                 GameClosed?.Invoke(this, sesion);
             }
         }
@@ -155,7 +157,7 @@ namespace SaviumDrive.Services
                 clasificacion = Clasificar(ventana, exe, nombreProceso, titulo);
                 if (_cache.Count >= MaximoEnCache) _cache.Clear();
                 _cache[claveCache] = clasificacion;
-                Debug.WriteLine($"🔎 {nombreProceso}: {(clasificacion.EsJuego ? "JUEGO" : "no es juego")} ({clasificacion.Motivo})");
+                Debug.WriteLine($"{nombreProceso}: {(clasificacion.EsJuego ? "JUEGO" : "no es juego")} ({clasificacion.Motivo})");
             }
 
             if (!clasificacion.EsJuego) return;

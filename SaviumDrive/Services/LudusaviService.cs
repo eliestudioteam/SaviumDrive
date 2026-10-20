@@ -48,7 +48,7 @@ namespace SaviumDrive.Services
             try { await AsegurarIndiceAsync(token); }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
-                System.Diagnostics.Debug.WriteLine($"⚠️ Ludusavi: no se pudo actualizar la base de datos: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"Ludusavi: no se pudo actualizar la base de datos: {ex.Message}");
             }
 
             if (!IndiceDisponible) return null;
@@ -67,7 +67,7 @@ namespace SaviumDrive.Services
 
                 using var lector = new StreamReader(RutaIndice);
 
-                // El primer candidato cuya carpeta exista en este PC (ej. "Minecraft" → Java Edition si es la instalada)
+                // El primer candidato cuya carpeta exista en este PC (por ejemplo, Minecraft Java Edition si es la instalada)
                 foreach (var juego in LudusaviIndex.BuscarCandidatos(lector, nombreJuego))
                 {
                     string carpeta = LudusaviIndex.PrimeraCarpetaExistente(juego, carpetas);

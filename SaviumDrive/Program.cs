@@ -13,6 +13,7 @@ using System.Threading.Tasks;
 
 namespace SaviumDrive
 {
+    /// <summary>Punto de entrada de la app.</summary>
     public static class Program
     {
         private const string ClaveInstancia = "SaviumDrive-Principal";

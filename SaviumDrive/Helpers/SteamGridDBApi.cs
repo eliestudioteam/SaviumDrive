@@ -7,9 +7,14 @@ using System.Threading.Tasks;
 
 namespace SaviumDrive.Helpers
 {
+    /// <summary>
+    /// Búsqueda de portadas en SteamGridDB (https://www.steamgriddb.com), una base de datos comunitaria
+    /// de imágenes de juegos. Se usan las portadas verticales de 600x900.
+    /// </summary>
     public class SteamGridApi
     {
-        private const string API_KEY = "785959dce88bcfdbd344872dc36ac19b"; // Tu API Key
+        // Clave de la API de SteamGridDB (gratuita, se obtiene en la configuración de la cuenta)
+        private const string API_KEY = "785959dce88bcfdbd344872dc36ac19b";
         private const string BASE_URL = "https://www.steamgriddb.com/api/v2";
 
         // Un solo cliente para toda la app: crear uno por búsqueda deja sockets y memoria sin liberar
@@ -22,7 +27,10 @@ namespace SaviumDrive.Helpers
             return client;
         }
 
-        // 🔥 CAMBIO: Ahora devuelve una Lista de strings
+        /// <summary>
+        /// Hasta 5 URL de portadas del juego. Con el ID de Steam la búsqueda es exacta; si no, se usa el
+        /// primer resultado de buscar por nombre. Devuelve una lista vacía si no hay resultados o falla la red.
+        /// </summary>
         public async Task<List<string>> BuscarPortadas(string nombreJuego, string steamAppId = null)
         {
             var resultados = new List<string>();
@@ -30,7 +38,7 @@ namespace SaviumDrive.Helpers
             {
                 var client = _client;
                 {
-                    // 1. Buscar ID: por el de Steam si se conoce (exacto) y, si no, por el nombre
+                    // 1. ID del juego en SteamGridDB: por el de Steam si se conoce y, si no, por el nombre
                     int? gameId = await IdPorSteam(steamAppId);
                     if (gameId == null)
                     {
@@ -43,22 +51,20 @@ namespace SaviumDrive.Helpers
                     if (gameId != null)
                     {
 
-                        // 2. Buscar imágenes verticales (Grid)
-                        // style=alternate,material,blurred para variedad
+                        // 2. Portadas verticales (grids) de varios estilos para que el usuario pueda elegir
                         string gridUrl = $"{BASE_URL}/grids/game/{gameId}?dimensions=600x900&styles=alternate,material,blurred";
                         var responseGrid = await client.GetStringAsync(gridUrl);
                         var jsonGrid = JObject.Parse(responseGrid);
 
                         if ((bool)jsonGrid["success"] && jsonGrid["data"].HasValues)
                         {
-                            // 🔥 Recoger hasta 5 imágenes
                             foreach (var item in jsonGrid["data"])
                             {
                                 string url = (string)item["url"];
                                 if (!string.IsNullOrEmpty(url))
                                 {
                                     resultados.Add(url);
-                                    if (resultados.Count >= 5) break; // Límite de 5
+                                    if (resultados.Count >= 5) break;
                                 }
                             }
                         }
@@ -70,6 +76,7 @@ namespace SaviumDrive.Helpers
             return resultados;
         }
 
+        /// <summary>ID de SteamGridDB del juego con ese ID de Steam, o null si no lo conoce.</summary>
         private static async Task<int?> IdPorSteam(string steamAppId)
         {
             if (string.IsNullOrEmpty(steamAppId) || !long.TryParse(steamAppId, out _)) return null;

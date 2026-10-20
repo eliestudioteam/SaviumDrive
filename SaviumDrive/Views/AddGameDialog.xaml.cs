@@ -13,13 +13,17 @@ using Windows.Storage.Pickers;
 
 namespace SaviumDrive.Views
 {
+    /// <summary>
+    /// Diálogo para agregar un juego: nombre, portada (SteamGridDB) y carpeta de partidas (Ludusavi o
+    /// carpetas habituales). Desde el aviso del detector llega ya rellenado con <see cref="AutoFill"/>.
+    /// </summary>
     public sealed partial class AddGameDialog : ContentDialog
     {
         public string GameName => TxtGameName.Text;
         public string GamePath => TxtGamePath.Text;
         public string SelectedCoverUrl { get; private set; } = "";
 
-        // Carrusel
+        // Portadas encontradas y la que se muestra (se cambia con las flechas)
         private List<string> _foundCovers = new List<string>();
         private int _currentCoverIndex = 0;
 
@@ -48,6 +52,10 @@ namespace SaviumDrive.Views
             _searchTimer.Tick += SearchTimer_Tick;
         }
 
+        /// <summary>
+        /// Rellena el diálogo con un juego detectado al cerrarse: nombre, y búsqueda de su portada y de su
+        /// carpeta de partidas (por su ID de Steam si lo tiene).
+        /// </summary>
         public void AutoFill(string name, string exePath, string steamAppId = null)
         {
             _nombreDetectado = name;
@@ -88,7 +96,7 @@ namespace SaviumDrive.Views
             string steamAppId = string.Equals(nombre, _nombreDetectado, StringComparison.Ordinal) ? _steamAppIdDetectado : null;
             try { carpeta = await LudusaviService.BuscarCarpetaAsync(nombre, steamAppId, cts.Token); }
             catch (OperationCanceledException) { return; }
-            catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"⚠️ Ludusavi: {ex.Message}"); }
+            catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"Ludusavi: {ex.Message}"); }
 
             // El usuario siguió escribiendo o eligió una carpeta mientras se buscaba
             if (cts.IsCancellationRequested || _ctsRuta != cts) return;
@@ -126,6 +134,7 @@ namespace SaviumDrive.Views
             TxtPathHint.Visibility = Visibility.Visible;
         }
 
+        /// <summary>Carpetas donde suelen guardar partidas los juegos (Documentos\My Games, AppData, Saved Games...).</summary>
         private string IntentarAdivinarRutaSave(string gameName)
         {
             string cleanName = gameName.Replace(".exe", "").Trim();
@@ -185,6 +194,7 @@ namespace SaviumDrive.Views
             }
         }
 
+        /// <summary>Al escribir el nombre, la búsqueda de portada espera a que se deje de teclear (temporizador).</summary>
         private void TxtGameName_TextChanged(object sender, TextChangedEventArgs e)
         {
             _searchTimer.Stop();
@@ -233,7 +243,7 @@ namespace SaviumDrive.Views
                     BtnPrevCover.Visibility = Visibility.Visible;
                     BtnNextCover.Visibility = Visibility.Visible;
 
-                    // 🔥 CORRECCIÓN: Mostrar el borde contenedor
+                    // Indicador "1/5" de la portada mostrada
                     IndexBadge.Visibility = Visibility.Visible;
                 }
             }
@@ -262,7 +272,6 @@ namespace SaviumDrive.Views
             BtnPrevCover.Visibility = Visibility.Collapsed;
             BtnNextCover.Visibility = Visibility.Collapsed;
 
-            // 🔥 CORRECCIÓN: Ocultar el borde contenedor
             IndexBadge.Visibility = Visibility.Collapsed;
 
             ImgCoverPreview.Source = null;

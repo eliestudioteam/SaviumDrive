@@ -14,7 +14,8 @@
                 
             </ResourceDictionary.MergedDictionaries>
 
-            <!-- ========================================================
+            <!-- Estilos globales. Los colores están en Themes/ThemeResources.xaml (tema claro y oscuro).
+                 ========================================================
                  ESTILO BOTONES ESTÁNDAR (Gris/Blanco)
                  ======================================================== -->
             <Style x:Key="StandardBtnStyle" TargetType="Button">
@@ -23,7 +24,7 @@
                 <Setter Property="BorderBrush" Value="{ThemeResource StandardButtonBorder}"/>
                 <Setter Property="BorderThickness" Value="1"/>
 
-                <!-- 🔥 CORRECCIÓN TAMAÑO: MinWidth para uniformidad y Padding ajustado -->
+                <!-- Ancho mínimo para que los botones de los diálogos tengan el mismo tamaño -->
                 <Setter Property="Padding" Value="10,6"/>
                 <Setter Property="MinWidth" Value="90"/>
 

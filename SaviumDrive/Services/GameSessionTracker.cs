@@ -45,6 +45,7 @@ namespace SaviumDrive.Services
         private readonly Dictionary<string, Seguimiento> _juegos = new Dictionary<string, Seguimiento>(StringComparer.OrdinalIgnoreCase);
         private readonly TimeSpan _duracionMinima;
 
+        /// <param name="duracionMinima">Las sesiones más cortas no generan aviso (lanzadores, pantallas de carga).</param>
         public GameSessionTracker(TimeSpan? duracionMinima = null)
         {
             _duracionMinima = duracionMinima ?? DuracionMinimaPorDefecto;
@@ -52,6 +53,7 @@ namespace SaviumDrive.Services
 
         public int JuegosAbiertos => _juegos.Count;
 
+        /// <summary>True si el proceso ya pertenece a un juego que se está siguiendo.</summary>
         public bool EstaSiguiendo(int pid) => _juegos.Values.Any(s => s.Pids.Contains(pid));
 
         /// <summary>Anota un proceso de un juego (si el juego ya estaba abierto, se suma a su sesión).</summary>
@@ -86,6 +88,7 @@ namespace SaviumDrive.Services
             return cerradas;
         }
 
+        /// <summary>Olvida todos los juegos abiertos (al desactivar el detector).</summary>
         public void Limpiar() => _juegos.Clear();
     }
 }

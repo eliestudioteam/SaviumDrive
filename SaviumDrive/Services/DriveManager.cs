@@ -9,6 +9,10 @@ using System.Threading.Tasks;
 
 namespace SaviumDrive.Services
 {
+    /// <summary>
+    /// Operaciones básicas sobre Google Drive (API v3): carpetas, subidas, descargas, copias, papelera y listados.
+    /// No sabe nada de juegos ni versiones; eso lo organiza <see cref="GameLibraryService"/>.
+    /// </summary>
     public class DriveManager
     {
         public DriveService Service { get; private set; }
@@ -18,12 +22,16 @@ namespace SaviumDrive.Services
             Service = service;
         }
 
-        // 🔥 Escapar valores para consultas 'q' de Drive (ej: "Assassin's Creed")
+        /// <summary>
+        /// Escapa un valor para usarlo dentro de comillas en una consulta "q" de Drive
+        /// (por ejemplo, el apóstrofo de "Assassin's Creed").
+        /// </summary>
         public static string EscaparQuery(string valor)
         {
             return (valor ?? "").Replace("\\", "\\\\").Replace("'", "\\'");
         }
 
+        /// <summary>Id de la carpeta con ese nombre dentro de <paramref name="parentId"/>; la crea si no existe.</summary>
         public string GetOrCreateFolder(string folderName, string parentId = null)
         {
             var request = Service.Files.List();
@@ -42,14 +50,17 @@ namespace SaviumDrive.Services
             return Service.Files.Create(fileMetadata).Execute().Id;
         }
 
-        // --- SUBIDA CANCELABLE ---
         /// <summary>Fragmentos de 1 MB: la barra avanza a menudo sin hacer demasiadas peticiones.</summary>
         private const int TamanoFragmento = ResumableUpload.MinimumChunkSize * 4;
 
+        /// <summary>
+        /// Sube un archivo con una subida reanudable de Google, que se puede cancelar con <paramref name="token"/>.
+        /// Lanza IOException si la subida no se completa.
+        /// </summary>
         /// <param name="alAvanzar">Bytes enviados de este archivo (para la barra de progreso y la velocidad).</param>
         public async Task SubirArchivo(string rutaLocal, string folderId, CancellationToken token, Action<long> alAvanzar = null)
         {
-            token.ThrowIfCancellationRequested(); // Verificar antes de empezar
+            token.ThrowIfCancellationRequested();
 
             var fileMetadata = new Google.Apis.Drive.v3.Data.File()
             {
@@ -71,10 +82,9 @@ namespace SaviumDrive.Services
                         if (p.Status == UploadStatus.Uploading || p.Status == UploadStatus.Completed) alAvanzar(p.BytesSent);
                     };
                 }
-                // Conectamos el token a la subida de Google
                 var progreso = await request.UploadAsync(token);
 
-                // 🔥 UploadAsync NO lanza excepción al fallar: hay que revisar el estado
+                // UploadAsync no lanza excepción si falla: hay que comprobar el estado
                 if (progreso.Status != UploadStatus.Completed)
                 {
                     token.ThrowIfCancellationRequested();
@@ -83,6 +93,7 @@ namespace SaviumDrive.Services
             }
         }
 
+        /// <summary>Id de la primera carpeta con ese nombre en cualquier lugar del Drive accesible, o null.</summary>
         public string BuscarCarpetaPorNombre(string nombre)
         {
             var request = Service.Files.List();
@@ -108,7 +119,11 @@ namespace SaviumDrive.Services
             await request.ExecuteAsync();
 
         }
-        // --- DESCARGA CANCELABLE ---
+
+        /// <summary>
+        /// Descarga un archivo (cancelable). Si se indica <paramref name="fechaOriginal"/>, el archivo descargado
+        /// recupera esa fecha de modificación. Lanza IOException si la descarga no se completa.
+        /// </summary>
         public async Task DescargarArchivo(string fileId, string rutaDestinoLocal, CancellationToken token, DateTimeOffset? fechaOriginal = null)
         {
             token.ThrowIfCancellationRequested();
@@ -117,7 +132,7 @@ namespace SaviumDrive.Services
             {
                 var progreso = await request.DownloadAsync(stream, token);
 
-                // 🔥 DownloadAsync NO lanza excepción al fallar: hay que revisar el estado
+                // DownloadAsync no lanza excepción si falla: hay que comprobar el estado
                 if (progreso.Status != DownloadStatus.Completed)
                 {
                     token.ThrowIfCancellationRequested();
@@ -132,7 +147,7 @@ namespace SaviumDrive.Services
             }
         }
 
-        // Agregar este método en DriveManager.cs
+        /// <summary>Mueve un archivo o carpeta a otra carpeta de Drive.</summary>
         public async Task MoverArchivo(string fileId, string nuevoParentId)
         {
             var file = await Service.Files.Get(fileId).ExecuteAsync();
@@ -163,7 +178,10 @@ namespace SaviumDrive.Services
             await request.ExecuteAsync();
         }
 
-        // 🔥 Lista TODAS las páginas (Drive devuelve máximo 100 por defecto)
+        /// <summary>
+        /// Resultado completo de una consulta: Drive devuelve los resultados por páginas
+        /// y aquí se recorren todas.
+        /// </summary>
         public async Task<List<Google.Apis.Drive.v3.Data.File>> ListarArchivos(string query, string campos, CancellationToken token = default)
         {
             var todos = new List<Google.Apis.Drive.v3.Data.File>();
@@ -188,6 +206,7 @@ namespace SaviumDrive.Services
             return todos;
         }
 
+        /// <summary>Archivos y carpetas del primer nivel de una carpeta (sin los que están en la papelera).</summary>
         public async Task<IList<Google.Apis.Drive.v3.Data.File>> ListarContenidoCarpeta(string folderId, CancellationToken token = default)
         {
             return await ListarArchivos($"'{folderId}' in parents and trashed = false", "id, name, mimeType", token);

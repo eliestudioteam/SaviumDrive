@@ -11,8 +11,9 @@ using System.Windows.Input;
 namespace SaviumDrive.Services
 {
     /// <summary>
-    /// Icono de la bandeja. No depende de la ventana principal: así la ventana se puede
-    /// destruir al minimizar (liberando su memoria) y volver a crear al abrirla.
+    /// Icono de la bandeja del sistema (biblioteca H.NotifyIcon). No depende de la ventana principal:
+    /// así la ventana se puede destruir al minimizar a la bandeja (liberando su memoria) y volver a
+    /// crear al abrirla desde el icono.
     /// </summary>
     public class TrayIconService : IDisposable
     {
@@ -46,7 +47,7 @@ namespace SaviumDrive.Services
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"❌ Error ocultando ventana: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"Error ocultando ventana: {ex.Message}");
             }
         }
 
@@ -54,9 +55,10 @@ namespace SaviumDrive.Services
         public void SetModoEficiencia(bool activar)
         {
             try { EfficiencyModeUtilities.SetEfficiencyMode(activar); }
-            catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"⚠️ Modo eficiencia no disponible: {ex.Message}"); }
+            catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"Modo eficiencia no disponible: {ex.Message}"); }
         }
 
+        /// <summary>Crea el icono, su menú (Abrir / Salir) y el clic izquierdo para abrir la ventana.</summary>
         private void InicializarTray()
         {
             string iconPath = Path.Combine(AppContext.BaseDirectory ?? string.Empty, "Assets", "tray-icon1024x1024.ico");
@@ -80,12 +82,12 @@ namespace SaviumDrive.Services
                     }
                     else
                     {
-                        System.Diagnostics.Debug.WriteLine($"⚠️ Icono no encontrado en: {iconPath}");
+                        System.Diagnostics.Debug.WriteLine($"Icono no encontrado en: {iconPath}");
                     }
                 }
                 catch (Exception ex)
                 {
-                    System.Diagnostics.Debug.WriteLine($"⚠️ Error cargando icono: {ex.Message}");
+                    System.Diagnostics.Debug.WriteLine($"Error cargando icono: {ex.Message}");
                 }
 
                 // En modo PopupMenu solo se usan los Command (no los eventos Click)
@@ -95,28 +97,28 @@ namespace SaviumDrive.Services
                 menuFlyout.Items.Add(new MenuFlyoutItem { Text = "Salir", Command = new RelayCommand(CerrarApp) });
                 _trayIcon.ContextFlyout = menuFlyout;
 
-                // Click izquierdo para mostrar ventana
                 _trayIcon.LeftClickCommand = new RelayCommand(() => App.MostrarVentanaPrincipal());
 
                 // El modo eficiencia lo controla App (activo solo en la bandeja)
                 _trayIcon.ForceCreate(enablesEfficiencyMode: false);
 
-                System.Diagnostics.Debug.WriteLine("✅ TrayIcon inicializado correctamente");
+                System.Diagnostics.Debug.WriteLine("TrayIcon inicializado correctamente");
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"❌ Error fatal inicializando TrayIcon: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"Error fatal inicializando TrayIcon: {ex.Message}");
             }
         }
 
+        /// <summary>Opción "Salir" del menú: cierra la app de verdad (no solo la ventana).</summary>
         private void CerrarApp()
         {
             if (_disposed) return;
 
-            System.Diagnostics.Debug.WriteLine("🔄 Cerrando aplicación...");
+            System.Diagnostics.Debug.WriteLine("Cerrando aplicación...");
             App.SalirAplicacion();
 
-            // Fallback: forzar terminación del proceso si Exit() no funciona
+            // Si Exit() no termina el proceso en 2 segundos (por ejemplo, con hilos en segundo plano), se fuerza
             System.Threading.Tasks.Task.Delay(2000).ContinueWith(_ =>
             {
                 try { Environment.Exit(0); } catch { }
@@ -142,7 +144,7 @@ namespace SaviumDrive.Services
                     }
                     catch (Exception ex)
                     {
-                        System.Diagnostics.Debug.WriteLine($"❌ Error en Dispose de TrayIcon: {ex.Message}");
+                        System.Diagnostics.Debug.WriteLine($"Error en Dispose de TrayIcon: {ex.Message}");
                     }
                 }
 
@@ -156,9 +158,7 @@ namespace SaviumDrive.Services
         }
     }
 
-    // ============================================================================
-    // COMANDO AUXILIAR SIMPLE
-    // ============================================================================
+    /// <summary>ICommand mínimo para las opciones del menú de la bandeja. Siempre se puede ejecutar.</summary>
     public class RelayCommand : ICommand
     {
         private readonly Action _execute;
@@ -179,14 +179,12 @@ namespace SaviumDrive.Services
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"❌ Error ejecutando comando: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"Error ejecutando comando: {ex.Message}");
             }
         }
     }
 
-    // ============================================================================
-    // P/INVOKE PARA MOSTRAR/OCULTAR VENTANAS
-    // ============================================================================
+    /// <summary>Funciones de Windows (user32.dll) para ocultar y mostrar ventanas.</summary>
     internal static class PInvoke
     {
         internal static class User32

@@ -132,7 +132,7 @@ namespace SaviumDrive.Views
                 catch (OperationCanceledException) { return; }
                 catch (Exception ex)
                 {
-                    System.Diagnostics.Debug.WriteLine($"⚠️ No se pudo calcular el tamaño de {fila.Label}: {ex.Message}");
+                    System.Diagnostics.Debug.WriteLine($"No se pudo calcular el tamaño de {fila.Label}: {ex.Message}");
                     fila.TamanoText = ResourceHelper.GetString("HistSizeUnavailable");
                     completo = false;
                 }

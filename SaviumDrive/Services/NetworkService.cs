@@ -4,6 +4,10 @@ using System.Threading.Tasks;
 
 namespace SaviumDrive.Services
 {
+    /// <summary>
+    /// Comprueba cada 5 segundos si hay conexión a Internet (ping a 8.8.8.8 o 1.1.1.1) y avisa con
+    /// <see cref="ConnectivityChanged"/> cuando cambia. Lo usa el panel de inicio para mostrar el estado.
+    /// </summary>
     public class NetworkService
     {
         public event EventHandler<bool> ConnectivityChanged;
@@ -13,7 +17,6 @@ namespace SaviumDrive.Services
 
         public NetworkService()
         {
-            // Iniciar monitoreo cada 5 segundos
             _checkTimer = new System.Threading.Timer(async _ => await CheckAndNotify(), null, 0, 5000);
         }
 
@@ -21,21 +24,19 @@ namespace SaviumDrive.Services
         {
             try
             {
-                // Verificar si hay conexión de red disponible
+                // Sin ninguna red no hace falta hacer ping
                 if (!NetworkInterface.GetIsNetworkAvailable())
                     return false;
 
-                // Intentar ping a servidores confiables
+                // Ping a los DNS públicos de Google y, si falla, de Cloudflare
                 using (var ping = new Ping())
                 {
                     try
                     {
-                        // Intentar Google DNS
                         var reply = await ping.SendPingAsync("8.8.8.8", 3000);
                         if (reply.Status == IPStatus.Success)
                             return true;
 
-                        // Si falla, intentar Cloudflare DNS
                         reply = await ping.SendPingAsync("1.1.1.1", 3000);
                         return reply.Status == IPStatus.Success;
                     }

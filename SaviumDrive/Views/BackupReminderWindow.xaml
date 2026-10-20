@@ -17,7 +17,6 @@
         <Grid x:Name="AppTitleBar" Background="Transparent" Grid.Row="0">
             <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center" Margin="15,0,0,0">
                 <FontIcon Glyph="&#xE734;" FontFamily="Segoe MDL2 Assets" Foreground="{ThemeResource AccentColor}" FontSize="12"/>
-                <!-- x:Uid para el título -->
                 <TextBlock x:Uid="DetectorTitle" FontSize="12" FontWeight="Bold" Foreground="{ThemeResource TextSecondary}"/>
             </StackPanel>
         </Grid>
@@ -25,7 +24,7 @@
         <!-- Contenido -->
         <StackPanel Grid.Row="1" Padding="20,10,20,20" Spacing="15" VerticalAlignment="Center">
 
-            <!-- 🔥 TEXTO GENÉRICO TRADUCIDO -->
+            <!-- Textos por defecto; con el nombre del juego los cambia el código -->
             <TextBlock x:Name="TxtMessage" 
                        x:Uid="DetectorMsg"
                        TextWrapping="Wrap"
