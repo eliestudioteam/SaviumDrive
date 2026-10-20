@@ -91,6 +91,24 @@ namespace SaviumDrive
             }
 
             IniciarServiciosCompletos();
+
+            // saviumdrive:// para volver a la app desde el navegador al iniciar sesión
+            Task.Run(ProtocolService.Registrar);
+        }
+
+        /// <summary>
+        /// Otra Savium Drive se abrió mientras esta ya estaba abierta (desde el navegador con saviumdrive://,
+        /// otro doble clic en el .exe...) y le pasó su activación: se trae esta ventana al frente.
+        /// Llega en un hilo de fondo.
+        /// </summary>
+        public static void AlActivarDesdeOtraInstancia(object sender, AppActivationArguments e)
+        {
+            string argumentos = (e?.Data as Windows.ApplicationModel.Activation.ILaunchActivatedEventArgs)?.Arguments ?? "";
+
+            // El arranque con Windows no debe abrir la ventana de una app que ya está en marcha
+            if (argumentos.Contains(SettingsService.StartupArgument, StringComparison.OrdinalIgnoreCase)) return;
+
+            MostrarVentanaPrincipal();
         }
 
         // 🔥 NUEVO: Iniciar servicios completos (detector de juegos, etc.)
@@ -272,7 +290,8 @@ namespace SaviumDrive
         {
             GameDetector?.Stop();
             TrayService?.Dispose();
-            AppInstance.Restart("");
+            // La nueva instancia espera a que esta termine de cerrarse (ver Program)
+            AppInstance.Restart(Program.ArgumentoReinicio);
         }
     }
 }

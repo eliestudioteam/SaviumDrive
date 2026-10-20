@@ -56,6 +56,21 @@ namespace SaviumDrive.Tests
             Assert.Contains("&lt;script&gt;", html);
         }
 
+        [Fact]
+        public void ConEnlace_OfreceAbrirLaAppYLaAbreSolaSoloSiSalioBien()
+        {
+            string exito = LoginResponsePage.Crear(null, true, true, null, "saviumdrive://abrir");
+            Assert.Contains("href='saviumdrive://abrir'", exito);
+            Assert.Contains("Abrir Savium Drive", exito);
+            Assert.Contains("window.location.href = 'saviumdrive://abrir'", exito);
+
+            string cancelado = LoginResponsePage.Crear("access_denied", true, true, null, "saviumdrive://abrir");
+            Assert.Contains("href='saviumdrive://abrir'", cancelado);        // botón para volver
+            Assert.DoesNotContain("window.location.href", cancelado);         // pero no se abre sola
+
+            Assert.DoesNotContain("saviumdrive://", LoginResponsePage.Crear(null, true, true, null));
+        }
+
         /// <summary>Con LOGIN_PAGE_OUT=carpeta guarda las variantes para verlas en el navegador.</summary>
         [Fact]
         public void GuardarVariantesParaRevisar()
@@ -65,9 +80,9 @@ namespace SaviumDrive.Tests
             if (string.IsNullOrEmpty(carpeta)) return;
             Directory.CreateDirectory(carpeta);
             string b64 = File.Exists(logo) ? Convert.ToBase64String(File.ReadAllBytes(logo)) : null;
-            File.WriteAllText(Path.Combine(carpeta, "exito-oscuro.html"), LoginResponsePage.Crear(null, true, true, b64));
-            File.WriteAllText(Path.Combine(carpeta, "exito-claro.html"), LoginResponsePage.Crear(null, true, false, b64));
-            File.WriteAllText(Path.Combine(carpeta, "cancelado.html"), LoginResponsePage.Crear("access_denied", true, true, b64));
+            File.WriteAllText(Path.Combine(carpeta, "exito-oscuro.html"), LoginResponsePage.Crear(null, true, true, b64, "saviumdrive://abrir"));
+            File.WriteAllText(Path.Combine(carpeta, "exito-claro.html"), LoginResponsePage.Crear(null, true, false, b64, "saviumdrive://abrir"));
+            File.WriteAllText(Path.Combine(carpeta, "cancelado.html"), LoginResponsePage.Crear("access_denied", true, true, b64, "saviumdrive://abrir"));
         }
     }
 }

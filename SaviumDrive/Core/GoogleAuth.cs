@@ -275,7 +275,7 @@ namespace SaviumDrive.Core
 
             var ajustes = SaviumDrive.Services.SettingsService.Current;
             bool espanol = (ajustes?.Language ?? "es-ES").StartsWith("es", StringComparison.OrdinalIgnoreCase);
-            return LoginResponsePage.Crear(error, espanol, ajustes?.DarkMode ?? true, logo);
+            return LoginResponsePage.Crear(error, espanol, ajustes?.DarkMode ?? true, logo, SaviumDrive.Services.ProtocolService.EnlaceAbrir);
         }
 
         private int GetRandomUnusedPort()

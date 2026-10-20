@@ -11,7 +11,8 @@ namespace SaviumDrive.Core
         /// <param name="espanol">Idioma de la app (no el del navegador).</param>
         /// <param name="oscuro">Tema de la app.</param>
         /// <param name="logoBase64">PNG del logo en base64, o null para no mostrarlo.</param>
-        public static string Crear(string error, bool espanol, bool oscuro, string logoBase64)
+        /// <param name="enlaceApp">Enlace saviumdrive:// para volver a la app; null para no ofrecerlo.</param>
+        public static string Crear(string error, bool espanol, bool oscuro, string logoBase64, string enlaceApp = null)
         {
             bool exito = string.IsNullOrEmpty(error);
             bool cancelado = error == "access_denied";
@@ -22,7 +23,7 @@ namespace SaviumDrive.Core
                 titulo = espanol ? "¡Conectado!" : "Connected!";
                 mensaje = espanol ? "Has iniciado sesión correctamente. Savium Drive ya puede guardar tus partidas en tu Google Drive."
                                   : "You're signed in. Savium Drive can now back up your saves to your Google Drive.";
-                pie = espanol ? "Ya puedes cerrar esta pestaña y volver a la app." : "You can close this tab and go back to the app.";
+                pie = espanol ? "Ya puedes cerrar esta pestaña." : "You can close this tab now.";
             }
             else if (cancelado)
             {
@@ -41,6 +42,14 @@ namespace SaviumDrive.Core
             string icono = exito
                 ? "<svg viewBox='0 0 52 52' aria-hidden='true'><circle class='aro' cx='26' cy='26' r='24'/><path class='trazo' d='M15 27l7 7 15-16'/></svg>"
                 : "<svg viewBox='0 0 52 52' aria-hidden='true'><circle class='aro' cx='26' cy='26' r='24'/><path class='trazo' d='M18 18l16 16M34 18L18 34'/></svg>";
+
+            // Botón que abre la app: el navegador pregunta "¿Abrir Savium Drive?". Al terminar bien se intenta solo.
+            string textoBoton = espanol ? "Abrir Savium Drive" : "Open Savium Drive";
+            string boton = string.IsNullOrEmpty(enlaceApp) ? ""
+                : $"<a class='boton' href='{WebUtility.HtmlEncode(enlaceApp)}'>{textoBoton}</a>";
+            string abrirSolo = exito && !string.IsNullOrEmpty(enlaceApp)
+                ? $"<script>setTimeout(function () {{ window.location.href = '{enlaceApp}'; }}, 700);</script>"
+                : "";
 
             string logo = string.IsNullOrEmpty(logoBase64) ? "" : $"<img class='logo' src='data:image/png;base64,{logoBase64}' alt='Savium Drive'>";
 
@@ -78,6 +87,13 @@ namespace SaviumDrive.Core
            stroke-dasharray: 48; stroke-dashoffset: 48; animation: dibujar .5s .3s ease-out forwards; }}
   h1 {{ margin: 0 0 10px; font-size: 24px; font-weight: 600; }}
   p {{ margin: 0; color: var(--texto2); font-size: 15px; line-height: 1.55; }}
+  .boton {{
+    display: inline-block; margin-top: 24px; padding: 11px 26px; border-radius: 8px;
+    background: var(--acento); color: #FFFFFF; font-size: 15px; font-weight: 600; text-decoration: none;
+    box-shadow: 0 6px 18px rgba(0,142,255,.35); transition: transform .15s, box-shadow .15s;
+  }}
+  .boton:hover {{ transform: translateY(-1px); box-shadow: 0 8px 22px rgba(0,142,255,.45); }}
+  .boton:focus-visible {{ outline: 2px solid var(--texto); outline-offset: 3px; }}
   .pie {{ margin-top: 28px; padding-top: 18px; border-top: 1px solid var(--borde); color: var(--texto3); font-size: 13px; }}
   @keyframes entrar {{ from {{ opacity: 0; transform: translateY(12px) scale(.98); }} }}
   @keyframes dibujar {{ to {{ stroke-dashoffset: 0; }} }}
@@ -90,8 +106,10 @@ namespace SaviumDrive.Core
     {icono}
     <h1>{titulo}</h1>
     <p>{mensaje}</p>
+    {boton}
     <p class='pie'>{pie}</p>
   </main>
+  {abrirSolo}
 </body>
 </html>";
         }

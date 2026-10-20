@@ -13,6 +13,8 @@
 		<Nullable>enable</Nullable>
 		<!-- App sin empaquetar (sin MSIX): se distribuye como carpeta/.exe -->
 		<WindowsPackageType>None</WindowsPackageType>
+		<!-- Punto de entrada propio (Program.cs): una sola instancia de la app -->
+		<DefineConstants>$(DefineConstants);DISABLE_XAML_GENERATED_MAIN</DefineConstants>
 		<!-- Incluir el runtime de Windows App SDK junto al .exe (el usuario no necesita instalar nada) -->
 		<WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
 		<!-- Idiomas de la app: solo se copian los recursos de librerías en español e inglés
