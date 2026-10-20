@@ -29,14 +29,9 @@ namespace SaviumDrive.Core
         static string ApplicationName = "SaviumDrive";
 
         // Credenciales del cliente OAuth de tipo "app de escritorio" del proyecto en Google Cloud.
-        // En este tipo de cliente el secreto no es confidencial (cualquiera puede leerlo del .exe);
-        // Google lo trata como público y la seguridad la da el consentimiento del usuario.
-        private const string ClientId = "754275432342-u4ls7i7onuscofi851lgivcdrnic0k9r.apps.googleusercontent.com";
-
-        private static string ClientSecret =>
-            System.Text.Encoding.UTF8.GetString(
-                Convert.FromBase64String("R09DU1BYLUFpekN2Wk1CcndJUEFYalRFNkwtYVlGZDJ6bnY=")
-            );
+        // No están en el código: se inyectan al compilar (ver Core/AppSecrets.cs).
+        private static string ClientId => AppSecrets.GoogleClientId;
+        private static string ClientSecret => AppSecrets.GoogleClientSecret;
 
         // Límite de intentos: tras 5 intentos fallidos seguidos hay que esperar 5 minutos
         private static int intentosLogin = 0;
@@ -93,6 +88,10 @@ namespace SaviumDrive.Core
                 if (!integridad) { try { Directory.Delete(rutaToken, true); } catch { } }
             }
             SecurityHelpers.LimpiarDatosAntiguos(rutaToken);
+
+            if (!SecurityHelpers.ValidarClientId(ClientId))
+                throw new Exception("Esta compilación no incluye las credenciales de Google. " +
+                                    "Copia SaviumDrive/Secrets.props.example como Secrets.props y rellénalo.");
 
             intentosLogin++;
             ultimoIntento = DateTime.Now;

@@ -80,6 +80,12 @@ Por ahora la aplicación se compila desde el código fuente.
 - [Visual Studio 2022 o posterior](https://visualstudio.microsoft.com/) con la carga de trabajo **Desarrollo de aplicaciones WinUI**.
 - [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0).
 
+**Claves de API**
+
+Las claves de SteamGridDB y del cliente OAuth de Google no están en el repositorio. Copia
+`SaviumDrive/Secrets.props.example` como `SaviumDrive/Secrets.props` y rellénalo con las tuyas
+(git ignora ese archivo). Sin claves la app compila igual, pero no busca portadas ni puede iniciar sesión en Google.
+
 **Compilar**
 
 ```bash

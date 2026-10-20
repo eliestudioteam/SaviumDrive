@@ -18,3 +18,5 @@ x86/
 ## Seguridad ##
 token.json
 credential.json
+# Claves de API locales (plantilla: SaviumDrive/Secrets.props.example)
+Secrets.props
