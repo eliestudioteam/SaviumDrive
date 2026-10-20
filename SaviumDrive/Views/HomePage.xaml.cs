@@ -8,6 +8,7 @@ using SaviumDrive.Services;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace SaviumDrive.Views
@@ -15,6 +16,9 @@ namespace SaviumDrive.Views
     public sealed partial class HomePage : Page
     {
         private bool _isConnected = true;
+
+        // Cálculo del almacenamiento en curso: se cancela al salir de la página (por ejemplo, al cerrar sesión)
+        private CancellationTokenSource _ctsAlmacenamiento;
 
         public HomePage()
         {
@@ -47,10 +51,12 @@ namespace SaviumDrive.Views
                 StorageProgressBar.Value = 0;
                 StorageLoadingBar.Visibility = Visibility.Visible;
 
-                if (App.LibraryService == null) return;
+                // La sesión de ahora: si se cierra mientras se carga, App.LibraryService pasa a null
+                var servicio = App.LibraryService;
+                if (servicio == null) return;
 
                 // 1️⃣ CARGAR JUEGOS LOCALES (instantáneo)
-                var juegos = await App.LibraryService.CargarSoloLocal();
+                var juegos = await servicio.CargarSoloLocal();
                 int total = juegos.Count;
 
                 // Contador de juegos
@@ -80,9 +86,12 @@ namespace SaviumDrive.Views
                 }
 
                 // 3️⃣ CALCULAR ALMACENAMIENTO EN SEGUNDO PLANO (sin trabar UI)
+                _ctsAlmacenamiento?.Cancel();
+                var cts = new CancellationTokenSource();
+                _ctsAlmacenamiento = cts;
                 _ = Task.Run(async () =>
                 {
-                    await CalcularAlmacenamientoDrive(juegos);
+                    await CalcularAlmacenamientoDrive(servicio, cts.Token);
                 });
             }
             catch (Exception ex)
@@ -94,6 +103,9 @@ namespace SaviumDrive.Views
 
         private void HomePage_Unloaded(object sender, RoutedEventArgs e)
         {
+            _ctsAlmacenamiento?.Cancel();
+            _ctsAlmacenamiento = null;
+
             // Desuscribirse al salir de la página
             if (App.NetworkService != null)
             {
@@ -128,17 +140,17 @@ namespace SaviumDrive.Views
             }
         }
 
-        private async Task CalcularAlmacenamientoDrive(List<GameConfig> juegos)
+        private async Task CalcularAlmacenamientoDrive(GameLibraryService servicio, CancellationToken token)
         {
             try
             {
-                if (App.LibraryService == null) return;
-
                 // 1️⃣ Calcular espacio total de backups
-                long espacioBackups = await App.LibraryService.CalcularEspacioBackupsEnDrive();
+                long espacioBackups = await servicio.CalcularEspacioBackupsEnDrive();
+                if (token.IsCancellationRequested) return; // se salió de la página o se cerró la sesión
 
                 // 2️⃣ Obtener cuota real del usuario (Drive + Gmail + Fotos + todo)
-                var cuota = await App.LibraryService.ObtenerCuotaDrive();
+                var cuota = await servicio.ObtenerCuotaDrive();
+                if (token.IsCancellationRequested) return;
 
                 if (!cuota.HasValue)
                 {
@@ -169,6 +181,7 @@ namespace SaviumDrive.Views
             }
             catch (Exception ex)
             {
+                if (token.IsCancellationRequested) return;
                 DispatcherQueue.TryEnqueue(() =>
                 {
                     TxtStorageUsed.Text = "-";

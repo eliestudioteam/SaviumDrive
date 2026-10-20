@@ -117,11 +117,14 @@ namespace SaviumDrive.Views
             long total = 0;
             bool completo = true;
 
+            var servicio = App.LibraryService; // la sesión puede cerrarse mientras se calcula
+            if (servicio == null) return;
+
             foreach (var fila in filas)
             {
                 try
                 {
-                    long bytes = await App.LibraryService.CalcularTamanoVersion(juego, fila.Version, cts.Token);
+                    long bytes = await servicio.CalcularTamanoVersion(juego, fila.Version, cts.Token);
                     if (cts.IsCancellationRequested) return;
                     fila.TamanoText = ResourceHelper.GetString("HistSize", GameLibraryService.FormatBytes(bytes));
                     total += bytes;
