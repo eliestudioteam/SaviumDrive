@@ -347,4 +347,6 @@
 	<data name="DetectorSubMsgSave" xml:space="preserve"><value>It's already in your library. Do you want to save the backup of {0} now?</value></data>
 	<data name="BtnSaveNow" xml:space="preserve"><value>Save now</value></data>
 	<data name="PathHintGuessed" xml:space="preserve"><value>📂 Folder found in a usual location. Check it before saving.</value></data>
+	<data name="MsgTimeLeft" xml:space="preserve"><value>{0} left</value></data>
+	<data name="MsgCompressingCount" xml:space="preserve"><value>{0} of {1} files</value></data>
 </root>

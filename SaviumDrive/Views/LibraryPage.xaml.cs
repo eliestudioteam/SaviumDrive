@@ -48,12 +48,7 @@ namespace SaviumDrive.Views
             {
                 SetBusyState(true, "MsgPreparing");
                 var last = App.LibraryService.LastProgressArgs;
-                if (last != null)
-                {
-                    MainProgressBar.IsIndeterminate = (last.Percentage < 0);
-                    if (last.Percentage >= 0) MainProgressBar.Value = last.Percentage;
-                    TxtProgressDetail.Text = last.DetailMessage;
-                }
+                if (last != null && last.IsActive) MostrarProgreso(last);
                 SuscribirProgreso();
                 if (App.LibraryService.Cancelando) MostrarCancelando();
             }
@@ -103,27 +98,49 @@ namespace SaviumDrive.Views
                     if (SyncIndicator.Visibility == Visibility.Collapsed) 
                         SetBusyState(true, "MsgPreparing");
 
-                    // Actualizar barra
-                    if (e.Percentage >= 0)
-                    {
-                        MainProgressBar.IsIndeterminate = false;
-                        MainProgressBar.Value = e.Percentage;
-                    }
-                    else
-                    {
-                        MainProgressBar.IsIndeterminate = true;
-                    }
-
-                    TxtProgressDetail.Text = e.DetailMessage;
+                    MostrarProgreso(e);
+                    ActualizarTarjeta(e);
                     if (App.LibraryService.Cancelando) MostrarCancelando();
                 }
                 else
                 {
                     // Ocultar barra
                     SetBusyState(false, "MsgIdle");
+                    foreach (var j in Juegos) j.ProgresoTarjeta = -1;
                     _ = RecargarLista();
                 }
             });
+        }
+
+        /// <summary>Barra de arriba: qué se hace (subiendo, comprimiendo...), porcentaje y detalle con la velocidad.</summary>
+        private void MostrarProgreso(GlobalProgressArgs e)
+        {
+            if (!string.IsNullOrEmpty(e.OperationName)) TxtProgressTitle.Text = e.OperationName;
+            MainProgressBar.IsIndeterminate = e.Percentage < 0;
+            if (e.Percentage >= 0) MainProgressBar.Value = e.Percentage;
+            TxtProgressPercent.Text = e.Percentage >= 0 ? $"{e.Percentage}%" : "";
+            TxtProgressDetail.Text = e.DetailMessage;
+        }
+
+        /// <summary>Pinta el progreso en la tarjeta del juego (la provisional si se está agregando).</summary>
+        private void ActualizarTarjeta(GlobalProgressArgs e)
+        {
+            var provisional = App.LibraryService?.JuegoProvisional;
+            if (provisional != null && !Juegos.Contains(provisional)) AplicarFiltro();
+
+            var juego = string.IsNullOrEmpty(e.JuegoNombre) ? null
+                : Juegos.FirstOrDefault(j => j == provisional && j.Name == e.JuegoNombre)
+                  ?? Juegos.FirstOrDefault(j => string.Equals(j.Name, e.JuegoNombre, StringComparison.OrdinalIgnoreCase));
+            foreach (var otro in Juegos) if (otro != juego && otro.EnOperacion) otro.ProgresoTarjeta = -1;
+            if (juego == null) return;
+
+            // Al comprimir la portada no avanza: se colorea con la subida o la descarga
+            bool comprimiendo = e.OperationName == ResourceHelper.GetString("MsgCompressing");
+            if (e.Percentage >= 0 && !comprimiendo) juego.ProgresoTarjeta = e.Percentage;
+            else if (juego.ProgresoTarjeta < 0) juego.ProgresoTarjeta = 0;
+
+            string operacion = (e.OperationName ?? "").TrimEnd('.', '…', ' ');
+            juego.TextoProgresoTarjeta = e.Percentage >= 0 ? $"{operacion} {e.Percentage}%" : operacion;
         }
 
         private async Task RecargarLista()
@@ -147,6 +164,8 @@ namespace SaviumDrive.Views
                 // 1. Carga rápida local
                 var local = await App.LibraryService.CargarSoloLocal();
                 ActualizarLista(local);
+                var ultimo = App.LibraryService.LastProgressArgs;
+                if (App.LibraryService.IsBusy && ultimo != null && ultimo.IsActive) ActualizarTarjeta(ultimo);
 
                 // 2. 🔥 SINCRONIZAR SI NO ESTÁ OCUPADO
                 if (!App.LibraryService.IsBusy)
@@ -175,6 +194,9 @@ namespace SaviumDrive.Views
             var visibles = LibraryFilter.Aplicar(_todos, TxtBuscar?.Text, orden);
 
             Juegos.Clear();
+            var provisional = App.LibraryService?.JuegoProvisional;
+            if (provisional != null && !_todos.Any(j => j.Name.Equals(provisional.Name, StringComparison.OrdinalIgnoreCase)))
+                Juegos.Add(provisional);
             foreach (var j in visibles) Juegos.Add(j);
             ActualizarEstadoVacio();
         }
@@ -234,6 +256,8 @@ namespace SaviumDrive.Views
                 BtnIcon.Glyph = "\uE710";
 
                 if (SyncIndicator != null) SyncIndicator.Visibility = Visibility.Collapsed;
+                TxtProgressTitle.Text = ResourceHelper.GetString("MsgSyncing");
+                TxtProgressPercent.Text = "";
             }
         }
 
@@ -306,7 +330,8 @@ namespace SaviumDrive.Views
                             // Desde el aviso del detector: la próxima vez se reconoce con este nombre (juegos sin tienda incluidos)
                             if (session != null) LearnedGames.Aprender(session.Clave, dialog.GameName);
 
-                            _todos.Add(nuevoJuego);
+                            // La lista puede haberse recargado ya al terminar la subida
+                            if (!_todos.Any(j => j.Id == nuevoJuego.Id)) _todos.Add(nuevoJuego);
                             AplicarFiltro();
                             await MostrarAlerta(ResourceHelper.GetString("AlertSuccess"), ResourceHelper.GetString("AlertBackupCreated"));
                         }

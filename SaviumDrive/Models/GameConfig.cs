@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Linq;
 using Newtonsoft.Json;
 
@@ -32,8 +33,46 @@ namespace SaviumDrive.Models
         public bool HasDescription => !string.IsNullOrWhiteSpace(Description);
     }
 
-    public class GameConfig
+    public class GameConfig : INotifyPropertyChanged
     {
+        public event PropertyChangedEventHandler PropertyChanged;
+
+        private int _progresoTarjeta = -1;
+        private string _textoProgresoTarjeta = "";
+
+        /// <summary>
+        /// Progreso (0-100) de la subida o restauración en curso, o -1 si no hay ninguna.
+        /// La portada de la tarjeta se colorea de izquierda a derecha según avanza.
+        /// </summary>
+        [JsonIgnore]
+        public int ProgresoTarjeta
+        {
+            get => _progresoTarjeta;
+            set
+            {
+                if (_progresoTarjeta == value) return;
+                bool antes = EnOperacion;
+                _progresoTarjeta = value;
+                Avisar(nameof(ProgresoTarjeta));
+                if (antes != EnOperacion) { Avisar(nameof(EnOperacion)); Avisar(nameof(SinOperacion)); }
+            }
+        }
+
+        [JsonIgnore]
+        public string TextoProgresoTarjeta
+        {
+            get => _textoProgresoTarjeta;
+            set { if (_textoProgresoTarjeta != value) { _textoProgresoTarjeta = value ?? ""; Avisar(nameof(TextoProgresoTarjeta)); } }
+        }
+
+        [JsonIgnore]
+        public bool EnOperacion => _progresoTarjeta >= 0;
+
+        [JsonIgnore]
+        public bool SinOperacion => !EnOperacion;
+
+        private void Avisar(string propiedad) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propiedad));
+
         public string Id { get; set; } = Guid.NewGuid().ToString();
         public string Name { get; set; }
 

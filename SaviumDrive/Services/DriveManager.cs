@@ -43,7 +43,11 @@ namespace SaviumDrive.Services
         }
 
         // --- SUBIDA CANCELABLE ---
-        public async Task SubirArchivo(string rutaLocal, string folderId, CancellationToken token)
+        /// <summary>Fragmentos de 1 MB: la barra avanza a menudo sin hacer demasiadas peticiones.</summary>
+        private const int TamanoFragmento = ResumableUpload.MinimumChunkSize * 4;
+
+        /// <param name="alAvanzar">Bytes enviados de este archivo (para la barra de progreso y la velocidad).</param>
+        public async Task SubirArchivo(string rutaLocal, string folderId, CancellationToken token, Action<long> alAvanzar = null)
         {
             token.ThrowIfCancellationRequested(); // Verificar antes de empezar
 
@@ -59,6 +63,14 @@ namespace SaviumDrive.Services
             using (var stream = new FileStream(rutaLocal, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
             {
                 var request = Service.Files.Create(fileMetadata, stream, "application/octet-stream");
+                request.ChunkSize = TamanoFragmento;
+                if (alAvanzar != null)
+                {
+                    request.ProgressChanged += p =>
+                    {
+                        if (p.Status == UploadStatus.Uploading || p.Status == UploadStatus.Completed) alAvanzar(p.BytesSent);
+                    };
+                }
                 // Conectamos el token a la subida de Google
                 var progreso = await request.UploadAsync(token);
 

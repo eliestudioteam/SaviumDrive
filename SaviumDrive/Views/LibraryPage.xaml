@@ -5,6 +5,7 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:models="using:SaviumDrive.Models"
+    xmlns:views="using:SaviumDrive.Views"
     mc:Ignorable="d"
     Background="Transparent">
 
@@ -28,7 +29,10 @@
                         <TextBlock x:Name="TxtProgressTitle" x:Uid="LibSyncing" FontSize="12" Foreground="{ThemeResource AccentColor}" FontWeight="SemiBold"/>
                         <TextBlock x:Name="TxtProgressDetail" Text="" FontSize="12" Foreground="{ThemeResource TextSecondary}"/>
                     </StackPanel>
-                    <ProgressBar x:Name="MainProgressBar" Width="200" Height="4" HorizontalAlignment="Left" Foreground="{ThemeResource AccentColor}" IsIndeterminate="True"/>
+                    <StackPanel Orientation="Horizontal" Spacing="10">
+                        <ProgressBar x:Name="MainProgressBar" Width="280" Height="4" VerticalAlignment="Center" Foreground="{ThemeResource AccentColor}" IsIndeterminate="True"/>
+                        <TextBlock x:Name="TxtProgressPercent" FontSize="12" FontWeight="SemiBold" Foreground="{ThemeResource TextPrimary}" VerticalAlignment="Center"/>
+                    </StackPanel>
                 </StackPanel>
 
                 <!-- Buscar y ordenar -->
@@ -66,12 +70,10 @@
                             <RowDefinition Height="Auto"/>
                         </Grid.RowDefinitions>
 
-                        <!-- Decodificar a tamaño de tarjeta: la portada original es 600x900 (~2 MB en memoria) -->
-                        <Image Grid.Row="0" Stretch="UniformToFill" VerticalAlignment="Top" Height="210">
-                            <Image.Source>
-                                <BitmapImage UriSource="{x:Bind SafeCoverUri}" DecodePixelWidth="160" DecodePixelType="Logical"/>
-                            </Image.Source>
-                        </Image>
+                        <!-- Portada; durante una subida o restauración va en gris y se colorea con el progreso (como Epic) -->
+                        <views:CoverProgress Grid.Row="0" VerticalAlignment="Top" Height="210"
+                                             CoverUri="{x:Bind SafeCoverUri}"
+                                             Progress="{x:Bind ProgresoTarjeta, Mode=OneWay}"/>
 
                         <Border Grid.Row="0" VerticalAlignment="Bottom" Background="#CC000000" Padding="5">
                             <TextBlock Text="{x:Bind DisplayName}" Foreground="White" FontSize="11" HorizontalAlignment="Center" TextTrimming="CharacterEllipsis"/>
@@ -124,8 +126,15 @@
                             </StackPanel>
                         </Border>
 
+                        <!-- Progreso de la operación en curso (en lugar de los botones) -->
+                        <TextBlock Grid.Row="1" Text="{x:Bind TextoProgresoTarjeta, Mode=OneWay}"
+                                   Visibility="{x:Bind EnOperacion, Mode=OneWay}"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,12"
+                                   FontSize="12" FontWeight="SemiBold" Foreground="{ThemeResource AccentColor}"/>
+
                         <!-- Acciones (sobre la versión activa) -->
-                        <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Center" Padding="2,5">
+                        <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Center" Padding="2,5"
+                                    Visibility="{x:Bind SinOperacion, Mode=OneWay}">
 
                             <!-- Botón Actualizar -->
                             <Button x:Uid="BtnItemUpdate"
