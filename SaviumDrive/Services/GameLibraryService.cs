@@ -11,12 +11,24 @@ using SaviumDrive.Helpers;
 
 namespace SaviumDrive.Services
 {
+    /// <summary>
+    /// Estado de la operación en curso que se envía a la interfaz (barra de progreso de la biblioteca,
+    /// indicador flotante y tarjeta del juego).
+    /// </summary>
     public class GlobalProgressArgs
     {
         public string GameName { get; set; }
+
+        /// <summary>0 a 100, o -1 si el progreso no se puede medir (la barra se muestra indeterminada).</summary>
         public int Percentage { get; set; }
-        public string OperationName { get; set; } // "Subiendo..." o "Descargando..."
-        public string DetailMessage { get; set; } // "Archivo.dat (12MB/50MB)"
+
+        /// <summary>Qué se hace: "Subiendo...", "Descargando...", "Comprimiendo partidas..."</summary>
+        public string OperationName { get; set; }
+
+        /// <summary>Detalle: archivo, bytes, velocidad y tiempo restante.</summary>
+        public string DetailMessage { get; set; }
+
+        /// <summary>False cuando la operación terminó (la interfaz oculta el progreso).</summary>
         public bool IsActive { get; set; }
 
         /// <summary>Nombre del juego en la biblioteca (para pintar el progreso en su tarjeta).</summary>
@@ -26,12 +38,29 @@ namespace SaviumDrive.Services
         public double BytesPorSegundo { get; set; }
     }
 
+    /// <summary>Contenido de games.json y de savium_config.json: la biblioteca y cuándo se modificó.</summary>
     public class LibraryContainer
     {
         public DateTime LastUpdated { get; set; }
         public List<GameConfig> Games { get; set; } = new List<GameConfig>();
     }
 
+    /// <summary>
+    /// Lógica principal de la app: biblioteca de juegos y sus backups en Google Drive.
+    ///
+    /// Estructura en Drive:
+    ///   SaviumBackups/
+    ///     savium_config.json            biblioteca (para sincronizar entre equipos)
+    ///     Nombre del juego/             versión V1 (y carpeta raíz del juego)
+    ///       carpeta de partidas/        archivo por archivo, o "carpeta de partidas.zip" si hay muchos archivos
+    ///       Version_2/carpeta de partidas/
+    ///       Version_3/...
+    ///
+    /// Las operaciones largas (agregar, actualizar, restaurar, crear versión) informan del progreso con
+    /// <see cref="ProgressChanged"/> y se pueden cancelar con <see cref="CancelarOperacionActual"/>.
+    /// Nunca se borra un backup ni las partidas locales hasta que el nuevo contenido está completo:
+    /// se trabaja en carpetas TEMP_ y se intercambian al final.
+    /// </summary>
     public class GameLibraryService
     {
         private readonly string _localFilePath;
@@ -57,7 +86,7 @@ namespace SaviumDrive.Services
         /// <summary>Sesión de Drive ya autenticada (para reutilizarla al reabrir la ventana).</summary>
         public Google.Apis.Drive.v3.DriveService DriveService => _driveManager.Service;
 
-        // 🔥 MEMORIA DE ÚLTIMO ESTADO (Para restaurar UI al navegar)
+        // Último progreso enviado: la biblioteca lo usa para mostrar el estado al volver a la página
         public GlobalProgressArgs LastProgressArgs { get; private set; }
 
         public event EventHandler<GlobalProgressArgs> ProgressChanged;
@@ -74,7 +103,7 @@ namespace SaviumDrive.Services
 
         private string GetStr(string key) => ResourceHelper.GetString(key);
 
-        // Notificar a la UI
+        /// <summary>Envía el estado de la operación a la interfaz. Con active = false, la operación terminó.</summary>
         private void NotifyProgress(string gameName, int percent, string opKey, string detail, bool active, UploadMeter medidor = null)
         {
             IsBusy = active;
@@ -98,15 +127,13 @@ namespace SaviumDrive.Services
                 BytesPorSegundo = medidor?.BytesPorSegundo ?? 0
             };
 
-            // Guardar estado para cuando LibraryPage se recargue
             LastProgressArgs = args;
 
             ProgressChanged?.Invoke(this, args);
         }
 
-        // ... (GetDirectorySize, FormatBytes, CargarSoloLocal, SincronizarYActualizar IGUAL QUE ANTES) ...
 
-        // --- REPETIMOS MÉTODOS AUXILIARES PARA COMPLETITUD ---
+        // --- AUXILIARES ---
         private long GetDirectorySize(string path)
         {
             try
@@ -130,7 +157,7 @@ namespace SaviumDrive.Services
 
        
 
-        // --- CANCELACIÓN ---
+        // --- CANCELACIÓN Y OPERACIONES PÚBLICAS ---
 
         /// <summary>Cancela la operación en curso, la haya empezado la página que sea.</summary>
         public void CancelarOperacionActual()
@@ -144,6 +171,10 @@ namespace SaviumDrive.Services
             if (IsBusy) NotifyProgress(LastProgressArgs?.GameName ?? "", -1, "", "", true);
         }
 
+        /// <summary>
+        /// Ejecuta una operación larga registrándola como la operación en curso, para que se pueda cancelar
+        /// desde cualquier página y la interfaz sepa a qué juego pertenece el progreso.
+        /// </summary>
         private async Task<T> ConOperacion<T>(string juego, Func<CancellationToken, Task<T>> operacion, CancellationToken externo)
         {
             var cts = CancellationTokenSource.CreateLinkedTokenSource(externo);
@@ -197,8 +228,9 @@ namespace SaviumDrive.Services
                 NotifyProgress(nombreProgreso, m.Porcentaje, "StatusUploading", TextoSubida(m, archivo), true, m);
         }
 
-        // --- OPERACIONES (Actualizadas con StatusUploading / StatusDownloading) ---
+        // --- OPERACIONES ---
 
+        /// <summary>Crea la carpeta del juego en Drive, sube su carpeta de partidas como V1 y lo añade a la biblioteca.</summary>
         private async Task<GameConfig> AgregarJuegoNuevoCore(string nombre, string rutaLocal, string coverUrl, CancellationToken token)
         {
             string idJuegoRaiz = null; // Para hacer rollback
@@ -244,7 +276,7 @@ namespace SaviumDrive.Services
             }
             catch (OperationCanceledException)
             {
-                // 🔥 ROLLBACK: Eliminar la carpeta que se creó en Drive
+                // Cancelado: se borra la carpeta creada en Drive para no dejar un juego a medias
                 if (!string.IsNullOrEmpty(idJuegoRaiz))
                 {
                     try
@@ -261,10 +293,9 @@ namespace SaviumDrive.Services
             }
         }
 
-        // 🔥 AGREGAR ESTE MÉTODO PÚBLICO EN GameLibraryService.cs
 
         /// <summary>
-        /// Calcula el tamaño total ocupado por los backups en Drive
+        /// Bytes que ocupan todos los backups (la carpeta SaviumBackups). Devuelve 0 si tarda más de 15 segundos.
         /// </summary>
         public async Task<long> CalcularEspacioBackupsEnDrive()
         {
@@ -273,7 +304,6 @@ namespace SaviumDrive.Services
                 if (_driveManager == null || _driveManager.Service == null)
                     return 0;
 
-                // 🔥 TIMEOUT de 15 segundos para evitar bloqueos
                 using (var cts = new CancellationTokenSource(TimeSpan.FromSeconds(15)))
                 {
                     try
@@ -287,21 +317,21 @@ namespace SaviumDrive.Services
                     }
                     catch (OperationCanceledException)
                     {
-                        System.Diagnostics.Debug.WriteLine("⏱️ Cálculo de espacio timeout");
+                        System.Diagnostics.Debug.WriteLine("Cálculo de espacio timeout");
                         return 0;
                     }
                 }
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"❌ Error calculando espacio: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"Error calculando espacio: {ex.Message}");
                 return 0;
             }
         }
 
 
         /// <summary>
-        /// Obtiene la información de cuota de almacenamiento del usuario en Drive
+        /// Espacio usado y total de la cuenta de Google (Drive, Gmail y Fotos comparten la cuota), o null.
         /// </summary>
         public async Task<(long usado, long total)?> ObtenerCuotaDrive()
         {
@@ -310,7 +340,6 @@ namespace SaviumDrive.Services
                 if (_driveManager == null || _driveManager.Service == null)
                     return null;
 
-                // 🔥 TIMEOUT de 10 segundos
                 using (var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10)))
                 {
                     try
@@ -328,7 +357,7 @@ namespace SaviumDrive.Services
                     }
                     catch (OperationCanceledException)
                     {
-                        System.Diagnostics.Debug.WriteLine("⏱️ Consulta de cuota timeout");
+                        System.Diagnostics.Debug.WriteLine("Consulta de cuota timeout");
                     }
                 }
 
@@ -336,12 +365,16 @@ namespace SaviumDrive.Services
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"❌ Error obteniendo cuota: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"Error obteniendo cuota: {ex.Message}");
                 return null;
             }
         }
 
-        // 🔥 ACTUALIZAR BACKUP CON CARPETA TEMPORAL (No destruir archivos viejos)
+        /// <summary>
+        /// Actualiza el backup de una versión con la carpeta de partidas de este PC. Solo se suben los archivos
+        /// nuevos o modificados; los demás se copian dentro de Drive. El nuevo backup se arma en una carpeta
+        /// TEMP_ y sustituye al anterior al final, así que si algo falla el backup anterior sigue intacto.
+        /// </summary>
         private async Task<ResultadoActualizacion> ActualizarBackupCore(GameConfig juego, GameVersion version, CancellationToken token)
         {
             string idCarpetaTemporal = null;
@@ -356,7 +389,7 @@ namespace SaviumDrive.Services
                 if (version.Comprimido) return await ActualizarBackupZip(juego, version, nombreProgreso, token);
                 string idBase = version.DriveFolderId;
 
-                // 1️⃣ OBTENER CARPETA ORIGINAL (la que contiene los archivos del juego)
+                // 1. Carpeta del backup actual en Drive
                 var itemsRaiz = await _driveManager.ListarContenidoCarpeta(idBase);
                 // En Drive la carpeta se llama como la original (igual en todos los equipos)
                 var carpetaOriginal = itemsRaiz.FirstOrDefault(i => i.Name == juego.NombreCarpetaBackup && i.MimeType == "application/vnd.google-apps.folder");
@@ -364,7 +397,7 @@ namespace SaviumDrive.Services
                 if (carpetaOriginal == null) throw new Exception("Carpeta original no encontrada en Drive");
                 nombreCarpetaOriginal = carpetaOriginal.Name;
 
-                // 2️⃣ COMPARAR CON DRIVE (ruta + tamaño + MD5): solo se sube lo que cambió
+                // 2. Comparar con Drive (ruta, tamaño y MD5): solo se sube lo que cambió
                 NotifyProgress(nombreProgreso, -1, "StatusUploading", GetStr("MsgComparing"), true);
                 var remoto = await _driveManager.ListarArbolArchivos(carpetaOriginal.Id, token);
                 var local = await Task.Run(() => BackupDiff.LeerCarpetaLocal(juego.RutaEnEstePc), token);
@@ -389,7 +422,7 @@ namespace SaviumDrive.Services
                     return resultado;
                 }
 
-                // 3️⃣ CREAR CARPETA TEMPORAL EN DRIVE (aquí se arma el nuevo backup)
+                // 3. Carpeta temporal en Drive donde se arma el nuevo backup
                 // Borrar restos de intentos anteriores para no mezclar archivos viejos
                 string nombreTemporal = $"TEMP_{nombreCarpetaOriginal}";
                 foreach (var resto in itemsRaiz.Where(i => i.Name == nombreTemporal && i.MimeType == "application/vnd.google-apps.folder"))
@@ -398,7 +431,7 @@ namespace SaviumDrive.Services
                 }
                 idCarpetaTemporal = _driveManager.GetOrCreateFolder(nombreTemporal, idBase);
 
-                // 4️⃣ ARMAR EL NUEVO BACKUP: los archivos sin cambios se copian dentro de Drive
+                // 4. Armar el nuevo backup: los archivos sin cambios se copian dentro de Drive
                 // (sin volver a subirlos) y solo se suben los nuevos o modificados
                 var medidor = new UploadMeter(local.Values.Sum(h => h.Tamano));
                 var sinCambios = new HashSet<string>(diferencias.SinCambios, StringComparer.OrdinalIgnoreCase);
@@ -440,8 +473,8 @@ namespace SaviumDrive.Services
                     AvisarSubida(nombreProgreso, medidor, nombreArchivo);
                 }
 
-                // 5️⃣ TODO BIEN: Intercambiar carpetas sin perder el backup viejo si algo falla
-                // a) Apartar la vieja con otro nombre
+                // 5. Intercambiar carpetas sin perder el backup anterior si algo falla
+                // a) Apartar la anterior con otro nombre (OLD_)
                 await _driveManager.RenombrarArchivo(carpetaOriginal.Id, $"OLD_{nombreCarpetaOriginal}");
                 try
                 {
@@ -450,22 +483,22 @@ namespace SaviumDrive.Services
                 }
                 catch
                 {
-                    // Revertir: la vieja vuelve a su nombre
+                    // Si falla, la anterior recupera su nombre
                     try { await _driveManager.RenombrarArchivo(carpetaOriginal.Id, nombreCarpetaOriginal); } catch { }
                     throw;
                 }
                 idCarpetaTemporal = null; // Ya no es temporal, no borrarla en el rollback
 
-                // c) Borrar la vieja (si falla, solo queda una carpeta OLD_ sobrante)
+                // c) Borrar la anterior (si falla, solo queda una carpeta OLD_ sobrante)
                 try { await _driveManager.EliminarArchivoOCarpeta(carpetaOriginal.Id); } catch { }
 
-                // 6️⃣ Actualizar fecha (de la versión y del juego)
+                // 6. Fecha del último guardado (de la versión y del juego)
                 await MarcarGuardado(juego, version);
                 return resultado;
             }
             catch (Exception)
             {
-                // 🔥 ROLLBACK (cancelación o error): Eliminar carpeta temporal (archivos viejos permanecen intactos)
+                // Cancelación o error: se borra la carpeta temporal; el backup anterior no se ha tocado
                 if (!string.IsNullOrEmpty(idCarpetaTemporal))
                 {
                     try
@@ -548,6 +581,7 @@ namespace SaviumDrive.Services
             }
         }
 
+        /// <summary>El .zip de una versión comprimida. Lanza una excepción si no está en Drive.</summary>
         private async Task<Google.Apis.Drive.v3.Data.File> BuscarZipDeVersion(GameConfig juego, GameVersion version, CancellationToken token)
         {
             string nombreZip = $"{juego.NombreCarpetaBackup}.zip";
@@ -609,6 +643,7 @@ namespace SaviumDrive.Services
             return new ResultadoActualizacion { Subidos = ZipBackup.ContarArchivos(juego.RutaEnEstePc) };
         }
 
+        /// <summary>Guarda la fecha del backup y la huella del contenido de una versión comprimida.</summary>
         private async Task MarcarGuardadoZip(GameConfig juego, GameVersion version, string huella)
         {
             var ahora = DateTime.UtcNow;
@@ -647,7 +682,7 @@ namespace SaviumDrive.Services
                 if (Directory.Exists(rutaTemporal)) Directory.Delete(rutaTemporal, true);
                 await Task.Run(() => ZipBackup.Extraer(zipLocal, rutaTemporal), token);
 
-                // 🛡️ No reemplazar las partidas locales con un backup vacío
+                // No reemplazar las partidas locales con un backup vacío
                 if (ZipBackup.ContarArchivos(rutaTemporal) == 0) throw new Exception("El backup en Drive está vacío o no se encontró");
 
                 // Intercambiar carpetas sin borrar nada antes de tiempo
@@ -693,14 +728,18 @@ namespace SaviumDrive.Services
             });
         }
 
-        /// <summary>"a/b/c.sav" → "a/b"; "c.sav" → "".</summary>
+        /// <summary>Carpeta de una ruta relativa: "a/b/c.sav" da "a/b" y "c.sav" da "".</summary>
         private static string CarpetaPadre(string rutaRelativa)
         {
             int i = rutaRelativa.LastIndexOf('/');
             return i < 0 ? "" : rutaRelativa.Substring(0, i);
         }
 
-        // 🔥 RESTAURAR JUEGO CON CARPETA TEMPORAL LOCAL Y PROGRESO DETALLADO
+        /// <summary>
+        /// Restaura una versión en la carpeta de partidas de este PC. Se descarga primero en una carpeta temporal
+        /// junto a la original y solo al final se intercambian, así que un fallo o una cancelación no dejan las
+        /// partidas a medias.
+        /// </summary>
         private async Task RestaurarJuegoCore(GameConfig juego, GameVersion version, CancellationToken token)
         {
             string rutaCarpetaTemporal = null;
@@ -716,7 +755,7 @@ namespace SaviumDrive.Services
                 if (version == null || string.IsNullOrEmpty(version.DriveFolderId)) throw new Exception("ID inválido");
                 if (version.Comprimido) { await RestaurarZip(juego, version, nombreProgreso, token); return; }
 
-                // 1️⃣ CREAR CARPETA TEMPORAL LOCAL (junto a la carpeta original)
+                // 1. Carpeta temporal local junto a la original
                 string directorioContenedor = Path.GetDirectoryName(rutaCarpetaOriginal);
                 if (string.IsNullOrEmpty(directorioContenedor)) throw new Exception("Ruta local inválida");
                 rutaCarpetaTemporal = Path.Combine(directorioContenedor, nombreCarpetaTemporal);
@@ -728,7 +767,7 @@ namespace SaviumDrive.Services
                 }
                 Directory.CreateDirectory(rutaCarpetaTemporal);
 
-                // 2️⃣ OBTENER CARPETA ORIGEN Y CALCULAR TAMAÑO TOTAL
+                // 2. Carpeta del backup en Drive y su tamaño total
                 var itemsRaiz = await _driveManager.ListarContenidoCarpeta(version.DriveFolderId);
                 // En Drive la carpeta se llama como la original (aunque en este PC se llame distinto)
                 var carpetaContenedora = itemsRaiz.FirstOrDefault(i => i.Name == juego.NombreCarpetaBackup && i.MimeType == "application/vnd.google-apps.folder");
@@ -737,7 +776,7 @@ namespace SaviumDrive.Services
                 if (carpetaContenedora == null) throw new Exception("El backup de esta versión no se encontró en Drive");
                 string idOrigen = carpetaContenedora.Id;
 
-                // 🔥 CALCULAR TAMAÑO TOTAL ANTES DE DESCARGAR
+                // El tamaño total se calcula antes para mostrar el porcentaje real
                 long totalBytes = await CalcularTamañoDirectorioEnDrive(idOrigen);
                 long bytesDescargados = 0;
                 int archivosDescargados = 0;
@@ -745,7 +784,7 @@ namespace SaviumDrive.Services
 
                 NotifyProgress(nombreProgreso, 0, "StatusDownloading", GetStr("MsgScanning"), true);
 
-                // 3️⃣ DESCARGAR ARCHIVOS A LA CARPETA TEMPORAL CON PROGRESO
+                // 3. Descargar a la carpeta temporal
                 await DescargarDirectorioRecursivo(idOrigen, rutaCarpetaTemporal, token, (rutaArchivo, pesoArchivo) =>
                 {
                     token.ThrowIfCancellationRequested();
@@ -759,10 +798,10 @@ namespace SaviumDrive.Services
                         string.Format(GetStr("MsgDownloadingSize"), nombreArchivo, progresoStr), true);
                 });
 
-                // 🛡️ No reemplazar las partidas locales con un backup vacío
+                // No reemplazar las partidas locales con un backup vacío
                 if (archivosDescargados == 0) throw new Exception("El backup en Drive está vacío o no se encontró");
 
-                // 4️⃣ TODO BIEN: Intercambiar carpetas sin borrar nada antes de tiempo
+                // 4. Intercambiar carpetas sin borrar nada antes de tiempo
                 string rutaCarpetaVieja = Path.Combine(directorioContenedor, $"OLD_{nombreCarpetaEnPc}");
                 if (Directory.Exists(rutaCarpetaVieja)) Directory.Delete(rutaCarpetaVieja, true);
 
@@ -787,7 +826,7 @@ namespace SaviumDrive.Services
             }
             catch (Exception)
             {
-                // 🔥 ROLLBACK (cancelación o error): Eliminar carpeta temporal (archivos viejos permanecen intactos)
+                // Cancelación o error: se borra la carpeta temporal; las partidas locales no se han tocado
                 if (!string.IsNullOrEmpty(rutaCarpetaTemporal) && Directory.Exists(rutaCarpetaTemporal))
                 {
                     try
@@ -805,7 +844,7 @@ namespace SaviumDrive.Services
         }
 
 
-        // ... (Resto de métodos privados SubirDirectorioRecursivo, DescargarYFusionarNube, etc. MANTENER IGUAL) ...
+        /// <summary>Sube una carpeta local a Drive archivo por archivo, recreando sus subcarpetas.</summary>
         /// <param name="alAvanzar">(archivo, forzar aviso) durante y al terminar cada archivo.</param>
         private async Task SubirDirectorioRecursivo(string rutaLocal, string idCarpetaPadreDrive, CancellationToken token, UploadMeter medidor, Action<string, bool> alAvanzar)
         {
@@ -848,6 +887,7 @@ namespace SaviumDrive.Services
             catch { return new List<GameConfig>(); }
         }
 
+        /// <summary>Biblioteca guardada en este PC (games.json), sin consultar Drive.</summary>
         public async Task<List<GameConfig>> CargarSoloLocal()
         {
             if (File.Exists(_localFilePath))
@@ -865,14 +905,17 @@ namespace SaviumDrive.Services
             return new List<GameConfig>();
         }
 
-        // 🔥 MÉTODO RESTAURADO: Sincronizar con la nube
+        /// <summary>
+        /// Sincroniza la biblioteca con savium_config.json de Drive (gana la más reciente y se fusionan los juegos
+        /// que solo están en un lado) y devuelve la lista local resultante. Si no hay red o tarda más de 30 segundos,
+        /// devuelve la biblioteca local sin cambios.
+        /// </summary>
         public async Task<List<GameConfig>> SincronizarYActualizar()
         {
             try
             {
                 NotifyProgress("", -1, "StatusDownloading", GetStr("MsgSyncing"), true);
 
-                // 🔥 TIMEOUT: Si tarda más de 30 segundos, cancelar
                 using (var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30)))
                 {
                     try
@@ -881,13 +924,11 @@ namespace SaviumDrive.Services
                     }
                     catch (OperationCanceledException)
                     {
-                        System.Diagnostics.Debug.WriteLine("⏱️ Sincronización timeout después de 30 segundos");
-                        // No lanzar - continuar con datos locales
+                        System.Diagnostics.Debug.WriteLine("Sincronización timeout después de 30 segundos");
                     }
                     catch (System.Net.Http.HttpRequestException ex)
                     {
-                        System.Diagnostics.Debug.WriteLine($"🌐 Error de red en sincronización: {ex.Message}");
-                        // No lanzar - continuar con datos locales
+                        System.Diagnostics.Debug.WriteLine($"Error de red en sincronización: {ex.Message}");
                     }
                 }
 
@@ -895,8 +936,7 @@ namespace SaviumDrive.Services
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"❌ Error general en sincronización: {ex.Message}");
-                // Devolver datos locales aunque haya error
+                System.Diagnostics.Debug.WriteLine($"Error general en sincronización: {ex.Message}");
                 return await CargarSoloLocal();
             }
             finally
@@ -906,6 +946,7 @@ namespace SaviumDrive.Services
         }
 
 
+        /// <summary>Descarga savium_config.json, lo fusiona con la biblioteca local y guarda el resultado.</summary>
         private async Task DescargarYFusionarNube(CancellationToken token = default)
         {
             try
@@ -966,16 +1007,17 @@ namespace SaviumDrive.Services
             }
             catch (OperationCanceledException)
             {
-                System.Diagnostics.Debug.WriteLine("✋ Sincronización cancelada por el usuario o timeout");
+                System.Diagnostics.Debug.WriteLine("Sincronización cancelada por el usuario o timeout");
                 throw;
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"❌ Error sincronizando: {ex.Message}");
-                // No re-lanzar - permitir que la app continúe con datos locales
+                System.Diagnostics.Debug.WriteLine($"Error sincronizando: {ex.Message}");
+                // Se sigue con los datos locales
             }
         }
 
+        /// <summary>Envía la carpeta del juego a la papelera de Drive y lo quita de la biblioteca.</summary>
         public async Task EliminarJuego(GameConfig juego)
         {
             try
@@ -1003,6 +1045,7 @@ namespace SaviumDrive.Services
         }
         // ===================== VERSIONES =====================
 
+        /// <summary>Convierte los juegos guardados antes de existir las versiones (su backup pasa a ser V1).</summary>
         private static List<GameConfig> MigrarVersiones(List<GameConfig> juegos)
         {
             foreach (var j in juegos) j?.EnsureVersions();
@@ -1130,6 +1173,7 @@ namespace SaviumDrive.Services
             return false;
         }
 
+        /// <summary>Cambia la descripción de una versión.</summary>
         public async Task ActualizarDescripcion(GameConfig juego, GameVersion version, string descripcion)
         {
             string texto = (descripcion ?? "").Trim();
@@ -1178,6 +1222,7 @@ namespace SaviumDrive.Services
             await ModificarJuego(juego.Id, j => j.AsignarRutaEnEstePc(ruta));
         }
 
+        /// <summary>Elige la versión sobre la que trabajan guardar y restaurar.</summary>
         public async Task CambiarVersionActiva(GameConfig juego, GameVersion version)
         {
             juego.ActiveVersionId = version.Id;
@@ -1187,6 +1232,7 @@ namespace SaviumDrive.Services
             });
         }
 
+        /// <summary>Guarda la biblioteca en games.json y la sube a Drive (savium_config.json).</summary>
         public async Task GuardarLibreria(List<GameConfig> juegos)
         {
             DateTime ahora = DateTime.UtcNow;
@@ -1206,7 +1252,7 @@ namespace SaviumDrive.Services
         {
             try
             {
-                // 🔥 TIMEOUT de 20 segundos
+                // Si tarda más de 20 segundos se abandona: la copia local ya está guardada
                 using (var cts = new CancellationTokenSource(TimeSpan.FromSeconds(20)))
                 {
                     string idMadre = _driveManager.GetOrCreateFolder("SaviumBackups");
@@ -1215,7 +1261,7 @@ namespace SaviumDrive.Services
                     request.Q = $"name = '{CLOUD_CONFIG_FILE}' and '{idMadre}' in parents and trashed = false";
                     var result = await request.ExecuteAsync(cts.Token);
 
-                    // 🔥 Primero subir la nueva y luego borrar las viejas (si la subida falla, la nube conserva la anterior)
+                    // Primero se sube la nueva y luego se borran las anteriores: si la subida falla, la nube conserva la anterior
                     var fileMetadata = new Google.Apis.Drive.v3.Data.File()
                     {
                         Name = CLOUD_CONFIG_FILE,
@@ -1246,15 +1292,15 @@ namespace SaviumDrive.Services
             }
             catch (OperationCanceledException)
             {
-                System.Diagnostics.Debug.WriteLine("⏱️ Subida de configuración timeout");
+                System.Diagnostics.Debug.WriteLine("Subida de configuración timeout");
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"❌ Error subiendo configuración: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"Error subiendo configuración: {ex.Message}");
             }
         }
 
-        // 🔥 NUEVO MÉTODO: Calcular tamaño total de una carpeta en Drive (recursivo)
+        /// <summary>Bytes que ocupa una carpeta de Drive, incluidas sus subcarpetas.</summary>
         private async Task<long> CalcularTamañoDirectorioEnDrive(string idCarpeta, CancellationToken token = default)
         {
             long totalSize = 0;
@@ -1282,23 +1328,24 @@ namespace SaviumDrive.Services
             }
             catch (OperationCanceledException)
             {
-                System.Diagnostics.Debug.WriteLine("✋ Cálculo de tamaño cancelado");
+                System.Diagnostics.Debug.WriteLine("Cálculo de tamaño cancelado");
                 throw;
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"❌ Error calculando tamaño: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"Error calculando tamaño: {ex.Message}");
             }
 
             return totalSize;
         }
 
+        /// <summary>Descarga una carpeta de Drive con sus subcarpetas, conservando las fechas de los archivos.</summary>
         private async Task DescargarDirectorioRecursivo(string idCarpetaDrive, string rutaLocalDestino,
            CancellationToken token, Action<string, long> onFileDownloaded)
         {
             token.ThrowIfCancellationRequested();
 
-            // 🔥 Solicitar explícitamente el campo 'size' (y todas las páginas)
+            // Se pide el tamaño de cada archivo para el progreso de la restauración
             var archivos = await _driveManager.ListarArchivos(
                 $"'{idCarpetaDrive}' in parents and trashed = false", "id, name, mimeType, size, modifiedTime", token);
 
@@ -1317,7 +1364,6 @@ namespace SaviumDrive.Services
 
                     await _driveManager.DescargarArchivo(item.Id, rutaArchivo, token, item.ModifiedTimeDateTimeOffset);
 
-                    // 🔥 Pasar tanto la ruta como el peso del archivo
                     onFileDownloaded?.Invoke(rutaArchivo, pesoArchivo);
                 }
             }

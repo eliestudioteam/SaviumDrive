@@ -7,6 +7,7 @@ using Microsoft.Win32;
 
 namespace SaviumDrive.Services
 {
+    /// <summary>Configuración de la app. Se guarda en %APPDATA%\SaviumDrive\settings.json.</summary>
     public class AppConfig
     {
         public bool StartWithWindows { get; set; } = false;
@@ -15,9 +16,10 @@ namespace SaviumDrive.Services
         public bool MinimizeToTray { get; set; } = false;
         public bool AutoDetectGames { get; set; } = false;
 
-        // 🔥 NUEVO: Minimizar al inicio si arranca con Windows
+        // Al arrancar con Windows, quedarse solo en la bandeja sin abrir la ventana
         public bool MinimizeOnStartup { get; set; } = true;
 
+        // Posición y tamaño de la ventana principal (se restauran al abrirla)
         public int WindowX { get; set; } = 0;
         public int WindowY { get; set; } = 0;
         public int WindowWidth { get; set; } = 1280;
@@ -37,6 +39,7 @@ namespace SaviumDrive.Services
         public string LastRunVersion { get; set; }
     }
 
+    /// <summary>Carga y guarda la configuración, el tema y el inicio automático con Windows.</summary>
     public static class SettingsService
     {
         private static string _filePath;
@@ -51,6 +54,7 @@ namespace SaviumDrive.Services
             LoadSettings();
         }
 
+        /// <summary>Lee settings.json. Si no existe o está dañado, usa los valores por defecto.</summary>
         public static void LoadSettings()
         {
             if (File.Exists(_filePath))
@@ -59,6 +63,7 @@ namespace SaviumDrive.Services
                 {
                     string json = File.ReadAllText(_filePath);
                     Current = JsonConvert.DeserializeObject<AppConfig>(json) ?? new AppConfig();
+                    // Versiones antiguas guardaban el nombre del idioma en vez del código
                     if (Current.Language == "Español") Current.Language = "es-ES";
                     if (Current.Language == "English") Current.Language = "en-US";
                 }
@@ -79,6 +84,7 @@ namespace SaviumDrive.Services
 
         public static void NotifyLanguageChanged() => LanguageChanged?.Invoke();
 
+        /// <summary>Aplica el tema claro u oscuro a la ventana principal abierta.</summary>
         public static void AplicarTema()
         {
             if (App.MainWindow != null && App.MainWindow.Content is FrameworkElement rootElement)
@@ -92,7 +98,11 @@ namespace SaviumDrive.Services
         private const string RunKeyPath = @"Software\Microsoft\Windows\CurrentVersion\Run";
         private const string RunValueName = "SaviumDrive";
 
-        // 🔥 Inicio con Windows mediante HKCU\...\Run (no requiere permisos de administrador)
+        /// <summary>
+        /// Activa o desactiva el inicio con Windows mediante HKCU\Software\Microsoft\Windows\CurrentVersion\Run
+        /// (solo para el usuario actual, sin permisos de administrador). Al arrancar así, el .exe recibe
+        /// <see cref="StartupArgument"/>.
+        /// </summary>
         public static Task ConfigurarArranqueWindows(bool activar)
         {
             try
@@ -115,7 +125,7 @@ namespace SaviumDrive.Services
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"❌ Error configurando inicio: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"Error configurando inicio: {ex.Message}");
             }
 
             return Task.CompletedTask;

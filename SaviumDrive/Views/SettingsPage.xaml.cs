@@ -8,6 +8,7 @@ using Windows.Globalization;
 
 namespace SaviumDrive.Views
 {
+    /// <summary>Configuración: inicio con Windows, bandeja, tema, idioma, detector de juegos y cerrar sesión.</summary>
     public sealed partial class SettingsPage : Page
     {
         private bool _isLoaded = false;
@@ -18,7 +19,6 @@ namespace SaviumDrive.Views
             this.Loaded += SettingsPage_Loaded;
         }
 
-        // 🔥 NUEVO: Cargar datos al mostrar la página
         private void SettingsPage_Loaded(object sender, RoutedEventArgs e)
         {
             CargarConfiguracion();
@@ -32,7 +32,6 @@ namespace SaviumDrive.Views
             if (TglTray != null) TglTray.IsOn = config.MinimizeToTray;
             if (TglVersionNotice != null) TglVersionNotice.IsOn = config.ShowVersionSwitchNotice;
 
-            // ✅ AGREGAR ESTA LÍNEA QUE FALTABA
             if (TglMinimizeOnStartup != null) TglMinimizeOnStartup.IsOn = config.MinimizeOnStartup;
 
             if (TglDarkMode != null) TglDarkMode.IsOn = config.DarkMode;
@@ -44,7 +43,7 @@ namespace SaviumDrive.Views
             _isLoaded = true;
         }
 
-        // 🔥 NUEVO: Obtener datos del usuario desde MainWindow
+        /// <summary>Nombre, correo y foto de la cuenta (los tiene la ventana principal).</summary>
         private void CargarDatosUsuario()
         {
             if (App.MainWindow is MainWindow main)
@@ -61,6 +60,7 @@ namespace SaviumDrive.Views
             }
         }
 
+        /// <summary>Guarda cualquier interruptor al cambiarlo y aplica su efecto (tema, inicio con Windows, detector).</summary>
         private async void SettingChanged(object sender, RoutedEventArgs e)
         {
             if (!_isLoaded) return;
@@ -70,7 +70,6 @@ namespace SaviumDrive.Views
             if (TglTray != null) config.MinimizeToTray = TglTray.IsOn;
             if (TglVersionNotice != null) config.ShowVersionSwitchNotice = TglVersionNotice.IsOn;
 
-            // 🔥 GUARDAR: Minimizar al inicio con Windows
             if (TglMinimizeOnStartup != null) config.MinimizeOnStartup = TglMinimizeOnStartup.IsOn;
 
             if (TglAutoDetect != null)
@@ -106,6 +105,7 @@ namespace SaviumDrive.Views
             if (sender == TglWindowsStart) await SettingsService.ConfigurarArranqueWindows(config.StartWithWindows);
         }
 
+        /// <summary>Cambia el idioma. Los textos XAML se cargan al arrancar, así que se ofrece reiniciar la app.</summary>
         private async void CmbLanguage_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             if (!_isLoaded) return;

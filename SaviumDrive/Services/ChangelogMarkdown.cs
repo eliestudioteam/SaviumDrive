@@ -10,6 +10,7 @@ namespace SaviumDrive.Services
     public enum TipoBloqueMd { Titulo, Vineta, Numerado, Parrafo, Separador }
     public enum TipoTramoMd { Texto, Negrita, Cursiva, Codigo, Enlace, Salto }
 
+    /// <summary>Trozo de texto con un mismo formato dentro de un bloque.</summary>
     public sealed class TramoMd
     {
         public TipoTramoMd Tipo { get; set; }
@@ -18,6 +19,7 @@ namespace SaviumDrive.Services
         public override string ToString() => $"{Tipo}:{Texto}";
     }
 
+    /// <summary>Un bloque del texto: título, elemento de lista, párrafo o separador.</summary>
     public sealed class BloqueMd
     {
         public TipoBloqueMd Tipo { get; set; }
@@ -46,6 +48,7 @@ namespace SaviumDrive.Services
             @"|(?<![\w*])\*(?<cursiva>[^*\s](?:[^*]*[^*\s])?)\*(?![\w*])" +
             @"|(?<![\w_])_(?<cursiva>[^_\s](?:[^_]*[^_\s])?)_(?![\w_])");
 
+        /// <summary>Divide las notas en bloques. Ignora los comentarios HTML (&lt;!-- --&gt;) que añade GitHub.</summary>
         public static List<BloqueMd> Analizar(string markdown)
         {
             var bloques = new List<BloqueMd>();

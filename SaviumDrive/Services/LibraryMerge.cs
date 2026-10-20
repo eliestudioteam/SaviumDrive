@@ -21,6 +21,11 @@ namespace SaviumDrive.Services
             public List<GameConfig> Juegos { get; set; }
         }
 
+        /// <summary>
+        /// Fusiona la biblioteca de este PC con la de Drive. Gana la copia modificada más recientemente y,
+        /// además, se conservan los juegos que solo estén en la otra copia (por ejemplo, uno agregado en otro
+        /// equipo mientras este no tenía conexión).
+        /// </summary>
         public static Resultado Fusionar(List<GameConfig> locales, DateTime fechaLocal,
                                          List<GameConfig> nube, DateTime fechaNube)
         {

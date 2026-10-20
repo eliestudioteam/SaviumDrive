@@ -37,7 +37,7 @@ namespace SaviumDrive.Services
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"⚠️ No se pudo registrar {Esquema}://: {ex.Message}");
+                Debug.WriteLine($"No se pudo registrar {Esquema}://: {ex.Message}");
             }
         }
 

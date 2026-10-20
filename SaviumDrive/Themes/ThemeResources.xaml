@@ -2,6 +2,8 @@
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
+    <!-- Colores de la app para el tema claro y el oscuro. Las vistas los usan con {ThemeResource Nombre}
+         y cambian solos al cambiar el tema (RequestedTheme de la ventana). -->
     <ResourceDictionary.ThemeDictionaries>
         <!-- =========================
              TEMA CLARO (LIGHT)
@@ -33,7 +35,7 @@
             <SolidColorBrush x:Key="ActionHoverBackground" Color="#0078D4"/>
             <SolidColorBrush x:Key="ActionText" Color="white"/>
 
-            <!-- 🔥 NUEVO: Botón de Cancelar -->
+            <!-- Botón de cancelar (biblioteca durante una operación) -->
             <SolidColorBrush x:Key="CancelButtonBackground" Color="#C50F1F"/>
             <SolidColorBrush x:Key="CancelButtonHover" Color="#A80D19"/>
             <SolidColorBrush x:Key="CancelButtonText" Color="White"/>
@@ -97,7 +99,7 @@
             <SolidColorBrush x:Key="ActionHoverBackground" Color="#0078D4"/>
             <SolidColorBrush x:Key="ActionText" Color="White"/>
 
-            <!-- 🔥 NUEVO: Botón de Cancelar -->
+            <!-- Botón de cancelar (biblioteca durante una operación) -->
             <SolidColorBrush x:Key="CancelButtonBackground" Color="#C50F1F"/>
             <SolidColorBrush x:Key="CancelButtonHover" Color="#A80D19"/>
             <SolidColorBrush x:Key="CancelButtonText" Color="White"/>
@@ -134,7 +136,7 @@
     </ResourceDictionary.ThemeDictionaries>
 
     <!-- ========================================================
-         🔥 ESTILOS DE BOTONES GLOBALES
+         ESTILOS DE BOTONES GLOBALES
          ======================================================== -->
 
     <!-- Estilo para el botón de ACCIÓN PRINCIPAL (Agregar Juego) -->
@@ -186,7 +188,7 @@
         </Setter>
     </Style>
 
-    <!-- 🔥 NUEVO: Estilo para el botón de CANCELAR -->
+    <!-- Estilo del botón de CANCELAR -->
     <Style x:Key="CancelButtonStyle" TargetType="Button">
         <Setter Property="Background" Value="{ThemeResource CancelButtonBackground}"/>
         <Setter Property="Foreground" Value="{ThemeResource CancelButtonText}"/>

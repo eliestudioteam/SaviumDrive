@@ -10,6 +10,11 @@ using Microsoft.Windows.Globalization;
 
 namespace SaviumDrive
 {
+    /// <summary>
+    /// Aplicación. Vive más que la ventana principal: al minimizar a la bandeja la ventana se destruye
+    /// para liberar memoria, y App sigue funcionando con el icono de la bandeja, el detector de juegos y
+    /// el servicio de backups. El punto de entrada (Main) está en Program.cs.
+    /// </summary>
     public partial class App : Application
     {
         /// <summary>Ventana principal, o null mientras la app está solo en la bandeja.</summary>
@@ -22,12 +27,12 @@ namespace SaviumDrive
 
         private static DispatcherQueue _dispatcher;
 
-        // 🔥 NUEVO: Flag para saber si se inició con Windows
+        // La app se abrió al iniciar Windows (con el argumento --startup)
         private static bool _startedWithWindows = false;
 
         public App()
         {
-            // ⚡ OPTIMIZACIÓN: Solo cargar lo ESENCIAL en el constructor
+            // En el constructor solo lo imprescindible antes de crear recursos XAML: configuración e idioma
             SettingsService.LoadSettings();
 
             // Cada PC usa su propia carpeta de partidas (los juegos se sincronizan entre equipos)
@@ -37,6 +42,7 @@ namespace SaviumDrive
             this.InitializeComponent();
         }
 
+        /// <summary>Idioma de los textos (es-ES o en-US) según la configuración.</summary>
         private void AplicarIdioma()
         {
             try
@@ -57,7 +63,7 @@ namespace SaviumDrive
             // para salir se llama a SalirAplicacion()
             DispatcherShutdownMode = DispatcherShutdownMode.OnExplicitShutdown;
 
-            // 🔥 DETECTAR si se inició con Windows (la entrada del registro pasa este argumento)
+            // La entrada de inicio con Windows pasa este argumento al .exe
             _startedWithWindows = Environment.GetCommandLineArgs()
                 .Any(a => a.Equals(SettingsService.StartupArgument, StringComparison.OrdinalIgnoreCase));
 
@@ -66,7 +72,7 @@ namespace SaviumDrive
             if (AbrirVentanaDePrueba()) return;
 #endif
 
-            // 1️⃣ Servicios básicos inmediatos
+            // Servicios que funcionan sin ventana
             NetworkService = new NetworkService();
             TrayService = new TrayIconService(_dispatcher);
 
@@ -76,7 +82,7 @@ namespace SaviumDrive
 
             if (_startedWithWindows && SettingsService.Current.MinimizeOnStartup)
             {
-                // 🎯 INICIO CON WINDOWS OCULTO: solo el icono de la bandeja.
+                // Inicio con Windows y "iniciar minimizado": solo el icono de la bandeja.
                 // La ventana no se crea hasta que el usuario la abre (no ocupa memoria).
                 TrayService.MostrarIcono();
                 TrayService.SetModoEficiencia(true);
@@ -86,7 +92,7 @@ namespace SaviumDrive
             }
             else
             {
-                // 🎯 INICIO NORMAL: Mostrar ventana
+                // Inicio normal: se abre la ventana
                 CrearVentanaPrincipal().Activate();
             }
 
@@ -111,20 +117,19 @@ namespace SaviumDrive
             MostrarVentanaPrincipal();
         }
 
-        // 🔥 NUEVO: Iniciar servicios completos (detector de juegos, etc.)
+        /// <summary>Arranca el detector de juegos si está activado en la configuración.</summary>
         private async void IniciarServiciosCompletos()
         {
-            // ⏰ Al arrancar con Windows, esperar 3 segundos para no competir con otros programas
+            // Al iniciar con Windows se espera 3 segundos para no competir con los demás programas que arrancan
             if (_startedWithWindows) await Task.Delay(3000);
 
-            // Solo iniciar si está activado en configuración
             if (SettingsService.Current.AutoDetectGames)
             {
                 GameDetector.Start();
             }
         }
 
-        // 🔥 NUEVO: Método para saber si se inició con Windows
+        /// <summary>True si la app se abrió al iniciar Windows.</summary>
         public static bool StartedWithWindows() => _startedWithWindows;
 
         // ===================== VENTANA PRINCIPAL Y BANDEJA =====================
@@ -220,6 +225,10 @@ namespace SaviumDrive
         private static extern bool EmptyWorkingSet(IntPtr hProcess);
 
         // --- DETECCIÓN DE JUEGOS ---
+        /// <summary>
+        /// El detector avisa de que se cerró un juego: se muestra el recordatorio de backup. Si el juego ya
+        /// está en la biblioteca se ofrece guardarlo ahora; si no, agregarlo con sus datos ya rellenados.
+        /// </summary>
         private static void OnGameClosed(object sender, GameSession session)
         {
             _dispatcher?.TryEnqueue(() =>
@@ -240,12 +249,11 @@ namespace SaviumDrive
                 }
                 catch (Exception ex)
                 {
-                    System.Diagnostics.Debug.WriteLine($"❌ Error mostrando el recordatorio de backup: {ex}");
+                    System.Diagnostics.Debug.WriteLine($"Error mostrando el recordatorio de backup: {ex}");
                 }
             });
         }
 
-        /// <summary>Juego de la biblioteca con el mismo nombre (sin mayúsculas, espacios ni símbolos), o null.</summary>
 #if DEBUG
         /// <summary>"--probar-aviso" o "--probar-novedades": abre esa ventana sola y cierra la app al cerrarla.</summary>
         private bool AbrirVentanaDePrueba()
@@ -267,6 +275,7 @@ namespace SaviumDrive
         }
 #endif
 
+        /// <summary>Juego de la biblioteca con el mismo nombre (sin mayúsculas, espacios ni símbolos), o null.</summary>
         private static Models.GameConfig BuscarEnBiblioteca(string nombre)
         {
             string buscado = LudusaviIndex.Normalizar(nombre);
@@ -279,6 +288,7 @@ namespace SaviumDrive
             catch { return null; }
         }
 
+        /// <summary>Cierra la app por completo (opción "Salir" de la bandeja).</summary>
         public static void SalirAplicacion()
         {
             GameDetector?.Stop();
@@ -286,6 +296,7 @@ namespace SaviumDrive
             try { Current.Exit(); } catch { }
         }
 
+        /// <summary>Reinicia la app (al cambiar de idioma, los textos XAML solo se cargan al arrancar).</summary>
         public static void ReiniciarAplicacion()
         {
             GameDetector?.Stop();

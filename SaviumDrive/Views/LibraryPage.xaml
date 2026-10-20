@@ -172,7 +172,6 @@
                                 <FontIcon Glyph="&#xE81C;" FontFamily="Segoe MDL2 Assets" FontSize="14" Foreground="{ThemeResource TextSecondary}"/>
                             </Button>
                         </StackPanel>
-                        <!-- ... fin del DataTemplate ... -->
 
                     </Grid>
                 </DataTemplate>

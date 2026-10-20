@@ -17,24 +17,29 @@ using Windows.UI;
 
 namespace SaviumDrive
 {
+    /// <summary>
+    /// Ventana principal: pantalla de carga, inicio de sesión con Google y, una vez dentro, el menú lateral
+    /// con las páginas (Inicio, Mis respaldos, Configuración, Acerca de) y el indicador flotante de progreso.
+    /// Se puede destruir y volver a crear mientras la app sigue en la bandeja (ver App).
+    /// </summary>
     public sealed partial class MainWindow : Window
     {
-        // --- 1. CONFIGURACIÓN DEL TAMAÑO MÍNIMO ---
+        // Tamaño mínimo de la ventana (en píxeles lógicos)
         private const int MinWidth = 1100;
         private const int MinHeight = 600;
 
-        // 🆕 NUEVO: Tamaño inicial de la ventana
+        // Tamaño inicial si no hay una posición guardada
         private const int InitialWidth = 1280;
         private const int InitialHeight = 720;
 
         private CancellationTokenSource _loginCts;
 
-        // --- P/INVOKE: Para restaurar la ventana ---
+        // Funciones de Windows para restaurar la ventana y traerla al frente
         [DllImport("user32.dll")] private static extern bool SetForegroundWindow(IntPtr hWnd);
         [DllImport("user32.dll")] private static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
         private const int SW_RESTORE = 9;
 
-        // --- P/INVOKE: Para limitar el tamaño (NUEVO) ---
+        // Funciones de Windows para limitar el tamaño mínimo (subclase del procedimiento de ventana)
         // SetWindowLongPtr solo existe en el user32 de 64 bits; en x86 hay que usar SetWindowLong
         [DllImport("User32.dll", EntryPoint = "SetWindowLongPtrW", SetLastError = true)]
         private static extern IntPtr SetWindowLongPtr64(IntPtr hWnd, int nIndex, WinProc newProc);
@@ -55,7 +60,6 @@ namespace SaviumDrive
         private WinProc _newWndProc; // Mantenemos referencia para evitar Garbage Collection
         private IntPtr _oldWndProc;
 
-        // --- VARIABLES TUYAS ---
         private DispatcherTimer _splashTimer;
         private object _originalButtonContent;
         private bool _forceClosing = false;
@@ -84,10 +88,9 @@ namespace SaviumDrive
             WindowId wndId = Win32Interop.GetWindowIdFromWindow(hWnd);
             _appWindow = AppWindow.GetFromWindowId(wndId);
 
-            // 🔥 CENTRAR LA VENTANA AL INICIAR
+            // Posición y tamaño guardados, o centrada si no hay
             CentrarVentana();
 
-            // 1. Cargar configuración
             SettingsService.LoadSettings();
 
             // Aplicar tema inicial
@@ -120,19 +123,19 @@ namespace SaviumDrive
             IniciarCargaInicial();
         }
 
+        // --- TAMAÑO MÍNIMO DE LA VENTANA ---
 
-        // =====================================================================
-        // [NUEVO] MÉTODOS Y ESTRUCTURAS PARA EL TAMAÑO DE VENTANA
-        // (Pon esto antes de cerrar la clase, o al final junto a tus otros métodos)
-        // =====================================================================
-
+        /// <summary>
+        /// Procedimiento de ventana propio: responde a WM_GETMINMAXINFO con el tamaño mínimo de la ventana
+        /// (WinUI 3 no tiene una propiedad para eso). El resto de mensajes van al procedimiento original.
+        /// </summary>
         private IntPtr NewWindowProc(IntPtr hWnd, uint Msg, IntPtr wParam, IntPtr lParam)
         {
             if (Msg == WM_GETMINMAXINFO)
             {
                 var minMaxInfo = Marshal.PtrToStructure<MINMAXINFO>(lParam);
 
-                // Detectar escala de pantalla (DPI) para monitores 4K o con Zoom
+                // El mínimo se escala con el DPI de la pantalla (monitores 4K o con zoom de Windows)
                 var scale = this.Content != null && this.Content.XamlRoot != null
                             ? this.Content.XamlRoot.RasterizationScale
                             : 1.0;
@@ -172,11 +175,10 @@ namespace SaviumDrive
                 int screenWidth = workArea.Width;
                 int screenHeight = workArea.Height;
 
-                // 🔥 USAR LAS CONSTANTES
                 int windowWidth = InitialWidth;
                 int windowHeight = InitialHeight;
 
-                // 🔥 VALIDAR: Si la pantalla es más pequeña, ajustar al tamaño mínimo
+                // En pantallas más pequeñas que el tamaño inicial, se reduce sin bajar del mínimo
                 if (screenWidth < windowWidth)
                     windowWidth = Math.Max(MinWidth, screenWidth - 100);
 
@@ -196,11 +198,11 @@ namespace SaviumDrive
                     Height = windowHeight
                 });
 
-                System.Diagnostics.Debug.WriteLine($"✅ Ventana centrada: {windowWidth}x{windowHeight} en ({x}, {y})");
+                System.Diagnostics.Debug.WriteLine($"Ventana centrada: {windowWidth}x{windowHeight} en ({x}, {y})");
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"⚠️ Error centrando ventana: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"Error centrando ventana: {ex.Message}");
             }
         }
         private void GuardarPosicionVentana()
@@ -212,7 +214,6 @@ namespace SaviumDrive
                 var position = _appWindow.Position;
                 var size = _appWindow.Size;
 
-                // Guardar en configuración (si tienes estas propiedades en SettingsService)
                 SettingsService.Current.WindowX = position.X;
                 SettingsService.Current.WindowY = position.Y;
                 SettingsService.Current.WindowWidth = size.Width;
@@ -220,11 +221,11 @@ namespace SaviumDrive
 
                 SettingsService.Save();
 
-                System.Diagnostics.Debug.WriteLine($"✅ Posición guardada: {position.X}, {position.Y} | Tamaño: {size.Width}x{size.Height}");
+                System.Diagnostics.Debug.WriteLine($"Posición guardada: {position.X}, {position.Y} | Tamaño: {size.Width}x{size.Height}");
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"⚠️ Error guardando posición: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"Error guardando posición: {ex.Message}");
             }
         }
         private void RestaurarOCentrarVentana()
@@ -244,7 +245,7 @@ namespace SaviumDrive
                         Height = Math.Max(MinHeight, SettingsService.Current.WindowHeight)
                     });
 
-                    System.Diagnostics.Debug.WriteLine("✅ Posición restaurada desde configuración");
+                    System.Diagnostics.Debug.WriteLine("Posición restaurada desde configuración");
                 }
                 else
                 {
@@ -271,7 +272,7 @@ namespace SaviumDrive
 
 
 
-        // 🔥 MÉTODOS PÚBLICOS PARA ACCEDER A DATOS DEL USUARIO
+        // Datos de la cuenta para la página de configuración
         public string GetUserName()
         {
             return TxtUserName?.Text ?? "Usuario";
@@ -341,6 +342,7 @@ namespace SaviumDrive
             try { this.Close(); } catch { }
         }
 
+        /// <summary>Muestra la ventana si estaba oculta o minimizada y la trae al frente.</summary>
         public void RestaurarYMostrarApp()
         {
             try
@@ -387,8 +389,7 @@ namespace SaviumDrive
             {
                 try
                 {
-                    // CORRECCIÓN AQUÍ: Agregamos 'CancellationToken.None'
-                    // Esto indica que esta llamada específica no se cancelará manualmente.
+                    // Inicio de sesión automático con la sesión guardada: no hace falta poder cancelarlo
                     var service = await GoogleAuth.Autenticar(CancellationToken.None);
 
                     await CargarDatosUsuario(service);
@@ -402,27 +403,24 @@ namespace SaviumDrive
 
         private async void btnLogin_Click(object sender, RoutedEventArgs e)
         {
-            // --- ESCENARIO 1: EL USUARIO QUIERE CANCELAR ---
+            // Si ya hay un inicio de sesión en marcha, el botón lo cancela
             if (_loginCts != null)
             {
-                // 1. Feedback visual inmediato
                 TxtLoginBtn.Text = ResourceHelper.GetString("Login_Button_Cancelling");
                 btnLogin.IsEnabled = false;
 
-                // 2. Ejecutar la cancelación
                 try { _loginCts.Cancel(); } catch { }
 
-                // 3. 🔥 FORZAR RESTAURACIÓN MANUAL
+                // El botón se restaura aquí sin esperar a que termine la tarea cancelada
                 var oldCts = _loginCts;
                 _loginCts = null;
 
-                // Esperamos un segundo para que el usuario lea "Cancelando..."
+                // Un segundo para que se pueda leer "Cancelando..."
                 await Task.Delay(1000);
 
-                // Restauramos el botón
                 btnLogin.IsEnabled = true;
 
-                // ✅ CORREGIDO: Usamos la clave SIN PUNTOS que C# sí puede leer perfectamente
+                // Clave de recurso sin ".Text": desde código no se pueden leer las claves de propiedades XAML
                 TxtLoginBtn.Text = ResourceHelper.GetString("Login_Button_Start");
 
                 try { oldCts.Dispose(); } catch { }
@@ -430,9 +428,8 @@ namespace SaviumDrive
                 return;
             }
 
-            // --- ESCENARIO 2: INICIAR SESIÓN (Lógica Normal) ---
-
-            // 1. Validaciones
+            // Iniciar sesión
+            // 1. Tras demasiados intentos fallidos hay que esperar unos minutos
             var (intentos, minutosRestantes) = GoogleAuth.ObtenerEstadoRateLimit();
             if (minutosRestantes > 0)
             {
@@ -441,11 +438,10 @@ namespace SaviumDrive
                 return;
             }
 
-            // 2. Configurar UI
-            // Usamos la clave de cancelar
+            // 2. El botón pasa a ser "Cancelar"
             TxtLoginBtn.Text = ResourceHelper.GetString("Login_Button_Cancel");
 
-            // 3. Configurar Timeout y Token
+            // 3. Si el usuario no termina en el navegador en 60 segundos, se cancela
             var currentCts = new CancellationTokenSource();
             _loginCts = currentCts;
 
@@ -470,9 +466,8 @@ namespace SaviumDrive
                 }
                 else
                 {
-                    // MODIFICACIÓN RECOMENDADA:
-                    // Muestra el título genérico, pero agrega el mensaje técnico al final 
-                    // para que el usuario pueda reportártelo o entender si es firewall.
+                    // Mensaje genérico más el detalle técnico, útil para reportar el error
+                    // (por ejemplo, un cortafuegos que bloquea el puerto local)
                     string mensajeUsuario = ResourceHelper.GetString("Login_Error_Generic");
                     string mensajeTecnico = $"\n\nDetalle técnico:\n{ex.Message}";
 
@@ -481,7 +476,7 @@ namespace SaviumDrive
             }
             finally
             {
-                // 4. RESTAURACIÓN SEGURA DEL ESTADO
+                // 4. Restaurar el botón, salvo que ya haya empezado otro intento
                 this.DispatcherQueue.TryEnqueue(() =>
                 {
                     if (_loginCts == currentCts)
@@ -491,7 +486,6 @@ namespace SaviumDrive
 
                         btnLogin.IsEnabled = true;
 
-                        // ✅ CORREGIDO: Usamos la clave SIN PUNTOS aquí también
                         TxtLoginBtn.Text = ResourceHelper.GetString("Login_Button_Start");
                     }
                     else
@@ -502,7 +496,7 @@ namespace SaviumDrive
             }
         }
 
-        // 🆕 AGREGAR ESTE NUEVO MÉTODO (después de MostrarError)
+        /// <summary>Diálogo de aviso con un solo botón.</summary>
         private async Task MostrarAdvertencia(string titulo, string detalle)
         {
             ContentDialog dialog = new ContentDialog
@@ -525,20 +519,23 @@ namespace SaviumDrive
         }
 
 
+        /// <summary>
+        /// Tras iniciar sesión: muestra el nombre, el correo y la foto de la cuenta, y crea el servicio de
+        /// backups que usa toda la app.
+        /// </summary>
         private async Task CargarDatosUsuario(Google.Apis.Drive.v3.DriveService service)
         {
             var aboutRequest = service.About.Get();
             aboutRequest.Fields = "user(displayName, emailAddress, photoLink)";
             var about = await aboutRequest.ExecuteAsync();
 
-            // 🔥 INICIALIZACIÓN DEL SERVICIO GLOBAL
-            // Aquí creamos la instancia única que usará toda la app para subir archivos
+            // Servicio de backups único para toda la app; se reutiliza si la ventana se vuelve a crear
             if (App.LibraryService == null)
             {
                 App.LibraryService = new GameLibraryService(service);
             }
 
-            // Nos suscribimos para actualizar el Círculo Flotante (cada ventana nueva se suscribe de nuevo)
+            // Indicador flotante de progreso (cada ventana nueva se vuelve a suscribir)
             App.LibraryService.ProgressChanged -= OnGlobalUploadProgress;
             App.LibraryService.ProgressChanged += OnGlobalUploadProgress;
 
@@ -550,7 +547,7 @@ namespace SaviumDrive
             });
         }
 
-        // --- INDICADOR GLOBAL DE SUBIDA (Círculo Flotante) ---
+        // --- INDICADOR FLOTANTE DE PROGRESO ---
         private void OnGlobalUploadProgress(object sender, GlobalProgressArgs e)
         {
             this.DispatcherQueue.TryEnqueue(() =>
@@ -559,7 +556,7 @@ namespace SaviumDrive
                 {
                     GlobalUploadIndicator.Visibility = Visibility.Visible;
 
-                    // Si es descarga (-1), es indeterminado. Si es subida (>=0), mostramos %
+                    // -1: progreso que no se puede medir (anillo indeterminado); 0 a 100: porcentaje
                     GlobalRing.IsIndeterminate = (e.Percentage < 0);
 
                     if (e.Percentage >= 0)
@@ -572,7 +569,6 @@ namespace SaviumDrive
                         GlobalPercentText.Text = ""; // Limpiar texto en descargas indeterminadas
                     }
 
-                    // Actualizar textos laterales
                     GlobalStatusText.Text = e.OperationName; // "Subiendo..."
                     GlobalGameName.Text = e.GameName;        // "GTA IV"
                 }
@@ -585,16 +581,15 @@ namespace SaviumDrive
 
         // --- NAVEGACIÓN Y UI ---
 
-        // 🔥 MÉTODO PÚBLICO PARA NAVEGAR DESDE OTRAS PÁGINAS Y ACTUALIZAR EL MENÚ
+        /// <summary>Navega a una página desde otra (por ejemplo, desde Inicio a la biblioteca) y marca su botón del menú.</summary>
         public void NavegarExterna(Type pagina, string tagMenu, object parametro = null)
         {
-            // 1. Navegar el Frame
             ContentFrame.Navigate(pagina, parametro);
 
-            // 2. Actualizar visualmente los botones laterales
             ActualizarEstiloBotones(tagMenu);
         }
 
+        /// <summary>Oculta el inicio de sesión y muestra la app (página de inicio o la pendiente).</summary>
         private void IrAlMain()
         {
             LoginGrid.Visibility = Visibility.Collapsed;
@@ -614,13 +609,13 @@ namespace SaviumDrive
                     ActualizarEstiloBotones("Home");
                 }
 
-                // 🔥 Verificar si hay changelog para mostrar
+                // Novedades de la versión si es el primer arranque tras actualizar
                 CheckFirstRunAfterUpdate();
             }
             catch { }
         }
 
-        // 🔥 NUEVO: Verificar si es primera ejecución después de actualizar
+        /// <summary>Muestra la ventana de novedades la primera vez que se abre una versión nueva.</summary>
         private async void CheckFirstRunAfterUpdate()
         {
             await Task.Delay(1500); // Esperar a que cargue la UI
@@ -666,6 +661,7 @@ namespace SaviumDrive
 
         // --- GESTIÓN DE TEMAS Y CIERRE ---
 
+        /// <summary>Vuelve a aplicar los colores del tema a la barra de título y a los botones del menú.</summary>
         public void ActualizarColoresTema()
         {
             ActualizarEstiloBotones(_paginaActual);
@@ -721,7 +717,7 @@ namespace SaviumDrive
                 return;
             }
 
-            // 🆕 GUARDAR POSICIÓN ANTES DE CERRAR
+            // Recordar la posición y el tamaño para la próxima vez
             GuardarPosicionVentana();
 
             // Cierre diferido tras terminar una subida/descarga con la ventana oculta
@@ -775,20 +771,22 @@ namespace SaviumDrive
             catch { }
         }
 
+        /// <summary>Cierra la ventana sin pasar por "minimizar a la bandeja".</summary>
         public void ForceClose()
         {
             _forceClosing = true;
             try { this.Close(); } catch { }
         }
 
-        // En el método CerrarSesion(), reemplaza con:
-        // 🔥 REEMPLAZA ESTE MÉTODO COMPLETO en MainWindow.xaml.cs
-
+        /// <summary>
+        /// Cierra la sesión: cancela la operación en curso, revoca el acceso en Google, borra la biblioteca
+        /// local (la copia de Drive se mantiene) y vuelve a la pantalla de inicio de sesión.
+        /// </summary>
         public async void CerrarSesion()
         {
             try
             {
-                // 0️ Si hay una subida, actualización o restauración en curso, cancelarla y esperar a que
+                // 1. Si hay una subida, actualización o restauración en curso, cancelarla y esperar a que
                 // termine (borra en Drive lo subido a medias) antes de revocar el acceso
                 var servicio = App.LibraryService;
                 if (servicio != null && servicio.IsBusy)
@@ -797,10 +795,10 @@ namespace SaviumDrive
                     for (int i = 0; i < 50 && servicio.IsBusy; i++) await Task.Delay(200);
                 }
 
-                // 1️ Revocar acceso en Google y eliminar token
+                // 2. Revocar el acceso en Google y borrar el token
                 await GoogleAuth.RevocarAcceso();
 
-                // 2️ Eliminar archivo de juegos local (games.json)
+                // 3. Borrar la biblioteca local (games.json); la de Drive se mantiene
                 string appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
                 string folder = Path.Combine(appData, "SaviumDrive");
                 string gamesJsonPath = Path.Combine(folder, "games.json");
@@ -810,32 +808,32 @@ namespace SaviumDrive
                     try
                     {
                         File.Delete(gamesJsonPath);
-                        System.Diagnostics.Debug.WriteLine("✅ games.json eliminado correctamente");
+                        System.Diagnostics.Debug.WriteLine("games.json eliminado correctamente");
                     }
                     catch (Exception ex)
                     {
-                        System.Diagnostics.Debug.WriteLine($"⚠️ Error eliminando games.json: {ex.Message}");
+                        System.Diagnostics.Debug.WriteLine($"Error eliminando games.json: {ex.Message}");
                     }
                 }
 
-                // 4️ Limpiar UI
+                // 4. Quitar los datos de la cuenta de la interfaz
                 TxtUserName.Text = "Cargando...";
                 TxtUserEmail.Text = "...";
                 UserAvatar.ProfilePicture = null;
 
-                // 5️ Limpiar servicio global
+                // 5. Soltar el servicio de backups de esta sesión
                 if (App.LibraryService != null)
                 {
                     App.LibraryService.ProgressChanged -= OnGlobalUploadProgress;
                     App.LibraryService = null;
                 }
 
-                // 6️ Actualizar UI
+                // 6. Volver a la pantalla de inicio de sesión
                 MainGrid.Visibility = Visibility.Collapsed;
                 SplashGrid.Visibility = Visibility.Collapsed;
                 LoginGrid.Visibility = Visibility.Visible;
 
-                System.Diagnostics.Debug.WriteLine("✅ Sesión cerrada completamente");
+                System.Diagnostics.Debug.WriteLine("Sesión cerrada completamente");
             }
             catch (Exception ex)
             {
@@ -851,6 +849,7 @@ namespace SaviumDrive
             await dialog.ShowAsync();
         }
 
+        /// <summary>Vuelve a cargar la página de configuración (tras cambiar el tema).</summary>
         public void RecargarCompleta()
         {
             ContentFrame.Navigate(typeof(SettingsPage), null, new Microsoft.UI.Xaml.Media.Animation.SuppressNavigationTransitionInfo());

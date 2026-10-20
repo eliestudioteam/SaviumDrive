@@ -19,7 +19,7 @@ namespace SaviumDrive.Services
         /// <summary>Bibliotecas de juegos dentro de las carpetas de lanzadores (ej. Steam\steamapps).</summary>
         public List<string> CarpetasDeBibliotecas { get; } = new List<string>();
 
-        /// <summary>Juegos que el usuario ya agregó desde el aviso: clave del detector → nombre que eligió.</summary>
+        /// <summary>Juegos que el usuario ya agregó desde el aviso: clave del detector y nombre que eligió.</summary>
         public Dictionary<string, string> Aprendidos { get; set; } = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
         public DateTime CargadoEn { get; private set; }
@@ -42,7 +42,7 @@ namespace SaviumDrive.Services
         private static void Intentar(Action accion)
         {
             try { accion(); }
-            catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"⚠️ Catálogo de juegos: {ex.Message}"); }
+            catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"Catálogo de juegos: {ex.Message}"); }
         }
 
         private void CargarSteam()

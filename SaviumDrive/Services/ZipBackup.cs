@@ -15,11 +15,13 @@ namespace SaviumDrive.Services
         /// <summary>A partir de cuántos archivos conviene subir un solo .zip en vez de miles de peticiones.</summary>
         public const int UmbralArchivos = 100;
 
+        /// <summary>Nombre del .zip en Drive: el de la carpeta de partidas.</summary>
         public static string NombreZip(string carpetaLocal) => new DirectoryInfo(carpetaLocal).Name + ".zip";
 
         public static int ContarArchivos(string carpeta) =>
             Directory.Exists(carpeta) ? Directory.EnumerateFiles(carpeta, "*", SearchOption.AllDirectories).Count() : 0;
 
+        /// <summary>True si la carpeta tiene tantos archivos que conviene subirla como un solo .zip.</summary>
         public static bool ConvieneComprimir(string carpeta) => ContarArchivos(carpeta) >= UmbralArchivos;
 
         /// <summary>

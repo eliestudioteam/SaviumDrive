@@ -14,7 +14,11 @@ namespace SaviumDrive.Models
     public class GameVersion
     {
         public string Id { get; set; } = Guid.NewGuid().ToString();
+
+        /// <summary>Número visible (V1, V2...). No se reutiliza al borrar versiones.</summary>
         public int Number { get; set; }
+
+        /// <summary>Texto libre del usuario para reconocer la partida (por ejemplo, "dinastía de 10 generaciones").</summary>
         public string Description { get; set; } = "";
         public DateTime CreatedAt { get; set; }
         public DateTime LastBackup { get; set; }
@@ -33,6 +37,12 @@ namespace SaviumDrive.Models
         public bool HasDescription => !string.IsNullOrWhiteSpace(Description);
     }
 
+    /// <summary>
+    /// Un juego de la biblioteca. Se guarda en %APPDATA%\SaviumDrive\games.json y en Drive
+    /// (savium_config.json) para sincronizar la biblioteca entre equipos.
+    /// Las propiedades con [JsonIgnore] solo existen en memoria (estado de la interfaz o valores calculados).
+    /// Implementa INotifyPropertyChanged solo para el progreso de su tarjeta en la biblioteca.
+    /// </summary>
     public class GameConfig : INotifyPropertyChanged
     {
         public event PropertyChangedEventHandler PropertyChanged;
@@ -74,6 +84,8 @@ namespace SaviumDrive.Models
         private void Avisar(string propiedad) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propiedad));
 
         public string Id { get; set; } = Guid.NewGuid().ToString();
+
+        /// <summary>Nombre del juego; también es el nombre de su carpeta en Drive (dentro de SaviumBackups).</summary>
         public string Name { get; set; }
 
         /// <summary>
@@ -190,13 +202,15 @@ namespace SaviumDrive.Models
 
         public GameVersion FindVersion(string versionId) => Versions?.FirstOrDefault(v => v.Id == versionId);
 
-        // --- ESTA ES LA PROPIEDAD QUE TE FALTA Y EVITA EL CRASH ---
+        /// <summary>
+        /// Portada del juego o, si no tiene, el logo de la app. Las tarjetas enlazan con esta propiedad:
+        /// una imagen con URL vacía haría fallar el enlace de datos.
+        /// </summary>
         [JsonIgnore]
         public string SafeCoverUrl
         {
             get
             {
-                // Si la URL está vacía, devolvemos el logo local para que no falle
                 if (string.IsNullOrEmpty(CoverUrl))
                 {
                     return "ms-appx:///Assets/StoreLogo.png";

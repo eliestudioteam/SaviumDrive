@@ -19,6 +19,8 @@ namespace SaviumDrive.Services
         private DateTime _inicioMuestra;
         private DateTime _ultimoAviso = DateTime.MinValue;
 
+        /// <param name="total">Bytes de toda la subida.</param>
+        /// <param name="reloj">Hora actual; las pruebas pasan una hora simulada.</param>
         public UploadMeter(long total, Func<DateTime> reloj = null)
         {
             Total = Math.Max(0, total);
@@ -87,6 +89,7 @@ namespace SaviumDrive.Services
 
         // ===================== TEXTOS =====================
 
+        /// <summary>Tamaño legible: "512 B", "1,5 KB", "12,3 MB" (con el separador decimal del sistema).</summary>
         public static string Bytes(long bytes)
         {
             string[] sufijos = { "B", "KB", "MB", "GB", "TB" };

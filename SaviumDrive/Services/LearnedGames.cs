@@ -21,7 +21,7 @@ namespace SaviumDrive.Services
         public static string Archivo { get; set; } = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "SaviumDrive", "juegos-aprendidos.json");
 
-        /// <summary>Clave del detector (carpeta del juego o "titulo:...") → nombre elegido por el usuario.</summary>
+        /// <summary>Juegos aprendidos: clave del detector (carpeta del juego o "titulo:...") y nombre elegido por el usuario.</summary>
         public static Dictionary<string, string> Leer()
         {
             lock (_bloqueo)
@@ -34,11 +34,12 @@ namespace SaviumDrive.Services
                         if (datos != null) return new Dictionary<string, string>(datos, StringComparer.OrdinalIgnoreCase);
                     }
                 }
-                catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"⚠️ Juegos aprendidos: {ex.Message}"); }
+                catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"Juegos aprendidos: {ex.Message}"); }
                 return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             }
         }
 
+        /// <summary>Recuerda (o actualiza) el nombre de un juego. Lo llama la biblioteca al agregarlo desde el aviso.</summary>
         public static void Aprender(string clave, string nombre)
         {
             if (string.IsNullOrWhiteSpace(clave) || string.IsNullOrWhiteSpace(nombre)) return;
@@ -52,7 +53,7 @@ namespace SaviumDrive.Services
                     File.WriteAllText(Archivo, JsonSerializer.Serialize(datos, new JsonSerializerOptions { WriteIndented = true }));
                     Interlocked.Increment(ref _version);
                 }
-                catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"⚠️ Juegos aprendidos: {ex.Message}"); }
+                catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"Juegos aprendidos: {ex.Message}"); }
             }
         }
     }

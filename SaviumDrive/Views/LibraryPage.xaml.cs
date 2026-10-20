@@ -14,6 +14,11 @@ using System.Threading.Tasks;
 
 namespace SaviumDrive.Views
 {
+    /// <summary>
+    /// Biblioteca ("Mis respaldos"): tarjetas de los juegos con sus acciones (guardar, restaurar, eliminar,
+    /// nueva versión, historial), búsqueda, orden y el progreso de la operación en curso.
+    /// Las operaciones las hace <see cref="GameLibraryService"/>; esta página solo las lanza y muestra su estado.
+    /// </summary>
     public sealed partial class LibraryPage : Page
     {
         public ObservableCollection<GameConfig> Juegos { get; set; }
@@ -38,8 +43,11 @@ namespace SaviumDrive.Views
             _cargandoOrden = false;
         }
 
-        // 🔥 AL ENTRAR: RECUPERAR ESTADO O INICIAR SYNC
-        // 🔥 ACTUALIZAR OnNavigatedTo para detectar parámetro "openDialog"
+        /// <summary>
+        /// Al entrar: si hay una operación en curso se muestra su progreso. El parámetro de navegación puede pedir
+        /// abrir el diálogo de agregar ("openDialog"), agregar un juego detectado (GameSession) o guardar uno que
+        /// ya está en la biblioteca (SolicitudGuardarBackup).
+        /// </summary>
         protected override async void OnNavigatedTo(NavigationEventArgs e)
         {
             base.OnNavigatedTo(e);
@@ -53,7 +61,7 @@ namespace SaviumDrive.Views
                 if (App.LibraryService.Cancelando) MostrarCancelando();
             }
 
-            // 🔥 DETECTAR SI VIENE DESDE HOMEPAGE CON ACCIÓN RÁPIDA
+            // Desde Inicio, botón "Crear nuevo respaldo"
             if (e.Parameter is string param && param == "openDialog")
             {
                 await Task.Delay(300); // Pequeña pausa para que la página se cargue
@@ -94,7 +102,6 @@ namespace SaviumDrive.Views
             {
                 if (e.IsActive)
                 {
-                    // Mostrar barra si está oculta
                     if (SyncIndicator.Visibility == Visibility.Collapsed) 
                         SetBusyState(true, "MsgPreparing");
 
@@ -104,7 +111,7 @@ namespace SaviumDrive.Views
                 }
                 else
                 {
-                    // Ocultar barra
+                    // Terminó: ocultar la barra, quitar el progreso de las tarjetas y recargar la lista
                     SetBusyState(false, "MsgIdle");
                     foreach (var j in Juegos) j.ProgresoTarjeta = -1;
                     _ = RecargarLista();
@@ -165,19 +172,17 @@ namespace SaviumDrive.Views
 
                 if (!servicio.IsBusy) BtnText.Text = ResourceHelper.GetString("BtnAddGame");
 
-                // 1. Carga rápida local
+                // 1. Biblioteca local (rápido)
                 var local = await servicio.CargarSoloLocal();
                 ActualizarLista(local);
                 var ultimo = servicio.LastProgressArgs;
                 if (servicio.IsBusy && ultimo != null && ultimo.IsActive) ActualizarTarjeta(ultimo);
 
-                // 2. 🔥 SINCRONIZAR SI NO ESTÁ OCUPADO
+                // 2. Sincronizar con Drive si no hay otra operación en curso
                 if (!servicio.IsBusy && servicio == App.LibraryService)
                 {
-                    // Nos aseguramos de suscribirnos para ver la animación "Sincronizando..."
                     SuscribirProgreso();
 
-                    // Llamada a la sincronización (ahora reportará progreso a través del evento)
                     var cloudList = await servicio.SincronizarYActualizar();
                     if (servicio != App.LibraryService) return; // se cerró la sesión mientras sincronizaba
                     ActualizarLista(cloudList);
@@ -236,6 +241,7 @@ namespace SaviumDrive.Views
 
         private Style GetStandardButtonStyle() => Application.Current.Resources["StandardBtnStyle"] as Style;
 
+        /// <summary>Muestra u oculta la barra de progreso y cambia el botón principal entre "Agregar" y "Cancelar".</summary>
         private void SetBusyState(bool busy, string messageKey)
         {
             _isBusy = busy;
@@ -244,7 +250,7 @@ namespace SaviumDrive.Views
             {
                 _cts = new CancellationTokenSource();
 
-                // 🔥 CAMBIAR A ESTILO DE CANCELAR
+                // Mientras hay una operación, el botón principal pasa a "Cancelar"
                 BtnMainAction.Style = Application.Current.Resources["CancelButtonStyle"] as Style;
                 BtnText.Text = ResourceHelper.GetString("BtnCancel");
                 BtnIcon.Glyph = "\uE711";
@@ -256,7 +262,7 @@ namespace SaviumDrive.Views
                 _cts?.Dispose();
                 _cts = null;
 
-                // 🔥 CAMBIAR A ESTILO DE ACCIÓN (Agregar)
+                // Sin operación, vuelve a "Agregar juego"
                 BtnMainAction.Style = Application.Current.Resources["ActionButtonStyle"] as Style;
                 BtnText.Text = ResourceHelper.GetString("BtnAddGame");
                 BtnIcon.Glyph = "\uE710";
@@ -298,6 +304,7 @@ namespace SaviumDrive.Views
             }
         }
 
+        /// <summary>Abre el diálogo de agregar y, si se acepta, sube el juego como V1.</summary>
         private async Task AgregarJuegoFlow(GameSession session = null)
         {
             try
@@ -325,12 +332,11 @@ namespace SaviumDrive.Views
 
                         try
                         {
-                            // 🔥 PASAR EL TOKEN (_cts.Token)
                             var nuevoJuego = await App.LibraryService.AgregarJuegoNuevo(
                                 dialog.GameName,
                                 dialog.GamePath,
                                 dialog.SelectedCoverUrl,
-                                _cts.Token // ⬅️ ESTO FALTABA
+                                _cts.Token
                             );
 
                             // Desde el aviso del detector: la próxima vez se reconoce con este nombre (juegos sin tienda incluidos)
@@ -394,7 +400,6 @@ namespace SaviumDrive.Views
 
                     try
                     {
-                        // 🔥 PASAR EL TOKEN
                         var resultado = await App.LibraryService.ActualizarBackup(juego, juego.ActiveVersion, _cts.Token);
                         await MostrarAlerta(ResourceHelper.GetString("AlertSuccess"),
                             resultado.YaAlDia
@@ -417,6 +422,7 @@ namespace SaviumDrive.Views
             }
         }
 
+        /// <summary>Restaura la versión activa en este PC, avisando antes si las partidas locales son más recientes.</summary>
         private async void BtnRestore_Click(object sender, RoutedEventArgs e)
         {
             if (sender is Button btn && btn.Tag is GameConfig juego)
@@ -457,7 +463,6 @@ namespace SaviumDrive.Views
 
                     try
                     {
-                        // 🔥 PASAR EL TOKEN
                         await App.LibraryService.RestaurarJuego(juego, juego.ActiveVersion, _cts.Token);
                         await MostrarAlerta(ResourceHelper.GetString("AlertSuccess"), ResourceHelper.GetString("AlertRestoreSuccess"));
                     }
@@ -477,6 +482,10 @@ namespace SaviumDrive.Views
             }
         }
 
+        /// <summary>
+        /// Elimina la versión activa (si es la única, el juego entero) tras dos confirmaciones.
+        /// En Drive va a la papelera, así que se puede recuperar durante 30 días.
+        /// </summary>
         private async void BtnDelete_Click(object sender, RoutedEventArgs e)
         {
             if (sender is Button btn && btn.Tag is GameConfig juego)
@@ -501,7 +510,7 @@ namespace SaviumDrive.Views
 
                 if (await deleteDialog.ShowAsync() == ContentDialogResult.Primary)
                 {
-                    // 🔥 CONTADOR DE 5 SEGUNDOS CON POSIBILIDAD DE CANCELAR
+                    // Segunda confirmación: cuenta atrás de 5 segundos que se puede cancelar
                     var countdownDialog = new ContentDialog
                     {
                         Title = ResourceHelper.GetString("AlertWarning"),
@@ -512,14 +521,12 @@ namespace SaviumDrive.Views
                         PrimaryButtonStyle = GetStandardButtonStyle()
                     };
 
-                    // 🔥 CREAR UN STACKPANEL PARA MOSTRAR MÚLTIPLES ELEMENTOS
                     var contentPanel = new StackPanel
                     {
                         Spacing = 12,
                         HorizontalAlignment = HorizontalAlignment.Center
                     };
 
-                    // 🔥 TEXTO DE CUENTA REGRESIVA
                     var countdownText = new TextBlock
                     {
                         Text = string.Format(ResourceHelper.GetString("MsgDeletingIn"), 5),
@@ -528,7 +535,6 @@ namespace SaviumDrive.Views
                         TextWrapping = TextWrapping.WrapWholeWords
                     };
 
-                    // 🔥 MOSTRAR EL NOMBRE DEL JUEGO/BACKUP
                     var pathText = new TextBlock
                     {
                         Text = juego.DisplayName,
@@ -572,23 +578,20 @@ namespace SaviumDrive.Views
 
                     if (result == ContentDialogResult.Primary)
                     {
-                        // Usuario canceló
+                        // El usuario canceló
                         cancelado = true;
                     }
 
                     if (!cancelado)
                     {
-                        // Proceder a eliminar
                         SetBusyState(true, "MsgDeleting");
                         SuscribirProgreso();
 
                         try
                         {
-                            // 🔥 ELIMINAR DEL SERVICIO (Drive + JSON local)
                             // Solo la versión activa; si era la única se elimina el juego
                             bool juegoEliminado = await App.LibraryService.EliminarVersion(juego, version);
 
-                            // 🔥 ASEGURAR ACTUALIZACIÓN EN EL HILO DE UI
                             await RecargarLista();
 
                             // Pequeña pausa para que la UI se actualice antes de mostrar la alerta
@@ -649,6 +652,7 @@ namespace SaviumDrive.Views
             await RecargarLista();
         }
 
+        /// <summary>Crea una versión nueva con la carpeta de partidas actual y una descripción.</summary>
         private async void BtnNewVersion_Click(object sender, RoutedEventArgs e)
         {
             if (sender is not Button btn || btn.Tag is not GameConfig juego) return;

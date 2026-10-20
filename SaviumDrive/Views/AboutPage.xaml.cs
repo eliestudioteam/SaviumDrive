@@ -9,6 +9,7 @@ using SaviumDrive.Helpers;
 
 namespace SaviumDrive.Views
 {
+    /// <summary>Página "Acerca de": versión instalada y búsqueda e instalación de actualizaciones.</summary>
     public sealed partial class AboutPage : Page
     {
         private UpdateService _updateService;
@@ -26,7 +27,7 @@ namespace SaviumDrive.Views
             // Mostrar versión actual
             TxtVersion.Text = $"v{GetCurrentVersion()}";
 
-            // ✅ Establecer texto inicial con el color correcto
+            // Texto inicial del botón con el color del tema
             TxtUpdate.Text = ResourceHelper.GetString("AbtUpdate");
 
             // Aplicar colores iniciales
@@ -35,18 +36,14 @@ namespace SaviumDrive.Views
 
         private void ApplyThemeColors()
         {
-            // Obtenemos el pincel base (UpdateBtnText)
             var updateTextBrush = (Brush)Application.Current.Resources["UpdateBtnText"];
 
-            // --- CORRECCIÓN CLAVE ---
-            // En lugar de asignarles el color manualmente (lo que bloquea el hover),
-            // LIMPIAMOS el valor local. Así heredarán el color del Botón automáticamente.
-            // Esto permite que cuando el botón cambie a Negro en Hover, ellos también cambien.
+            // El texto y el icono del botón no llevan color propio: lo heredan del botón. Si se les asignara
+            // uno, dejarían de cambiar de color al pasar el ratón por encima.
 
             TxtUpdate.ClearValue(TextBlock.ForegroundProperty);
             IconUpdate.ClearValue(FontIcon.ForegroundProperty);
 
-            // Aplicar solo al padre (Botón)
             BtnUpdate.Background = (Brush)Application.Current.Resources["ActionBackground"];
             BtnUpdate.Foreground = updateTextBrush;
         }

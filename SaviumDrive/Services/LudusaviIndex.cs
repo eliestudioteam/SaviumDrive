@@ -65,7 +65,7 @@ namespace SaviumDrive.Services
 
                 if (sangria == 0)
                 {
-                    // Nuevo juego
+                    // Una clave sin sangría es el nombre de otro juego
                     CerrarRuta();
                     if (actual != null && actual.Rutas.Count > 0) yield return actual;
                     actual = new JuegoLudusavi { Nombre = Clave(contenido) };
@@ -182,7 +182,7 @@ namespace SaviumDrive.Services
 
         /// <summary>
         /// Candidatos ordenados: primero el nombre exacto y después los que empiezan igual, del más corto al más largo
-        /// (ej. "Minecraft" → "Minecraft Dungeons", "Minecraft: Java Edition"...). Lee el índice línea a línea.
+        /// (por ejemplo, "Minecraft" encuentra "Minecraft Dungeons" y "Minecraft: Java Edition"). Lee el índice línea a línea.
         /// </summary>
         public static List<JuegoLudusavi> BuscarCandidatos(TextReader indice, string nombre, int maximo = 10)
         {
@@ -249,7 +249,7 @@ namespace SaviumDrive.Services
             return null;
         }
 
-        /// <summary>"ELDEN RING" y "Elden Ring" → "eldenring"; también quita acentos y símbolos.</summary>
+        /// <summary>Clave de búsqueda: "ELDEN RING" y "Elden Ring" dan "eldenring"; también quita acentos y símbolos.</summary>
         public static string Normalizar(string nombre)
         {
             if (string.IsNullOrEmpty(nombre)) return "";
