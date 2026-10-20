@@ -18,6 +18,12 @@
 		<Compile Include="..\..\SaviumDrive\Services\UpdateVersioning.cs" Link="App\UpdateVersioning.cs" />
 		<Compile Include="..\..\SaviumDrive\Services\LibraryMerge.cs" Link="App\LibraryMerge.cs" />
 		<Compile Include="..\..\SaviumDrive\Models\GameConfig.cs" Link="App\GameConfig.cs" />
+		<Compile Include="..\..\SaviumDrive\Services\GameStores.cs" Link="App\GameStores.cs" />
+		<Compile Include="..\..\SaviumDrive\Services\GameCatalog.cs" Link="App\GameCatalog.cs" />
+		<Compile Include="..\..\SaviumDrive\Services\GameClassifier.cs" Link="App\GameClassifier.cs" />
+		<Compile Include="..\..\SaviumDrive\Services\GameSessionTracker.cs" Link="App\GameSessionTracker.cs" />
+		<Compile Include="..\..\SaviumDrive\Services\LearnedGames.cs" Link="App\LearnedGames.cs" />
+		<Compile Include="..\..\SaviumDrive\Services\GameDetectorService.cs" Link="App\GameDetectorService.cs" />
 		<Compile Include="..\..\SaviumDrive\Services\LibraryFilter.cs" Link="App\LibraryFilter.cs" />
 		<Compile Include="..\..\SaviumDrive\Services\LudusaviIndex.cs" Link="App\LudusaviIndex.cs" />
 		<Compile Include="..\..\SaviumDrive\Services\ZipBackup.cs" Link="App\ZipBackup.cs" />

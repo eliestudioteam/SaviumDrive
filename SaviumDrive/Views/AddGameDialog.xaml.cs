@@ -25,11 +25,17 @@ namespace SaviumDrive.Views
 
         private Window _mainWindow;
         private DispatcherTimer _searchTimer;
+        // Cada búsqueda de portada lleva un número: una respuesta vieja no pisa a la del último título
+        private int _busquedaPortada;
 
         // Ruta de partidas rellenada sola (Ludusavi): se puede reemplazar al cambiar el nombre,
         // pero nunca una carpeta que el usuario eligió con "Examinar"
         private bool _rutaAutomatica = false;
         private CancellationTokenSource _ctsRuta;
+
+        // Juego detectado al cerrarse: con su ID de Steam la carpeta se encuentra aunque el nombre varíe
+        private string _nombreDetectado;
+        private string _steamAppIdDetectado;
 
         public AddGameDialog(Window window)
         {
@@ -42,20 +48,27 @@ namespace SaviumDrive.Views
             _searchTimer.Tick += SearchTimer_Tick;
         }
 
-        public void AutoFill(string name, string exePath)
+        public void AutoFill(string name, string exePath, string steamAppId = null)
         {
+            _nombreDetectado = name;
+            _steamAppIdDetectado = steamAppId;
             TxtGameName.Text = name;
-            string rutaAdivinada = IntentarAdivinarRutaSave(name);
+            TxtGamePath.PlaceholderText = "Por favor, selecciona la carpeta de saves...";
 
-            if (!string.IsNullOrEmpty(rutaAdivinada))
+            // El diálogo aún no se muestra y TextChanged no siempre llega: buscar la portada al abrirse
+            Opened += BuscarAlAbrir;
+
+            // Primero la base de datos de Ludusavi (por ID de Steam o por nombre); si no, las carpetas habituales
+            _ = BuscarRutaAutomatica(name);
+        }
+
+        private void BuscarAlAbrir(ContentDialog sender, ContentDialogOpenedEventArgs args)
+        {
+            Opened -= BuscarAlAbrir;
+            if (TxtGameName.Text.Length > 2 && _foundCovers.Count == 0)
             {
-                TxtGamePath.Text = rutaAdivinada;
-                _rutaAutomatica = true;
-            }
-            else
-            {
-                TxtGamePath.PlaceholderText = "Por favor, selecciona la carpeta de saves...";
-                _ = BuscarRutaAutomatica(name);
+                _searchTimer.Stop();
+                _ = BuscarPortadas(buscarRuta: false); // la ruta ya se está buscando
             }
         }
 
@@ -71,7 +84,9 @@ namespace SaviumDrive.Views
             MostrarPistaRuta(LudusaviService.IndiceDisponible ? "PathHintSearching" : "PathHintDownloading");
 
             string carpeta = null;
-            try { carpeta = await LudusaviService.BuscarCarpetaAsync(nombre, cts.Token); }
+            // El ID de Steam solo vale mientras el nombre sea el del juego detectado
+            string steamAppId = string.Equals(nombre, _nombreDetectado, StringComparison.Ordinal) ? _steamAppIdDetectado : null;
+            try { carpeta = await LudusaviService.BuscarCarpetaAsync(nombre, steamAppId, cts.Token); }
             catch (OperationCanceledException) { return; }
             catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"⚠️ Ludusavi: {ex.Message}"); }
 
@@ -79,11 +94,19 @@ namespace SaviumDrive.Views
             if (cts.IsCancellationRequested || _ctsRuta != cts) return;
             if (!string.IsNullOrEmpty(TxtGamePath.Text) && !_rutaAutomatica) { MostrarPistaRuta(null); return; }
 
+            string pista = "PathHintFound";
+            if (carpeta == null)
+            {
+                // Sin datos en Ludusavi: probar las carpetas habituales (Mis juegos, AppData, Saved Games...)
+                carpeta = IntentarAdivinarRutaSave(nombre);
+                pista = "PathHintGuessed";
+            }
+
             if (carpeta != null)
             {
                 TxtGamePath.Text = carpeta;
                 _rutaAutomatica = true;
-                MostrarPistaRuta("PathHintFound");
+                MostrarPistaRuta(pista);
             }
             else
             {
@@ -165,6 +188,7 @@ namespace SaviumDrive.Views
         private void TxtGameName_TextChanged(object sender, TextChangedEventArgs e)
         {
             _searchTimer.Stop();
+            _busquedaPortada++; // descarta la búsqueda en curso
             OcultarControlesCarrusel();
 
             if (TxtGameName.Text.Length > 2)
@@ -175,19 +199,29 @@ namespace SaviumDrive.Views
             }
         }
 
-        private async void SearchTimer_Tick(object sender, object e)
+        private void SearchTimer_Tick(object sender, object e)
         {
             _searchTimer.Stop();
+            _ = BuscarPortadas(buscarRuta: true);
+        }
+
+        private async Task BuscarPortadas(bool buscarRuta)
+        {
+            int busqueda = ++_busquedaPortada;
+            string nombre = TxtGameName.Text;
             LoadingRing.IsActive = true;
             TxtCoverHint.Visibility = Visibility.Collapsed;
 
             // Buscar a la vez la carpeta de partidas (no espera a la portada)
-            _ = BuscarRutaAutomatica(TxtGameName.Text);
+            if (buscarRuta) _ = BuscarRutaAutomatica(nombre);
 
-            var api = new SteamGridApi();
-            _foundCovers = await api.BuscarPortadas(TxtGameName.Text);
+            // Con el ID de Steam del juego detectado, la portada es la exacta aunque el nombre sea ambiguo
+            string steamAppId = string.Equals(nombre, _nombreDetectado, StringComparison.Ordinal) ? _steamAppIdDetectado : null;
+            var portadas = await new SteamGridApi().BuscarPortadas(nombre, steamAppId);
+            if (busqueda != _busquedaPortada) return; // el usuario cambió el título mientras tanto
+
+            _foundCovers = portadas;
             _currentCoverIndex = 0;
-
             LoadingRing.IsActive = false;
 
             if (_foundCovers != null && _foundCovers.Count > 0)

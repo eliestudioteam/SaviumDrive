@@ -15,6 +15,8 @@ namespace SaviumDrive.Services
     {
         public string Nombre { get; set; }
         public List<string> Rutas { get; } = new List<string>();
+        /// <summary>ID del juego en Steam (si lo tiene): permite encontrarlo sin depender de cómo se escriba el nombre.</summary>
+        public string SteamId { get; set; }
     }
 
     public static class LudusaviIndex
@@ -37,7 +39,7 @@ namespace SaviumDrive.Services
         public static IEnumerable<JuegoLudusavi> LeerManifest(TextReader lector)
         {
             JuegoLudusavi actual = null;
-            bool enFiles = false;
+            bool enFiles = false, enSteam = false;
             string ruta = null;
             bool enTags = false, enWhen = false;
             var tags = new List<string>();
@@ -67,7 +69,7 @@ namespace SaviumDrive.Services
                     CerrarRuta();
                     if (actual != null && actual.Rutas.Count > 0) yield return actual;
                     actual = new JuegoLudusavi { Nombre = Clave(contenido) };
-                    enFiles = false;
+                    enFiles = enSteam = false;
                     continue;
                 }
 
@@ -75,6 +77,15 @@ namespace SaviumDrive.Services
                 {
                     CerrarRuta();
                     enFiles = contenido == "files:";
+                    enSteam = contenido == "steam:";
+                    continue;
+                }
+
+                if (enSteam)
+                {
+                    // Sección "  steam:" con la línea "    id: 108710"
+                    if (sangria == 4 && contenido.StartsWith("id:") && actual != null)
+                        actual.SteamId = contenido.Substring(3).Trim();
                     continue;
                 }
 
@@ -154,7 +165,9 @@ namespace SaviumDrive.Services
                 indice.Write('\t');
                 indice.Write(juego.Nombre);
                 indice.Write('\t');
-                indice.WriteLine(string.Join(SeparadorRutas, juego.Rutas));
+                indice.Write(string.Join(SeparadorRutas, juego.Rutas));
+                indice.Write('\t');
+                indice.WriteLine(juego.SteamId ?? "");
                 total++;
             }
             return total;
@@ -211,9 +224,29 @@ namespace SaviumDrive.Services
         {
             var partes = linea.Split('\t');
             if (partes.Length < 3) return;
-            var juego = new JuegoLudusavi { Nombre = partes[1] };
+            lista.Add(DesdeLinea(partes));
+        }
+
+        private static JuegoLudusavi DesdeLinea(string[] partes)
+        {
+            var juego = new JuegoLudusavi { Nombre = partes[1], SteamId = partes.Length > 3 && partes[3].Length > 0 ? partes[3] : null };
             juego.Rutas.AddRange(partes[2].Split(SeparadorRutas, StringSplitOptions.RemoveEmptyEntries));
-            lista.Add(juego);
+            return juego;
+        }
+
+        /// <summary>Busca un juego por su ID de Steam (leyendo el índice línea a línea).</summary>
+        public static JuegoLudusavi BuscarPorSteamId(TextReader indice, string steamId)
+        {
+            if (string.IsNullOrWhiteSpace(steamId)) return null;
+            string sufijo = "\t" + steamId.Trim();
+            string linea;
+            while ((linea = indice.ReadLine()) != null)
+            {
+                if (!linea.EndsWith(sufijo, StringComparison.Ordinal)) continue;
+                var partes = linea.Split('\t');
+                if (partes.Length > 3 && partes[3] == steamId.Trim()) return DesdeLinea(partes);
+            }
+            return null;
         }
 
         /// <summary>"ELDEN RING" y "Elden Ring" → "eldenring"; también quita acentos y símbolos.</summary>

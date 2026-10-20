@@ -28,11 +28,14 @@
             <!-- 🔥 TEXTO GENÉRICO TRADUCIDO -->
             <TextBlock x:Name="TxtMessage" 
                        x:Uid="DetectorMsg"
+                       TextWrapping="Wrap"
                        FontSize="14" 
                        Foreground="{ThemeResource TextPrimary}"
                        HorizontalAlignment="Center" TextAlignment="Center"/>
 
-            <TextBlock x:Uid="DetectorSubMsg"
+            <TextBlock x:Name="TxtSubMessage"
+                       x:Uid="DetectorSubMsg"
+                       TextWrapping="Wrap"
                        FontSize="12" 
                        Foreground="{ThemeResource TextSecondary}"
                        HorizontalAlignment="Center" TextAlignment="Center"/>

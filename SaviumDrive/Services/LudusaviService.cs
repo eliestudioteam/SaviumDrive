@@ -20,8 +20,9 @@ namespace SaviumDrive.Services
         private static string CarpetaDatos =>
             Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "SaviumDrive");
 
-        private static string RutaIndice => Path.Combine(CarpetaDatos, "ludusavi.tsv");
-        private static string RutaEtag => Path.Combine(CarpetaDatos, "ludusavi.etag");
+        // v2: el índice incluye el ID de Steam (un nombre nuevo obliga a regenerarlo una vez)
+        private static string RutaIndice => Path.Combine(CarpetaDatos, "ludusavi-v2.tsv");
+        private static string RutaEtag => Path.Combine(CarpetaDatos, "ludusavi-v2.etag");
 
         private static HttpClient CrearCliente()
         {
@@ -36,9 +37,13 @@ namespace SaviumDrive.Services
         /// Busca la carpeta de partidas de un juego que exista en este PC, o null.
         /// Descarga o actualiza la base de datos si hace falta (si no hay internet, usa la que haya).
         /// </summary>
-        public static async Task<string> BuscarCarpetaAsync(string nombreJuego, CancellationToken token = default)
+        public static async Task<string> BuscarCarpetaAsync(string nombreJuego, CancellationToken token = default) =>
+            await BuscarCarpetaAsync(nombreJuego, null, token);
+
+        /// <summary>Igual, pero si se conoce el ID de Steam se busca primero por él (no depende de cómo se escriba el nombre).</summary>
+        public static async Task<string> BuscarCarpetaAsync(string nombreJuego, string steamAppId, CancellationToken token = default)
         {
-            if (string.IsNullOrWhiteSpace(nombreJuego)) return null;
+            if (string.IsNullOrWhiteSpace(nombreJuego) && string.IsNullOrWhiteSpace(steamAppId)) return null;
 
             try { await AsegurarIndiceAsync(token); }
             catch (Exception ex) when (ex is not OperationCanceledException)
@@ -50,8 +55,17 @@ namespace SaviumDrive.Services
 
             return await Task.Run(() =>
             {
-                using var lector = new StreamReader(RutaIndice);
                 var carpetas = LudusaviIndex.CarpetasDeEstePc();
+
+                if (!string.IsNullOrWhiteSpace(steamAppId))
+                {
+                    using var porId = new StreamReader(RutaIndice);
+                    string carpetaPorId = LudusaviIndex.PrimeraCarpetaExistente(LudusaviIndex.BuscarPorSteamId(porId, steamAppId), carpetas);
+                    if (carpetaPorId != null) return carpetaPorId;
+                }
+                if (string.IsNullOrWhiteSpace(nombreJuego)) return null;
+
+                using var lector = new StreamReader(RutaIndice);
 
                 // El primer candidato cuya carpeta exista en este PC (ej. "Minecraft" → Java Edition si es la instalada)
                 foreach (var juego in LudusaviIndex.BuscarCandidatos(lector, nombreJuego))

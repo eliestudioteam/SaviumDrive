@@ -68,6 +68,14 @@ namespace SaviumDrive.Views
                 await Task.Delay(200);
                 await AgregarJuegoFlow(session);
             }
+            else if (e.Parameter is SolicitudGuardarBackup solicitud && App.LibraryService != null)
+            {
+                // Desde el recordatorio: el juego ya estaba en la biblioteca y el usuario pidió guardar ahora
+                await Task.Delay(300);
+                var juegos = await App.LibraryService.CargarSoloLocal();
+                var juego = juegos.FirstOrDefault(j => j.Id == solicitud.JuegoId);
+                if (juego != null) await GuardarJuego(juego, pedirConfirmacion: false);
+            }
         }
 
         protected override void OnNavigatedFrom(NavigationEventArgs e)
@@ -248,7 +256,7 @@ namespace SaviumDrive.Views
                 if (window == null) window = new MainWindow();
                 var dialog = new AddGameDialog(window);
                 dialog.XamlRoot = this.XamlRoot;
-                if (session != null) dialog.AutoFill(session.Name, session.ExecutablePath);
+                if (session != null) dialog.AutoFill(session.Name, session.ExecutablePath, session.SteamAppId);
 
                 var result = await dialog.ShowAsync();
 
@@ -274,6 +282,9 @@ namespace SaviumDrive.Views
                                 dialog.SelectedCoverUrl,
                                 _cts.Token // ⬅️ ESTO FALTABA
                             );
+
+                            // Desde el aviso del detector: la próxima vez se reconoce con este nombre (juegos sin tienda incluidos)
+                            if (session != null) LearnedGames.Aprender(session.Clave, dialog.GameName);
 
                             _todos.Add(nuevoJuego);
                             AplicarFiltro();
@@ -301,6 +312,15 @@ namespace SaviumDrive.Views
         {
             if (sender is Button btn && btn.Tag is GameConfig juego)
             {
+                await GuardarJuego(juego, pedirConfirmacion: true);
+            }
+        }
+
+        /// <summary>Actualiza el backup de la versión activa (con confirmación si se pulsa en la tarjeta).</summary>
+        private async Task GuardarJuego(GameConfig juego, bool pedirConfirmacion)
+        {
+            {
+                if (_isBusy) return;
                 if (juego.NeedsRelink && !await PedirCarpetaEnEstePc(juego, paraRestaurar: false)) return;
 
                 ContentDialog updateDialog = new ContentDialog
@@ -316,7 +336,7 @@ namespace SaviumDrive.Views
                     CloseButtonStyle = GetStandardButtonStyle()
                 };
 
-                if (await updateDialog.ShowAsync() == ContentDialogResult.Primary)
+                if (!pedirConfirmacion || await updateDialog.ShowAsync() == ContentDialogResult.Primary)
                 {
                     SetBusyState(true, "MsgUpdating");
                     SuscribirProgreso();

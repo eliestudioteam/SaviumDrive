@@ -342,4 +342,9 @@
 	<data name="RestoreNewerTitle" xml:space="preserve"><value>Your save on this PC is newer</value></data>
 	<data name="RestoreNewerMsg" xml:space="preserve"><value>The files on your PC were modified on {0}, after the last cloud save of {1} ({2}).\n\nIf you restore, you will lose that progress. To keep it, use Save first.\n\nAre you sure you want to replace it?</value></data>
 	<data name="RestoreNewerBtn" xml:space="preserve"><value>Replace anyway</value></data>
+	<!-- Detector inteligente de juegos -->
+	<data name="DetectorMsgGame" xml:space="preserve"><value>You finished playing {0}.</value></data>
+	<data name="DetectorSubMsgSave" xml:space="preserve"><value>It's already in your library. Do you want to save the backup of {0} now?</value></data>
+	<data name="BtnSaveNow" xml:space="preserve"><value>Save now</value></data>
+	<data name="PathHintGuessed" xml:space="preserve"><value>📂 Folder found in a usual location. Check it before saving.</value></data>
 </root>
