@@ -26,9 +26,12 @@ namespace SaviumDrive.Services
         /// Comprime el contenido de la carpeta (sin la carpeta raíz). Lee con FileShare.ReadWrite porque
         /// el juego puede tener los archivos abiertos, y conserva fechas y carpetas vacías.
         /// </summary>
-        public static void Comprimir(string carpeta, string zipDestino, CancellationToken token = default)
+        /// <param name="alComprimir">(archivos comprimidos, total) tras cada archivo.</param>
+        public static void Comprimir(string carpeta, string zipDestino, CancellationToken token = default, Action<int, int> alComprimir = null)
         {
             if (File.Exists(zipDestino)) File.Delete(zipDestino);
+            int total = alComprimir != null ? ContarArchivos(carpeta) : 0;
+            int hechos = 0;
 
             using var zip = ZipFile.Open(zipDestino, ZipArchiveMode.Create);
 
@@ -47,6 +50,7 @@ namespace SaviumDrive.Services
                 using var origen = new FileStream(archivo, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
                 using var destino = entrada.Open();
                 origen.CopyToAsync(destino, token).GetAwaiter().GetResult();
+                alComprimir?.Invoke(++hechos, total);
             }
         }
 

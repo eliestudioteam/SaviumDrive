@@ -318,6 +318,30 @@ namespace SaviumDrive.Tests
         }
 
         [Fact]
+        public async Task SubirArchivo_AvisaDeLosBytesEnviados()
+        {
+            const string sesion = "https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable&upload_id=abc";
+            var handler = new FakeDriveHandler(req =>
+            {
+                if (req.Method == HttpMethod.Post)
+                {
+                    var r = new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("") };
+                    r.Headers.Location = new Uri(sesion);
+                    return r;
+                }
+                return FakeDriveHandler.Json("{\"id\":\"subido-1\"}");
+            });
+            var manager = new DriveManager(FakeDrive.CreateService(handler));
+            string archivo = CrearArchivo("save.dat", "datos del juego");
+            var avisos = new System.Collections.Generic.List<long>();
+
+            await manager.SubirArchivo(archivo, "carpeta-1", CancellationToken.None, b => avisos.Add(b));
+
+            Assert.NotEmpty(avisos);
+            Assert.Equal(new FileInfo(archivo).Length, avisos[avisos.Count - 1]);
+        }
+
+        [Fact]
         public async Task SubirArchivo_EnviaLaFechaOriginalDelArchivo()
         {
             const string sesion = "https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable&upload_id=abc";

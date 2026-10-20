@@ -18,6 +18,12 @@ namespace SaviumDrive.Services
         public string OperationName { get; set; } // "Subiendo..." o "Descargando..."
         public string DetailMessage { get; set; } // "Archivo.dat (12MB/50MB)"
         public bool IsActive { get; set; }
+
+        /// <summary>Nombre del juego en la biblioteca (para pintar el progreso en su tarjeta).</summary>
+        public string JuegoNombre { get; set; }
+        public long BytesEnviados { get; set; }
+        public long BytesTotal { get; set; }
+        public double BytesPorSegundo { get; set; }
     }
 
     public class LibraryContainer
@@ -42,6 +48,12 @@ namespace SaviumDrive.Services
         /// <summary>Se pidió cancelar y la operación todavía está terminando (borrando lo subido, etc.).</summary>
         public bool Cancelando { get; private set; }
 
+        /// <summary>Juego de la operación en curso (su tarjeta muestra el progreso).</summary>
+        public string JuegoEnCurso { get; private set; }
+
+        /// <summary>Juego que se está agregando: se muestra en la biblioteca, en gris, mientras se sube.</summary>
+        public GameConfig JuegoProvisional { get; private set; }
+
         /// <summary>Sesión de Drive ya autenticada (para reutilizarla al reabrir la ventana).</summary>
         public Google.Apis.Drive.v3.DriveService DriveService => _driveManager.Service;
 
@@ -63,9 +75,10 @@ namespace SaviumDrive.Services
         private string GetStr(string key) => ResourceHelper.GetString(key);
 
         // Notificar a la UI
-        private void NotifyProgress(string gameName, int percent, string opKey, string detail, bool active)
+        private void NotifyProgress(string gameName, int percent, string opKey, string detail, bool active, UploadMeter medidor = null)
         {
             IsBusy = active;
+            if (!active) { JuegoEnCurso = null; JuegoProvisional = null; }
             // Mientras se cancela, no volver a decir "Subiendo..."
             if (active && Cancelando) { percent = -1; opKey = "Login_Button_Cancelling"; detail = GetStr("Login_Button_Cancelling"); }
 
@@ -78,7 +91,11 @@ namespace SaviumDrive.Services
                 Percentage = percent,
                 OperationName = opText,
                 DetailMessage = detail,
-                IsActive = active
+                IsActive = active,
+                JuegoNombre = active ? JuegoEnCurso : null,
+                BytesEnviados = medidor?.Enviados ?? 0,
+                BytesTotal = medidor?.Total ?? 0,
+                BytesPorSegundo = medidor?.BytesPorSegundo ?? 0
             };
 
             // Guardar estado para cuando LibraryPage se recargue
@@ -127,10 +144,10 @@ namespace SaviumDrive.Services
             if (IsBusy) NotifyProgress(LastProgressArgs?.GameName ?? "", -1, "", "", true);
         }
 
-        private async Task<T> ConOperacion<T>(Func<CancellationToken, Task<T>> operacion, CancellationToken externo)
+        private async Task<T> ConOperacion<T>(string juego, Func<CancellationToken, Task<T>> operacion, CancellationToken externo)
         {
             var cts = CancellationTokenSource.CreateLinkedTokenSource(externo);
-            lock (_bloqueoOperacion) { _ctsOperacion = cts; Cancelando = false; }
+            lock (_bloqueoOperacion) { _ctsOperacion = cts; Cancelando = false; JuegoEnCurso = juego; }
             try { return await operacion(cts.Token); }
             finally
             {
@@ -142,20 +159,43 @@ namespace SaviumDrive.Services
             }
         }
 
-        private Task ConOperacion(Func<CancellationToken, Task> operacion, CancellationToken externo) =>
-            ConOperacion<bool>(async t => { await operacion(t); return true; }, externo);
+        private Task ConOperacion(string juego, Func<CancellationToken, Task> operacion, CancellationToken externo) =>
+            ConOperacion<bool>(juego, async t => { await operacion(t); return true; }, externo);
 
-        public Task<GameConfig> AgregarJuegoNuevo(string nombre, string rutaLocal, string coverUrl, CancellationToken token) =>
-            ConOperacion(t => AgregarJuegoNuevoCore(nombre, rutaLocal, coverUrl, t), token);
+        public Task<GameConfig> AgregarJuegoNuevo(string nombre, string rutaLocal, string coverUrl, CancellationToken token)
+        {
+            // La tarjeta aparece ya, con su portada en gris, y se va coloreando con el progreso
+            var provisional = new GameConfig { Name = nombre, LocalPath = rutaLocal, CoverUrl = coverUrl, ProgresoTarjeta = 0 };
+            provisional.AsignarRutaEnEstePc(rutaLocal);
+            JuegoProvisional = provisional;
+            return ConOperacion(nombre, t => AgregarJuegoNuevoCore(nombre, rutaLocal, coverUrl, t), token);
+        }
 
         public Task<ResultadoActualizacion> ActualizarBackup(GameConfig juego, GameVersion version, CancellationToken token) =>
-            ConOperacion(t => ActualizarBackupCore(juego, version, t), token);
+            ConOperacion(juego.Name, t => ActualizarBackupCore(juego, version, t), token);
 
         public Task RestaurarJuego(GameConfig juego, GameVersion version, CancellationToken token) =>
-            ConOperacion(t => RestaurarJuegoCore(juego, version, t), token);
+            ConOperacion(juego.Name, t => RestaurarJuegoCore(juego, version, t), token);
 
         public Task<GameVersion> CrearNuevaVersion(GameConfig juego, string descripcion, CancellationToken token) =>
-            ConOperacion(t => CrearNuevaVersionCore(juego, descripcion, t), token);
+            ConOperacion(juego.Name, t => CrearNuevaVersionCore(juego, descripcion, t), token);
+
+        // --- PROGRESO DE SUBIDA ---
+
+        /// <summary>"save.dat · 12,3 MB / 50,0 MB · 2,1 MB/s · quedan 20 s"</summary>
+        private string TextoSubida(UploadMeter m, string archivo)
+        {
+            string texto = $"{archivo} · {UploadMeter.Bytes(m.Enviados)} / {UploadMeter.Bytes(m.Total)}";
+            if (m.BytesPorSegundo > 0) texto += $" · {UploadMeter.Bytes((long)m.BytesPorSegundo)}/s";
+            if (m.Restante is TimeSpan restante) texto += " · " + string.Format(GetStr("MsgTimeLeft"), UploadMeter.Tiempo(restante));
+            return texto;
+        }
+
+        private void AvisarSubida(string nombreProgreso, UploadMeter m, string archivo, bool forzar = false)
+        {
+            if (m.DebeAvisar(forzar))
+                NotifyProgress(nombreProgreso, m.Porcentaje, "StatusUploading", TextoSubida(m, archivo), true, m);
+        }
 
         // --- OPERACIONES (Actualizadas con StatusUploading / StatusDownloading) ---
 
@@ -360,9 +400,7 @@ namespace SaviumDrive.Services
 
                 // 4️⃣ ARMAR EL NUEVO BACKUP: los archivos sin cambios se copian dentro de Drive
                 // (sin volver a subirlos) y solo se suben los nuevos o modificados
-                long totalBytes = local.Values.Sum(h => h.Tamano);
-                long bytesListos = 0;
-                string totalStr = FormatBytes(totalBytes);
+                var medidor = new UploadMeter(local.Values.Sum(h => h.Tamano));
                 var sinCambios = new HashSet<string>(diferencias.SinCambios, StringComparer.OrdinalIgnoreCase);
 
                 // Misma estructura de carpetas (también las vacías); los padres van antes que los hijos
@@ -383,19 +421,23 @@ namespace SaviumDrive.Services
 
                     if (sinCambios.Contains(rel))
                     {
+                        // Sin cambios: se copia dentro de Drive (cuenta para el progreso, no para la velocidad)
                         var original = remoto[rel];
                         await _driveManager.CopiarArchivo(original.Id, idPadre, nombreArchivo, original.ModifiedTimeDateTimeOffset, token);
+                        medidor.Saltar(par.Value.Tamano);
                     }
                     else
                     {
                         string rutaLocal = Path.Combine(juego.RutaEnEstePc, rel.Replace('/', Path.DirectorySeparatorChar));
-                        await Task.Run(() => _driveManager.SubirArchivo(rutaLocal, idPadre, token));
+                        await Task.Run(() => _driveManager.SubirArchivo(rutaLocal, idPadre, token, bytes =>
+                        {
+                            medidor.ProgresoArchivo(bytes);
+                            AvisarSubida(nombreProgreso, medidor, nombreArchivo);
+                        }));
+                        medidor.ArchivoTerminado(par.Value.Tamano);
                     }
 
-                    bytesListos += par.Value.Tamano;
-                    int porcentaje = totalBytes > 0 ? (int)((double)bytesListos / totalBytes * 100) : 0;
-                    string progresoStr = $"{FormatBytes(bytesListos)} / {totalStr}";
-                    NotifyProgress(nombreProgreso, porcentaje, "StatusUploading", string.Format(GetStr("MsgUploadingSize"), nombreArchivo, progresoStr), true);
+                    AvisarSubida(nombreProgreso, medidor, nombreArchivo);
                 }
 
                 // 5️⃣ TODO BIEN: Intercambiar carpetas sin perder el backup viejo si algo falla
@@ -465,19 +507,9 @@ namespace SaviumDrive.Services
 
             string idContenido = _driveManager.GetOrCreateFolder(nombreEnDrive, idCarpetaVersion);
 
-            long totalBytes = GetDirectorySize(rutaLocal);
-            long bytesSubidos = 0;
-            string totalStr = FormatBytes(totalBytes);
-
-            await SubirDirectorioRecursivo(rutaLocal, idContenido, token, (nombreArchivo, pesoArchivo) =>
-            {
-                token.ThrowIfCancellationRequested(); // Verificar cancelación en cada archivo
-                bytesSubidos += pesoArchivo;
-                int porcentaje = totalBytes > 0 ? (int)((double)bytesSubidos / totalBytes * 100) : 0;
-                string progresoStr = $"{FormatBytes(bytesSubidos)} / {totalStr}";
-
-                NotifyProgress(nombreProgreso, porcentaje, "StatusUploading", string.Format(GetStr("MsgUploadingSize"), nombreArchivo, progresoStr), true);
-            });
+            var medidor = new UploadMeter(GetDirectorySize(rutaLocal));
+            await SubirDirectorioRecursivo(rutaLocal, idContenido, token, medidor,
+                (nombreArchivo, forzar) => AvisarSubida(nombreProgreso, medidor, nombreArchivo, forzar));
 
             return (false, null);
         }
@@ -490,13 +522,25 @@ namespace SaviumDrive.Services
             {
                 string zipLocal = Path.Combine(dirTemporal, nombreEnDrive);
 
-                NotifyProgress(nombreProgreso, -1, "StatusUploading", GetStr("MsgCompressing"), true);
-                await Task.Run(() => ZipBackup.Comprimir(rutaLocal, zipLocal, token), token);
+                NotifyProgress(nombreProgreso, 0, "StatusUploading", GetStr("MsgCompressing"), true);
+                var ritmo = new UploadMeter(0); // solo para no avisar más de unas veces por segundo
+                await Task.Run(() => ZipBackup.Comprimir(rutaLocal, zipLocal, token, (hechos, total) =>
+                {
+                    if (ritmo.DebeAvisar(hechos == total))
+                        NotifyProgress(nombreProgreso, total > 0 ? hechos * 100 / total : 0, "MsgCompressing",
+                            string.Format(GetStr("MsgCompressingCount"), hechos, total), true);
+                }), token);
 
                 token.ThrowIfCancellationRequested();
-                string tamano = FormatBytes(new FileInfo(zipLocal).Length);
-                NotifyProgress(nombreProgreso, -1, "StatusUploading", string.Format(GetStr("MsgUploadingSize"), nombreEnDrive, tamano), true);
-                await Task.Run(() => _driveManager.SubirArchivo(zipLocal, idCarpetaDestino, token));
+                var medidor = new UploadMeter(new FileInfo(zipLocal).Length);
+                AvisarSubida(nombreProgreso, medidor, nombreEnDrive, forzar: true);
+                await Task.Run(() => _driveManager.SubirArchivo(zipLocal, idCarpetaDestino, token, bytes =>
+                {
+                    medidor.ProgresoArchivo(bytes);
+                    AvisarSubida(nombreProgreso, medidor, nombreEnDrive);
+                }));
+                medidor.ArchivoTerminado(medidor.Total);
+                AvisarSubida(nombreProgreso, medidor, nombreEnDrive, forzar: true);
             }
             finally
             {
@@ -762,21 +806,29 @@ namespace SaviumDrive.Services
 
 
         // ... (Resto de métodos privados SubirDirectorioRecursivo, DescargarYFusionarNube, etc. MANTENER IGUAL) ...
-        private async Task SubirDirectorioRecursivo(string rutaLocal, string idCarpetaPadreDrive, CancellationToken token, Action<string, long> onFileUploaded)
+        /// <param name="alAvanzar">(archivo, forzar aviso) durante y al terminar cada archivo.</param>
+        private async Task SubirDirectorioRecursivo(string rutaLocal, string idCarpetaPadreDrive, CancellationToken token, UploadMeter medidor, Action<string, bool> alAvanzar)
         {
             token.ThrowIfCancellationRequested();
             var archivos = Directory.GetFiles(rutaLocal);
             foreach (var archivo in archivos)
             {
+                token.ThrowIfCancellationRequested();
                 long peso = new FileInfo(archivo).Length;
-                await Task.Run(() => _driveManager.SubirArchivo(archivo, idCarpetaPadreDrive, token));
-                onFileUploaded?.Invoke(Path.GetFileName(archivo), peso);
+                string nombre = Path.GetFileName(archivo);
+                await Task.Run(() => _driveManager.SubirArchivo(archivo, idCarpetaPadreDrive, token, bytes =>
+                {
+                    medidor.ProgresoArchivo(bytes);
+                    alAvanzar(nombre, false);
+                }));
+                medidor.ArchivoTerminado(peso);
+                alAvanzar(nombre, false);
             }
             var subCarpetas = Directory.GetDirectories(rutaLocal);
             foreach (var carpeta in subCarpetas)
             {
                 string idNueva = _driveManager.GetOrCreateFolder(Path.GetFileName(carpeta), idCarpetaPadreDrive);
-                await SubirDirectorioRecursivo(carpeta, idNueva, token, onFileUploaded);
+                await SubirDirectorioRecursivo(carpeta, idNueva, token, medidor, alAvanzar);
             }
         }
 

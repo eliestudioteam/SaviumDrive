@@ -55,6 +55,17 @@ namespace SaviumDrive.Tests
         // --- Cancelar ---
 
         [Fact]
+        public void Comprimir_AvisaDeCadaArchivo()
+        {
+            for (int i = 0; i < 5; i++) Archivo($"slot{i}.sav", "datos");
+            var avisos = new System.Collections.Generic.List<(int, int)>();
+
+            ZipBackup.Comprimir(_origen, Path.Combine(_raiz, "b.zip"), default, (h, t) => avisos.Add((h, t)));
+
+            Assert.Equal(new[] { (1, 5), (2, 5), (3, 5), (4, 5), (5, 5) }, avisos);
+        }
+
+        [Fact]
         public void Comprimir_Cancelado_SeDetieneSinTerminarElZip()
         {
             for (int i = 0; i < 20; i++) Archivo($"slot{i}.sav", "datos");

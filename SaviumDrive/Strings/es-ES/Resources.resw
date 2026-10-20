@@ -346,4 +346,6 @@
 	<data name="DetectorSubMsgSave" xml:space="preserve"><value>Ya está en tu biblioteca. ¿Quieres guardar el backup de {0} ahora?</value></data>
 	<data name="BtnSaveNow" xml:space="preserve"><value>Guardar ahora</value></data>
 	<data name="PathHintGuessed" xml:space="preserve"><value>📂 Carpeta encontrada en una ubicación habitual. Revísala antes de guardar.</value></data>
+	<data name="MsgTimeLeft" xml:space="preserve"><value>quedan {0}</value></data>
+	<data name="MsgCompressingCount" xml:space="preserve"><value>{0} de {1} archivos</value></data>
 </root>
