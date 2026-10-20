@@ -1,4 +1,5 @@
 ﻿using Newtonsoft.Json.Linq;
+using SaviumDrive.Core;
 using System;
 using System.Collections.Generic;
 using System.Net.Http;
@@ -13,8 +14,6 @@ namespace SaviumDrive.Helpers
     /// </summary>
     public class SteamGridApi
     {
-        // Clave de la API de SteamGridDB (gratuita, se obtiene en la configuración de la cuenta)
-        private const string API_KEY = "785959dce88bcfdbd344872dc36ac19b";
         private const string BASE_URL = "https://www.steamgriddb.com/api/v2";
 
         // Un solo cliente para toda la app: crear uno por búsqueda deja sockets y memoria sin liberar
@@ -23,7 +22,8 @@ namespace SaviumDrive.Helpers
         private static HttpClient CrearCliente()
         {
             var client = new HttpClient { Timeout = TimeSpan.FromSeconds(20) };
-            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", API_KEY);
+            // La clave no está en el código: se inyecta al compilar (ver Core/AppSecrets.cs)
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", AppSecrets.SteamGridDbApiKey);
             return client;
         }
 
@@ -34,6 +34,8 @@ namespace SaviumDrive.Helpers
         public async Task<List<string>> BuscarPortadas(string nombreJuego, string steamAppId = null)
         {
             var resultados = new List<string>();
+            // Compilación sin clave de SteamGridDB: sin portadas, como si no hubiera resultados
+            if (string.IsNullOrEmpty(AppSecrets.SteamGridDbApiKey)) return resultados;
             try
             {
                 var client = _client;

@@ -32,6 +32,14 @@
 		<!-- Compacta el heap con más frecuencia para devolver memoria al sistema (0-9) -->
 		<RuntimeHostConfigurationOption Include="System.GC.ConserveMemory" Value="7" />
 	</ItemGroup>
+	<!-- CLAVES DE API: no se suben al repositorio. Se leen de Secrets.props (copia de Secrets.props.example,
+	     ignorado por git) o de variables de entorno con el mismo nombre (GitHub Actions). Ver Core/AppSecrets.cs -->
+	<Import Project="Secrets.props" Condition="Exists('Secrets.props')" />
+	<ItemGroup>
+		<AssemblyMetadata Include="SteamGridDbApiKey" Value="$(SteamGridDbApiKey)" />
+		<AssemblyMetadata Include="GoogleClientId" Value="$(GoogleClientId)" />
+		<AssemblyMetadata Include="GoogleClientSecret" Value="$(GoogleClientSecret)" />
+	</ItemGroup>
 	<!-- Sin las herramientas de C++ (MSVC) instaladas, el compilador XAML falla al buscarlas desde Visual Studio.
 	     Este proyecto es solo C#, así que se omite esa búsqueda cuando no existen. -->
 	<PropertyGroup Condition="'$(VsInstallRoot)' != '' and !Exists('$(VsInstallRoot)\VC\Tools\MSVC')">
