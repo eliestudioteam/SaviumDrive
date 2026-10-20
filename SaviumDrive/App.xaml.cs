@@ -61,6 +61,11 @@ namespace SaviumDrive
             _startedWithWindows = Environment.GetCommandLineArgs()
                 .Any(a => a.Equals(SettingsService.StartupArgument, StringComparison.OrdinalIgnoreCase));
 
+#if DEBUG
+            // Solo en Debug: abrir el aviso del detector o las novedades sin jugar ni actualizar (para revisarlas)
+            if (AbrirVentanaDePrueba()) return;
+#endif
+
             // 1️⃣ Servicios básicos inmediatos
             NetworkService = new NetworkService();
             TrayService = new TrayIconService(_dispatcher);
@@ -223,6 +228,27 @@ namespace SaviumDrive
         }
 
         /// <summary>Juego de la biblioteca con el mismo nombre (sin mayúsculas, espacios ni símbolos), o null.</summary>
+#if DEBUG
+        /// <summary>"--probar-aviso" o "--probar-novedades": abre esa ventana sola y cierra la app al cerrarla.</summary>
+        private bool AbrirVentanaDePrueba()
+        {
+            var args = Environment.GetCommandLineArgs();
+            Window ventana = null;
+            if (args.Contains("--probar-aviso"))
+                ventana = new BackupReminderWindow("Alan Wake", args.Contains("--en-biblioteca") ? "ALAN WAKE V1" : null);
+            else if (args.Contains("--probar-novedades"))
+                ventana = new ChangelogWindow("1.1.0",
+                    "## Novedades\n- **Progreso real** al subir, con velocidad y tiempo restante\n- La portada se colorea mientras se sube, como en Epic Games\n" +
+                    "  - También al actualizar o restaurar\n- Corrección del botón `Cancelar`\n\n### Mejoras\n1. El aviso del detector ya no se puede redimensionar\n" +
+                    "2. Esta ventana se ve bien con cualquier escala de pantalla\n\n---\n**Full Changelog**: https://github.com/eliestudioteam/SaviumDrive/compare/v1.0.0...v1.1.0");
+            if (ventana == null) return false;
+
+            ventana.Closed += (_, __) => Exit();
+            ventana.Activate();
+            return true;
+        }
+#endif
+
         private static Models.GameConfig BuscarEnBiblioteca(string nombre)
         {
             string buscado = LudusaviIndex.Normalizar(nombre);

@@ -36,44 +36,40 @@ namespace SaviumDrive.Views
                 root.RequestedTheme = SettingsService.Current.DarkMode ? ElementTheme.Dark : ElementTheme.Light;
             }
 
+            // Primero la barra de título: extenderla después de configurar la ventana
+            // puede devolverle el borde redimensionable
+            ExtendsContentIntoTitleBar = true;
+            SetTitleBar(AppTitleBar);
+            this.Title = "Savium Drive";
+
             IntPtr hWnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
             Microsoft.UI.WindowId wndId = Microsoft.UI.Win32Interop.GetWindowIdFromWindow(hWnd);
             _appWindow = AppWindow.GetFromWindowId(wndId);
 
-            // 1. Definir tamaño fijo
-            var windowSize = new Windows.Graphics.SizeInt32(400, 220);
-            _appWindow.Resize(windowSize);
-
-            // 2. 🔥 CENTRAR EN PANTALLA
-            CenterWindow(windowSize);
-
-            var presenter = OverlappedPresenter.Create();
+            // Tamaño fijo: no se puede agrandar, achicar, maximizar ni minimizar
+            var presenter = _appWindow.Presenter as OverlappedPresenter ?? OverlappedPresenter.Create();
+            presenter.IsResizable = false;
             presenter.IsMaximizable = false;
             presenter.IsMinimizable = false;
-            presenter.IsResizable = false;
             presenter.IsAlwaysOnTop = true;
-            _appWindow.SetPresenter(presenter);
+            if (_appWindow.Presenter != presenter) _appWindow.SetPresenter(presenter);
 
-            ExtendsContentIntoTitleBar = true;
-            SetTitleBar(AppTitleBar);
-            this.Title = "Savium Drive";
+            // En píxeles lógicos: se ve igual con cualquier escala de Windows, centrada en su pantalla
+            _tamanoFijo = WindowSizing.AjustarYCentrar(_appWindow, hWnd, 420, 230);
+
+            // Aunque no tenga borde, Windows aún puede maximizarla o encajarla (doble clic en la barra,
+            // Windows + flechas): se devuelve siempre a su tamaño
+            _appWindow.Changed += MantenerTamano;
+            Closed += (_, __) => _appWindow.Changed -= MantenerTamano;
         }
 
-        // 🔥 MÉTODO PARA CENTRAR
-        private void CenterWindow(Windows.Graphics.SizeInt32 size)
+        private Windows.Graphics.SizeInt32 _tamanoFijo;
+
+        private void MantenerTamano(AppWindow ventana, AppWindowChangedEventArgs cambio)
         {
-            try
-            {
-                // Obtener la pantalla donde debería aparecer la ventana (Primary por defecto)
-                DisplayArea displayArea = DisplayArea.GetFromWindowId(_appWindow.Id, DisplayAreaFallback.Primary);
-
-                // Calcular el centro relativo al área de trabajo (excluyendo barra de tareas)
-                int x = ((displayArea.WorkArea.Width - size.Width) / 2) + displayArea.WorkArea.X;
-                int y = ((displayArea.WorkArea.Height - size.Height) / 2) + displayArea.WorkArea.Y;
-
-                _appWindow.Move(new Windows.Graphics.PointInt32(x, y));
-            }
-            catch { /* Ignorar errores de cálculo en entornos extraños */ }
+            if (!cambio.DidSizeChange && !cambio.DidPresenterChange) return;
+            if (ventana.Presenter is OverlappedPresenter p && p.State != OverlappedPresenterState.Restored) p.Restore();
+            if (ventana.Size.Width != _tamanoFijo.Width || ventana.Size.Height != _tamanoFijo.Height) ventana.Resize(_tamanoFijo);
         }
 
         private void BtnNo_Click(object sender, RoutedEventArgs e)

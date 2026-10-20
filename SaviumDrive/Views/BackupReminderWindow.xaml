@@ -53,7 +53,11 @@
             <Button x:Name="BtnNo" Click="BtnNo_Click" Grid.Column="0" 
                     x:Uid="BtnNoConfig"
                     Style="{StaticResource StandardBtnStyle}" 
-                    HorizontalAlignment="Stretch"/>
+                    HorizontalAlignment="Stretch">
+                <Button.KeyboardAccelerators>
+                    <KeyboardAccelerator Key="Escape"/>
+                </Button.KeyboardAccelerators>
+            </Button>
 
             <!-- Botón SÍ -->
             <Button x:Name="BtnYes" Click="BtnYes_Click" Grid.Column="2" 

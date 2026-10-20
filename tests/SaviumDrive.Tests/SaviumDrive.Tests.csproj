@@ -28,6 +28,7 @@
 		<Compile Include="..\..\SaviumDrive\Services\LudusaviIndex.cs" Link="App\LudusaviIndex.cs" />
 		<Compile Include="..\..\SaviumDrive\Services\ZipBackup.cs" Link="App\ZipBackup.cs" />
 		<Compile Include="..\..\SaviumDrive\Services\UploadMeter.cs" Link="App\UploadMeter.cs" />
+		<Compile Include="..\..\SaviumDrive\Services\ChangelogMarkdown.cs" Link="App\ChangelogMarkdown.cs" />
 		<Compile Include="..\..\SaviumDrive\Services\BackupDiff.cs" Link="App\BackupDiff.cs" />
 		<Compile Include="..\..\SaviumDrive\Services\SaveTimestamps.cs" Link="App\SaveTimestamps.cs" />
 	</ItemGroup>

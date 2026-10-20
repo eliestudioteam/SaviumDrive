@@ -6,70 +6,66 @@
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d">
 
-    <Grid Background="{ThemeResource AppBackground}">
+    <Grid x:Name="Raiz" Background="{ThemeResource AppBackground}">
         <Grid.RowDefinitions>
+            <RowDefinition Height="32"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <!-- Header -->
-        <Grid Grid.Row="0" Padding="30,30,30,20">
-            <StackPanel Spacing="10">
-                <StackPanel Orientation="Horizontal" Spacing="15" HorizontalAlignment="Center">
-                    <FontIcon Glyph="&#xE74C;" FontFamily="Segoe MDL2 Assets" FontSize="36" Foreground="{ThemeResource AccentColor}"/>
-                    <TextBlock x:Uid="ChangelogTitle" FontSize="28" FontWeight="SemiBold" Foreground="{ThemeResource TextPrimary}" VerticalAlignment="Center"/>
-                </StackPanel>
-
-                <TextBlock x:Name="TxtVersionInfo" 
-                          Text="Version 1.0.1" 
-                          FontSize="14" 
-                          Foreground="{ThemeResource TextSecondary}" 
-                          HorizontalAlignment="Center"/>
+        <!-- Barra de título (se puede arrastrar) -->
+        <Grid x:Name="AppTitleBar" Grid.Row="0" Background="Transparent">
+            <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center" Margin="15,0,0,0">
+                <Image Source="ms-appx:///Assets/StoreLogo.png" Width="16" Height="16"/>
+                <TextBlock Text="Savium Drive" FontSize="12" Foreground="{ThemeResource TextSecondary}"/>
             </StackPanel>
         </Grid>
 
-        <!-- Changelog Content -->
-        <ScrollViewer Grid.Row="1" Padding="30,0,30,20">
-            <Border Background="{ThemeResource CardBackground}" 
-                    CornerRadius="12" 
-                    Padding="25"
-                    BorderBrush="{ThemeResource DividerColor}"
-                    BorderThickness="1">
-                <StackPanel Spacing="15">
-                    <!-- Icono y mensaje de bienvenida -->
-                    <StackPanel Spacing="8">
-                        <TextBlock x:Uid="ChangelogWelcome" 
-                                 FontSize="16" 
-                                 Foreground="{ThemeResource TextPrimary}" 
-                                 TextWrapping="Wrap"/>
-                    </StackPanel>
-
-                    <Border Height="1" Background="{ThemeResource DividerColor}" Margin="0,10,0,10"/>
-
-                    <!-- Contenido del changelog -->
-                    <RichTextBlock x:Name="ChangelogContent" 
-                                 IsTextSelectionEnabled="True"
-                                 Foreground="{ThemeResource TextSecondary}">
-                        <Paragraph>
-                            <Run Text="Loading changelog..."/>
-                        </Paragraph>
-                    </RichTextBlock>
+        <!-- Cabecera -->
+        <StackPanel Grid.Row="1" Padding="32,12,32,20" Spacing="8">
+            <StackPanel Orientation="Horizontal" Spacing="14">
+                <Border Width="44" Height="44" CornerRadius="22" Background="{ThemeResource AccentColor}">
+                    <FontIcon Glyph="&#xE734;" FontFamily="Segoe MDL2 Assets" FontSize="20" Foreground="White"/>
+                </Border>
+                <StackPanel VerticalAlignment="Center" Spacing="2">
+                    <TextBlock x:Uid="ChangelogTitle" FontSize="24" FontWeight="SemiBold" Foreground="{ThemeResource TextPrimary}"/>
+                    <TextBlock x:Name="TxtVersionInfo" FontSize="13" Foreground="{ThemeResource TextSecondary}"/>
                 </StackPanel>
+            </StackPanel>
+            <TextBlock x:Uid="ChangelogWelcome" FontSize="14" Margin="0,8,0,0"
+                       Foreground="{ThemeResource TextSecondary}" TextWrapping="Wrap"/>
+        </StackPanel>
+
+        <!-- Notas de la versión -->
+        <ScrollViewer Grid.Row="2" Padding="32,0,32,20" VerticalScrollBarVisibility="Auto">
+            <Border Background="{ThemeResource CardBackground}" CornerRadius="12" Padding="24,18" VerticalAlignment="Top"
+                    BorderBrush="{ThemeResource DividerColor}" BorderThickness="1">
+                <RichTextBlock x:Name="ChangelogContent" IsTextSelectionEnabled="True" FontSize="14"
+                               LineHeight="22" Foreground="{ThemeResource TextPrimary}" TextWrapping="Wrap"/>
             </Border>
         </ScrollViewer>
 
-        <!-- Footer con botón -->
-        <Grid Grid.Row="2" Background="{ThemeResource NavBackground}" Padding="30,20">
-            <Button x:Name="BtnClose"
-                    Click="BtnClose_Click"
-                    Background="{ThemeResource ActionBackground}"
-                    Foreground="{ThemeResource ActionText}"
-                    Padding="40,12"
-                    CornerRadius="20"
-                    HorizontalAlignment="Center">
-                <StackPanel Orientation="Horizontal" Spacing="10">
-                    <FontIcon Glyph="&#xE73E;" FontFamily="Segoe MDL2 Assets"/>
+        <!-- Botones -->
+        <Grid Grid.Row="3" Background="{ThemeResource NavBackground}" Padding="32,16">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+
+            <Button x:Name="BtnGitHub" Click="BtnGitHub_Click" Style="{StaticResource StandardBtnStyle}" Padding="16,8">
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <FontIcon Glyph="&#xE8A7;" FontFamily="Segoe MDL2 Assets" FontSize="13"/>
+                    <TextBlock x:Uid="ChangelogGitHubBtn"/>
+                </StackPanel>
+            </Button>
+
+            <Button x:Name="BtnClose" Grid.Column="1" Click="BtnClose_Click" Style="{StaticResource ActionButtonStyle}" Padding="28,8">
+                <Button.KeyboardAccelerators>
+                    <KeyboardAccelerator Key="Escape"/>
+                </Button.KeyboardAccelerators>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <FontIcon Glyph="&#xE73E;" FontFamily="Segoe MDL2 Assets" FontSize="13"/>
                     <TextBlock x:Uid="ChangelogCloseBtn" FontWeight="Bold"/>
                 </StackPanel>
             </Button>
