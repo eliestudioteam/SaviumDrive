@@ -48,10 +48,7 @@ namespace SaviumDrive.Views
             BtnUpdate.Foreground = updateTextBrush;
         }
 
-        private string GetCurrentVersion()
-        {
-            return "1.0.0 Beta";
-        }
+        private string GetCurrentVersion() => UpdateService.DisplayVersion;
 
         private void BtnBack_Click(object sender, RoutedEventArgs e)
         {
@@ -155,7 +152,7 @@ namespace SaviumDrive.Views
                     });
                 });
 
-                string installerPath = await _updateService.DownloadUpdateAsync(_currentUpdate.DownloadUrl, progress);
+                string installerPath = await _updateService.DownloadUpdateAsync(_currentUpdate, progress);
 
                 await ShowSuccessDialog(
                     ResourceHelper.GetString("UpdateDownloadComplete"),
@@ -164,7 +161,8 @@ namespace SaviumDrive.Views
 
                 _updateService.SaveUpdateInfo(_currentUpdate);
                 _updateService.InstallUpdate(installerPath);
-                Application.Current.Exit();
+                // El instalador espera a que la app se cierre del todo y luego la vuelve a abrir
+                App.SalirAplicacion();
             }
             catch (Exception ex)
             {
