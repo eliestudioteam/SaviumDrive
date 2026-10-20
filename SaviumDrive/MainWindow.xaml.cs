@@ -788,6 +788,15 @@ namespace SaviumDrive
         {
             try
             {
+                // 0️ Si hay una subida, actualización o restauración en curso, cancelarla y esperar a que
+                // termine (borra en Drive lo subido a medias) antes de revocar el acceso
+                var servicio = App.LibraryService;
+                if (servicio != null && servicio.IsBusy)
+                {
+                    servicio.CancelarOperacionActual();
+                    for (int i = 0; i < 50 && servicio.IsBusy; i++) await Task.Delay(200);
+                }
+
                 // 1️ Revocar acceso en Google y eliminar token
                 await GoogleAuth.RevocarAcceso();
 

@@ -100,7 +100,7 @@ namespace SaviumDrive.Views
 
                     MostrarProgreso(e);
                     ActualizarTarjeta(e);
-                    if (App.LibraryService.Cancelando) MostrarCancelando();
+                    if (App.LibraryService?.Cancelando == true) MostrarCancelando();
                 }
                 else
                 {
@@ -147,7 +147,9 @@ namespace SaviumDrive.Views
         {
             try
             {
-                var juegos = await App.LibraryService.CargarSoloLocal();
+                var servicio = App.LibraryService;
+                if (servicio == null) return; // se cerró la sesión
+                var juegos = await servicio.CargarSoloLocal();
                 ActualizarLista(juegos);
             }
             catch { }
@@ -157,24 +159,27 @@ namespace SaviumDrive.Views
         {
             try
             {
-                if (App.LibraryService == null) return;
+                // La sesión de ahora (si se cierra mientras carga, App.LibraryService pasa a null)
+                var servicio = App.LibraryService;
+                if (servicio == null) return;
 
-                if (!App.LibraryService.IsBusy) BtnText.Text = ResourceHelper.GetString("BtnAddGame");
+                if (!servicio.IsBusy) BtnText.Text = ResourceHelper.GetString("BtnAddGame");
 
                 // 1. Carga rápida local
-                var local = await App.LibraryService.CargarSoloLocal();
+                var local = await servicio.CargarSoloLocal();
                 ActualizarLista(local);
-                var ultimo = App.LibraryService.LastProgressArgs;
-                if (App.LibraryService.IsBusy && ultimo != null && ultimo.IsActive) ActualizarTarjeta(ultimo);
+                var ultimo = servicio.LastProgressArgs;
+                if (servicio.IsBusy && ultimo != null && ultimo.IsActive) ActualizarTarjeta(ultimo);
 
                 // 2. 🔥 SINCRONIZAR SI NO ESTÁ OCUPADO
-                if (!App.LibraryService.IsBusy)
+                if (!servicio.IsBusy && servicio == App.LibraryService)
                 {
                     // Nos aseguramos de suscribirnos para ver la animación "Sincronizando..."
                     SuscribirProgreso();
 
                     // Llamada a la sincronización (ahora reportará progreso a través del evento)
-                    var cloudList = await App.LibraryService.SincronizarYActualizar();
+                    var cloudList = await servicio.SincronizarYActualizar();
+                    if (servicio != App.LibraryService) return; // se cerró la sesión mientras sincronizaba
                     ActualizarLista(cloudList);
                 }
             }
