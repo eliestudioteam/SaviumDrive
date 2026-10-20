@@ -225,7 +225,8 @@ namespace SaviumDrive.Core
 
             Process.Start(new ProcessStartInfo { FileName = authorizationUrl, UseShellExecute = true });
 
-            using (var listener = new HttpListener())
+            var listener = new HttpListener();
+            try
             {
                 listener.Prefixes.Add(RedirectUri);
                 listener.Start();
@@ -240,10 +241,13 @@ namespace SaviumDrive.Core
                 var coll = context.Request.QueryString;
 
                 var buffer = Encoding.UTF8.GetBytes(PaginaDeRespuesta(coll["error"]));
-                context.Response.ContentType = "text/html; charset=utf-8";
-                context.Response.ContentLength64 = buffer.Length;
-                context.Response.OutputStream.Write(buffer, 0, buffer.Length);
-                context.Response.OutputStream.Close();
+                var respuesta = context.Response;
+                respuesta.ContentType = "text/html; charset=utf-8";
+                respuesta.ContentLength64 = buffer.Length;
+                respuesta.KeepAlive = false;
+                await respuesta.OutputStream.WriteAsync(buffer, 0, buffer.Length).ConfigureAwait(false);
+                await respuesta.OutputStream.FlushAsync().ConfigureAwait(false);
+                respuesta.Close();
 
                 return new AuthorizationCodeResponseUrl
                 {
@@ -253,6 +257,12 @@ namespace SaviumDrive.Core
                     ErrorDescription = coll["error_description"],
                     ErrorUri = coll["error_uri"]
                 };
+            }
+            finally
+            {
+                // Cerrar el puerto unos segundos después: si se cierra en el acto, .NET corta la conexión
+                // antes de que el navegador reciba toda la página (con el logo pesa ~16 KB) y se ve en negro
+                _ = Task.Delay(TimeSpan.FromSeconds(5)).ContinueWith(_ => { try { listener.Close(); } catch { } });
             }
         }
 
