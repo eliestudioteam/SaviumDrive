@@ -254,7 +254,6 @@ namespace SaviumDrive
             });
         }
 
-        /// <summary>Juego de la biblioteca con el mismo nombre (sin mayúsculas, espacios ni símbolos), o null.</summary>
 #if DEBUG
         /// <summary>"--probar-aviso" o "--probar-novedades": abre esa ventana sola y cierra la app al cerrarla.</summary>
         private bool AbrirVentanaDePrueba()
@@ -276,6 +275,7 @@ namespace SaviumDrive
         }
 #endif
 
+        /// <summary>Juego de la biblioteca con el mismo nombre (sin mayúsculas, espacios ni símbolos), o null.</summary>
         private static Models.GameConfig BuscarEnBiblioteca(string nombre)
         {
             string buscado = LudusaviIndex.Normalizar(nombre);

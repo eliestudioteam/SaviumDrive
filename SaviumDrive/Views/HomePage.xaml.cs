@@ -299,12 +299,11 @@ namespace SaviumDrive.Views
             return grid;
         }
 
+        /// <summary>Botón "Crear nuevo respaldo": abre la biblioteca con el diálogo de agregar juego.</summary>
         private void BtnQuickAddBackup_Click(object sender, RoutedEventArgs e)
         {
-            // Obtenemos la referencia a la ventana principal
             if (App.MainWindow is MainWindow main)
             {
-                // Le pedimos que navegue a LibraryPage, marque el botón "Library" y pase el parámetro
                 main.NavegarExterna(typeof(LibraryPage), "Library", "openDialog");
             }
         }

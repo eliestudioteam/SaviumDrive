@@ -73,10 +73,6 @@ namespace SaviumDrive.Core
         /// Devuelve un cliente de Drive autenticado. Si hay una sesión guardada válida la reutiliza sin abrir
         /// el navegador; si no, abre la pantalla de consentimiento de Google y espera la respuesta.
         /// </summary>
-        /// <summary>
-        /// Devuelve un cliente de Drive autenticado. Si hay una sesión guardada válida la reutiliza sin abrir
-        /// el navegador; si no, abre la pantalla de consentimiento de Google y espera la respuesta.
-        /// </summary>
         public static async Task<DriveService> Autenticar(CancellationToken cancellationToken)
         {
             if (intentosLogin >= MaxIntentosPermitidos &&
@@ -152,7 +148,6 @@ namespace SaviumDrive.Core
         }
 
         /// <summary>Cierra la sesión: revoca el permiso en Google y borra el token guardado.</summary>
-        /// <summary>Cierra la sesión: revoca el permiso en Google y borra el token guardado.</summary>
         public static async Task RevocarAcceso()
         {
             try
@@ -176,7 +171,6 @@ namespace SaviumDrive.Core
         }
 
         /// <summary>True si el token guardado existe y no ha caducado.</summary>
-        /// <summary>True si el token guardado existe y no ha caducado.</summary>
         public static async Task<bool> ValidarToken()
         {
             try
@@ -190,7 +184,6 @@ namespace SaviumDrive.Core
         }
 
         /// <summary>Intentos fallidos acumulados y minutos que faltan para poder volver a intentarlo.</summary>
-        /// <summary>Intentos fallidos acumulados y minutos que faltan para poder volver a intentarlo.</summary>
         public static (int intentos, int minutosRestantes) ObtenerEstadoRateLimit()
         {
             int minutosRestantes = 0;
@@ -202,10 +195,6 @@ namespace SaviumDrive.Core
             return (intentosLogin, minutosRestantes);
         }
 
-        /// <summary>
-        /// True si hay una sesión guardada con la que entrar sin abrir el navegador.
-        /// Se usa al arrancar para decidir entre entrar directamente o mostrar la pantalla de inicio de sesión.
-        /// </summary>
         /// <summary>
         /// True si hay una sesión guardada con la que entrar sin abrir el navegador.
         /// Se usa al arrancar para decidir entre entrar directamente o mostrar la pantalla de inicio de sesión.
@@ -316,7 +305,6 @@ namespace SaviumDrive.Core
             return LoginResponsePage.Crear(error, espanol, ajustes?.DarkMode ?? true, logo, SaviumDrive.Services.ProtocolService.EnlaceAbrir);
         }
 
-        /// <summary>Pide al sistema un puerto TCP libre en la interfaz local.</summary>
         /// <summary>Pide al sistema un puerto TCP libre en la interfaz local.</summary>
         private int GetRandomUnusedPort()
         {

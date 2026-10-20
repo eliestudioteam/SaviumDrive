@@ -925,12 +925,10 @@ namespace SaviumDrive.Services
                     catch (OperationCanceledException)
                     {
                         System.Diagnostics.Debug.WriteLine("Sincronización timeout después de 30 segundos");
-                        // Se sigue con los datos locales
                     }
                     catch (System.Net.Http.HttpRequestException ex)
                     {
                         System.Diagnostics.Debug.WriteLine($"Error de red en sincronización: {ex.Message}");
-                        // No lanzar - continuar con datos locales
                     }
                 }
 
@@ -939,7 +937,6 @@ namespace SaviumDrive.Services
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"Error general en sincronización: {ex.Message}");
-                // Ante cualquier error, se sigue con los datos locales
                 return await CargarSoloLocal();
             }
             finally
