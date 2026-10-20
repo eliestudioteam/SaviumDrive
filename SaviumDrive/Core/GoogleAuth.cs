@@ -18,7 +18,8 @@ namespace SaviumDrive.Core
 {
     public static class GoogleAuth
     {
-        static string[] Scopes = { DriveService.Scope.Drive };
+        // Solo los archivos que crea la app (ver OAuthScopes): no todo el Drive del usuario
+        static string[] Scopes = OAuthScopes.Actuales;
         static string ApplicationName = "SaviumDrive";
 
         // Client
@@ -29,49 +30,6 @@ namespace SaviumDrive.Core
             System.Text.Encoding.UTF8.GetString(
                 Convert.FromBase64String("R09DU1BYLUFpekN2Wk1CcndJUEFYalRFNkwtYVlGZDJ6bnY=")
             );
-
-        // 🔥 HTML PERSONALIZADO
-        private const string ClosePageResponseHtml = @"
-            <html>
-              <head>
-                <meta charset='utf-8'>
-                <title>Savium Drive</title>
-                <style>
-                  body { background-color: #151515; color: #FFFFFF; font-family: 'Segoe UI Variable', 'Segoe UI', sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; user-select: none; }
-                  .card { background-color: #2D2D2D; padding: 48px; border-radius: 8px; box-shadow: 0 8px 32px rgba(0,0,0,0.5); text-align: center; width: 100%; max-width: 420px; border: 1px solid #3C3C3C; }
-                  h1 { font-weight: 600; margin-bottom: 16px; font-size: 24px; }
-                  p { color: #D0D0D0; margin: 0; font-size: 15px; line-height: 1.5; }
-                  .footer-text { color: #909090; font-size: 13px; margin-top: 32px; }
-                  .icon-container { color: #6CCB5F; margin-bottom: 24px; display: inline-block; }
-                </style>
-                <script>
-                  const i18n = {
-                    es: { title: '¡Conectado!', msg: 'Has iniciado sesión correctamente en Savium Drive.', footer: 'Esta ventana ya se puede cerrar.' }
-                  };
-                  window.onload = function() {
-                    try {
-                        const userLang = navigator.language || navigator.userLanguage || 'en';
-                        if (userLang.startsWith('es')) {
-                            document.getElementById('txt-title').innerText = i18n.es.title;
-                            document.getElementById('txt-msg').innerText = i18n.es.msg;
-                            document.getElementById('txt-footer').innerText = i18n.es.footer;
-                        }
-                        setTimeout(function() { window.close(); }, 3000);
-                    } catch (e) { console.error(e); }
-                  };
-                </script>
-              </head>
-              <body>
-                <div class='card'>
-                    <div class='icon-container'>
-                        <svg width='64' height='64' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><path d='M22 11.08V12a10 10 0 1 1-5.93-9.14'></path><polyline points='22 4 12 14.01 9 11.01'></polyline></svg>
-                    </div>
-                    <h1 id='txt-title'>Connected!</h1>
-                    <p id='txt-msg'>You have successfully logged in to Savium Drive.</p>
-                    <p class='footer-text' id='txt-footer'>You can close this tab.</p>
-                </div>
-              </body>
-            </html>";
 
         // 🛡️ RATE LIMITING
         private static int intentosLogin = 0;
@@ -111,6 +69,10 @@ namespace SaviumDrive.Core
             }
 
             string rutaToken = GetTokenPath();
+
+            // Sesión de una versión anterior con acceso a todo el Drive: renovarla con el permiso reducido
+            if (Directory.Exists(rutaToken) && !SesionGuardadaAlDia(rutaToken)) await RevocarAcceso();
+
             if (Directory.Exists(rutaToken))
             {
                 bool integridad = await SecurityHelpers.ValidarIntegridadToken(rutaToken);
@@ -124,7 +86,7 @@ namespace SaviumDrive.Core
             try
             {
                 UserCredential credential;
-                var customReceiver = new CustomCodeReceiver(ClosePageResponseHtml);
+                var customReceiver = new CustomCodeReceiver();
 
                 // 🔥 SOLUCIÓN RELEASE: Instanciar ClientSecrets directamente
                 // Esto evita la deserialización JSON que falla por optimizaciones del compilador
@@ -218,19 +180,42 @@ namespace SaviumDrive.Core
         public static bool ExisteSesionGuardada()
         {
             string tokenPath = GetTokenPath();
-            return Directory.Exists(tokenPath) && Directory.GetFiles(tokenPath).Length > 0;
+            if (!Directory.Exists(tokenPath) || Directory.GetFiles(tokenPath).Length == 0) return false;
+
+            // Con permisos antiguos no se entra solo: al arrancar se abriría el navegador sin que el usuario lo pida.
+            // Se cierra esa sesión (revocándola en Google) y se muestra la pantalla de inicio de sesión.
+            if (!SesionGuardadaAlDia(tokenPath))
+            {
+                _ = RevocarAcceso();
+                return false;
+            }
+            return true;
+        }
+
+        /// <summary>Lee el permiso ("scope") con que se concedió la sesión guardada.</summary>
+        private static bool SesionGuardadaAlDia(string carpetaToken)
+        {
+            try
+            {
+                foreach (var archivo in Directory.GetFiles(carpetaToken))
+                {
+                    using var json = System.Text.Json.JsonDocument.Parse(File.ReadAllText(archivo));
+                    if (json.RootElement.TryGetProperty("scope", out var scope))
+                        return OAuthScopes.SesionAlDia(scope.GetString());
+                }
+            }
+            catch { }
+            return false;
         }
     }
 
     // CLASE CUSTOM RECEIVER IGUAL QUE ANTES
     internal class CustomCodeReceiver : ICodeReceiver
     {
-        private readonly string _responseHtml;
         public string RedirectUri { get; private set; }
 
-        public CustomCodeReceiver(string responseHtml)
+        public CustomCodeReceiver()
         {
-            _responseHtml = responseHtml;
             RedirectUri = $"http://127.0.0.1:{GetRandomUnusedPort()}/authorize/";
         }
 
@@ -245,10 +230,16 @@ namespace SaviumDrive.Core
                 listener.Prefixes.Add(RedirectUri);
                 listener.Start();
 
-                var context = await listener.GetContextAsync().ConfigureAwait(false);
+                // Cancelar (botón Cancelar o tiempo de espera) cierra el puerto en vez de dejarlo esperando para siempre
+                HttpListenerContext context;
+                using (taskCancellationToken.Register(() => { try { listener.Stop(); } catch { } }))
+                {
+                    try { context = await listener.GetContextAsync().ConfigureAwait(false); }
+                    catch (Exception) when (taskCancellationToken.IsCancellationRequested) { throw new OperationCanceledException(taskCancellationToken); }
+                }
                 var coll = context.Request.QueryString;
 
-                var buffer = Encoding.UTF8.GetBytes(_responseHtml);
+                var buffer = Encoding.UTF8.GetBytes(PaginaDeRespuesta(coll["error"]));
                 context.Response.ContentType = "text/html; charset=utf-8";
                 context.Response.ContentLength64 = buffer.Length;
                 context.Response.OutputStream.Write(buffer, 0, buffer.Length);
@@ -263,6 +254,18 @@ namespace SaviumDrive.Core
                     ErrorUri = coll["error_uri"]
                 };
             }
+        }
+
+        /// <summary>Página del navegador con el idioma, el tema y el logo de la app.</summary>
+        private static string PaginaDeRespuesta(string error)
+        {
+            string logo = null;
+            try { logo = Convert.ToBase64String(File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "Assets", "logo-about.png"))); }
+            catch { }
+
+            var ajustes = SaviumDrive.Services.SettingsService.Current;
+            bool espanol = (ajustes?.Language ?? "es-ES").StartsWith("es", StringComparison.OrdinalIgnoreCase);
+            return LoginResponsePage.Crear(error, espanol, ajustes?.DarkMode ?? true, logo);
         }
 
         private int GetRandomUnusedPort()
