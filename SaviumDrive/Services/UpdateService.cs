@@ -1,8 +1,10 @@
 ﻿// Services/UpdateService.cs
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Net.Http;
+using System.Reflection;
 using System.Text.Json;
 using System.Threading.Tasks;
 
@@ -13,9 +15,13 @@ namespace SaviumDrive.Services
     {
         public string Version { get; set; }
         public string DownloadUrl { get; set; }
+        public string FileName { get; set; }
         public string Changelog { get; set; }
         public string ReleaseDate { get; set; }
         public long Size { get; set; }
+
+        /// <summary>SHA256SUMS.txt de la release; null en releases antiguas que no lo traen.</summary>
+        public string ChecksumsUrl { get; set; }
     }
 
     /// <summary>
@@ -28,9 +34,18 @@ namespace SaviumDrive.Services
         // Endpoint JSON de la API (la URL github.com/.../releases/latest devuelve HTML)
         private const string GITHUB_API_URL = "https://api.github.com/repos/eliestudioteam/SaviumDrive/releases/latest";
         private const string GITHUB_RELEASES_BY_TAG_URL = "https://api.github.com/repos/eliestudioteam/SaviumDrive/releases/tags/";
-        // Versión de esta compilación: hay que actualizarla con cada release (debe coincidir con la etiqueta vX.Y.Z)
-        private const string CURRENT_VERSION = "1.0.0";
         private static readonly HttpClient _httpClient = CreateHttpClient();
+
+        /// <summary>
+        /// Versión de esta compilación ("1.2.3"). Sale de &lt;Version&gt; en SaviumDrive.csproj, que debe
+        /// coincidir con la etiqueta de la release (v1.2.3).
+        /// </summary>
+        public static string CurrentVersion { get; } = UpdateRelease.NumericVersion(typeof(UpdateService).Assembly);
+
+        /// <summary>Versión para mostrar en la interfaz ("1.0.0 Beta").</summary>
+        public static string DisplayVersion { get; } = UpdateRelease.DisplayVersion(
+            typeof(UpdateService).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion
+            ?? CurrentVersion);
 
         /// <summary>Página de la versión en GitHub (notas completas, descargas).</summary>
         public static string PaginaDeVersion(string version) =>
@@ -64,37 +79,36 @@ namespace SaviumDrive.Services
                 string tagName = root.GetProperty("tag_name").GetString();
                 string version = tagName.TrimStart('v');
 
-                if (!UpdateVersioning.IsNewerVersion(version, CURRENT_VERSION))
+                if (!UpdateVersioning.IsNewerVersion(version, CurrentVersion))
                     return null;
 
-                // El instalador es el primer archivo .exe adjunto a la release
-                string downloadUrl = null;
-                long fileSize = 0;
-
-                if (root.TryGetProperty("assets", out var assets))
+                var assets = new List<ReleaseAsset>();
+                if (root.TryGetProperty("assets", out var assetsJson))
                 {
-                    foreach (var asset in assets.EnumerateArray())
+                    foreach (var asset in assetsJson.EnumerateArray())
                     {
-                        string name = asset.GetProperty("name").GetString();
-                        if (name.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
+                        assets.Add(new ReleaseAsset
                         {
-                            downloadUrl = asset.GetProperty("browser_download_url").GetString();
-                            fileSize = asset.GetProperty("size").GetInt64();
-                            break;
-                        }
+                            Name = asset.GetProperty("name").GetString(),
+                            DownloadUrl = asset.GetProperty("browser_download_url").GetString(),
+                            Size = asset.GetProperty("size").GetInt64()
+                        });
                     }
                 }
 
-                if (string.IsNullOrEmpty(downloadUrl))
+                var installer = UpdateRelease.PickInstaller(assets);
+                if (installer == null)
                     return null;
 
                 return new UpdateInfo
                 {
                     Version = version,
-                    DownloadUrl = downloadUrl,
+                    DownloadUrl = installer.DownloadUrl,
+                    FileName = installer.Name,
+                    Size = installer.Size,
+                    ChecksumsUrl = UpdateRelease.FindChecksums(assets)?.DownloadUrl,
                     Changelog = root.GetProperty("body").GetString(),
-                    ReleaseDate = root.GetProperty("published_at").GetString(),
-                    Size = fileSize
+                    ReleaseDate = root.GetProperty("published_at").GetString()
                 };
             }
             catch (Exception ex)
@@ -130,71 +144,81 @@ namespace SaviumDrive.Services
         }
 
         /// <summary>
-        /// Descarga el instalador a %TEMP%\SaviumDrive informando del porcentaje. Devuelve la ruta del archivo.
+        /// Descarga el instalador a %TEMP%\SaviumDrive informando del porcentaje y comprueba que no llegó
+        /// dañado ni alterado (tamaño y, si la release trae SHA256SUMS.txt, su SHA-256). Devuelve la ruta.
         /// </summary>
-        public async Task<string> DownloadUpdateAsync(string downloadUrl, IProgress<int> progress)
+        public async Task<string> DownloadUpdateAsync(UpdateInfo update, IProgress<int> progress)
         {
+            string tempFolder = Path.Combine(Path.GetTempPath(), "SaviumDrive");
+            Directory.CreateDirectory(tempFolder);
+            string filePath = Path.Combine(tempFolder, Path.GetFileName(update.FileName));
+
             try
             {
-                string tempFolder = Path.Combine(Path.GetTempPath(), "SaviumDrive");
-                Directory.CreateDirectory(tempFolder);
-                string fileName = Path.GetFileName(new Uri(downloadUrl).LocalPath);
-                string filePath = Path.Combine(tempFolder, fileName);
-
-                using var response = await _httpClient.GetAsync(downloadUrl, HttpCompletionOption.ResponseHeadersRead);
-                response.EnsureSuccessStatusCode();
-
-                var totalBytes = response.Content.Headers.ContentLength ?? -1L;
-                var buffer = new byte[8192];
-                long totalRead = 0;
-
-                using var contentStream = await response.Content.ReadAsStreamAsync();
-                using var fileStream = new FileStream(filePath, FileMode.Create, FileAccess.Write, FileShare.None, 8192, true);
-
-                int bytesRead;
-                while ((bytesRead = await contentStream.ReadAsync(buffer, 0, buffer.Length)) > 0)
+                using (var response = await _httpClient.GetAsync(update.DownloadUrl, HttpCompletionOption.ResponseHeadersRead))
                 {
-                    await fileStream.WriteAsync(buffer, 0, bytesRead);
-                    totalRead += bytesRead;
+                    response.EnsureSuccessStatusCode();
 
-                    if (totalBytes > 0)
+                    var totalBytes = response.Content.Headers.ContentLength ?? -1L;
+                    var buffer = new byte[8192];
+                    long totalRead = 0;
+
+                    using var contentStream = await response.Content.ReadAsStreamAsync();
+                    using var fileStream = new FileStream(filePath, FileMode.Create, FileAccess.Write, FileShare.None, 8192, true);
+
+                    int bytesRead;
+                    while ((bytesRead = await contentStream.ReadAsync(buffer, 0, buffer.Length)) > 0)
                     {
-                        int percentage = (int)((totalRead * 100) / totalBytes);
-                        progress?.Report(percentage);
+                        await fileStream.WriteAsync(buffer, 0, bytesRead);
+                        totalRead += bytesRead;
+
+                        if (totalBytes > 0)
+                        {
+                            int percentage = (int)((totalRead * 100) / totalBytes);
+                            progress?.Report(percentage);
+                        }
                     }
                 }
 
+                await VerifyDownloadAsync(update, filePath);
                 return filePath;
             }
             catch (Exception ex)
             {
                 Debug.WriteLine($"Error downloading update: {ex.Message}");
+                // Nunca dejar a mano un instalador a medias o que no pasó la verificación
+                try { File.Delete(filePath); } catch { }
                 throw;
             }
         }
 
+        private async Task VerifyDownloadAsync(UpdateInfo update, string filePath)
+        {
+            if (update.Size > 0 && new FileInfo(filePath).Length != update.Size)
+                throw new InvalidDataException("El instalador descargado está incompleto.");
+
+            if (update.ChecksumsUrl == null)
+                return; // releases antiguas, sin SHA256SUMS.txt
+
+            string checksums = await _httpClient.GetStringAsync(update.ChecksumsUrl);
+            string expected = UpdateRelease.FindSha256(checksums, update.FileName)
+                ?? throw new InvalidDataException($"{UpdateRelease.ChecksumsFileName} no incluye {update.FileName}.");
+
+            if (UpdateRelease.ComputeSha256(filePath) != expected)
+                throw new InvalidDataException("El SHA-256 del instalador descargado no coincide.");
+        }
+
         /// <summary>
-        /// Lanza el instalador descargado. Lo hace un script .bat que espera 2 segundos, para que la app
-        /// tenga tiempo de cerrarse y el instalador pueda reemplazar sus archivos.
+        /// Lanza el instalador en modo actualización. Justo después hay que cerrar la app: el instalador
+        /// espera a que se cierre, actualiza sin preguntar y la vuelve a abrir.
         /// </summary>
         public void InstallUpdate(string installerPath)
         {
             try
             {
-                string batchPath = Path.Combine(Path.GetTempPath(), "update_savium.bat");
-                string batchContent = $@"
-@echo off
-timeout /t 2 /nobreak >nul
-start """" ""{installerPath}""
-del ""{batchPath}""
-";
-                File.WriteAllText(batchPath, batchContent);
-
-                Process.Start(new ProcessStartInfo
+                Process.Start(new ProcessStartInfo(installerPath, UpdateRelease.InstallerUpdateArgument)
                 {
-                    FileName = batchPath,
-                    CreateNoWindow = true,
-                    UseShellExecute = false
+                    UseShellExecute = true
                 });
             }
             catch (Exception ex)
@@ -231,12 +255,12 @@ del ""{batchPath}""
             {
                 var config = SettingsService.Current;
                 bool isFirstRun = UpdateVersioning.IsFirstRunAfterUpdate(
-                    config.LastRunVersion, config.LastUpdateVersion, CURRENT_VERSION);
+                    config.LastRunVersion, config.LastUpdateVersion, CurrentVersion);
 
                 // Recordar qué versión se ejecutó para no volver a mostrar el changelog
-                if (config.LastRunVersion != CURRENT_VERSION)
+                if (config.LastRunVersion != CurrentVersion)
                 {
-                    config.LastRunVersion = CURRENT_VERSION;
+                    config.LastRunVersion = CurrentVersion;
                     SettingsService.Save();
                 }
 
@@ -244,8 +268,8 @@ del ""{batchPath}""
                     return (false, null, null);
 
                 // El changelog guardado solo corresponde si el actualizador descargó esta misma versión
-                string changelog = config.LastUpdateVersion == CURRENT_VERSION ? config.LastUpdateChangelog : null;
-                return (true, CURRENT_VERSION, changelog);
+                string changelog = config.LastUpdateVersion == CurrentVersion ? config.LastUpdateChangelog : null;
+                return (true, CurrentVersion, changelog);
             }
             catch
             {

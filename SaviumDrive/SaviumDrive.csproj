@@ -13,6 +13,10 @@
 		<Nullable>enable</Nullable>
 		<!-- App sin empaquetar (sin MSIX): se distribuye como carpeta/.exe -->
 		<WindowsPackageType>None</WindowsPackageType>
+		<!-- Versión de la app: la usa el actualizador (debe coincidir con la etiqueta de la release, v1.0.0)
+		     y se muestra en Acerca de. El sufijo "-beta" se muestra como "Beta" y no cuenta al comparar. -->
+		<Version>1.0.0-beta</Version>
+		<IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
 		<!-- Punto de entrada propio (Program.cs): una sola instancia de la app -->
 		<DefineConstants>$(DefineConstants);DISABLE_XAML_GENERATED_MAIN</DefineConstants>
 		<!-- Incluir el runtime de Windows App SDK junto al .exe (el usuario no necesita instalar nada) -->
