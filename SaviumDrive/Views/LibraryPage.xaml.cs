@@ -217,7 +217,8 @@ namespace SaviumDrive.Views
         private void ActualizarEstadoVacio()
         {
             if (EmptyState == null) return;
-            bool bibliotecaVacia = _todos.Count == 0;
+            // La tarjeta provisional del juego que se está subiendo cuenta: la biblioteca ya no está vacía
+            bool bibliotecaVacia = _todos.Count == 0 && Juegos.Count == 0;
             EmptyState.Visibility = bibliotecaVacia ? Visibility.Visible : Visibility.Collapsed;
             NoResultsState.Visibility = !bibliotecaVacia && Juegos.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
         }
