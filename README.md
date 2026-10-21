@@ -104,7 +104,7 @@ dotnet test tests/SaviumDrive.Tests
 
 ## Privacidad
 
-Tus partidas se guardan únicamente en tu cuenta de Google Drive, en la carpeta `SaviumBackups`. Savium Drive solo tiene acceso a los archivos que crea, no al resto de tu Drive, y no utiliza servidores propios.
+Tus partidas se guardan únicamente en tu cuenta de Google Drive, en la carpeta `SaviumBackups`. Savium Drive solo tiene acceso a los archivos que crea, no al resto de tu Drive, y no utiliza servidores propios. Detalles en la [política de privacidad](PRIVACY.md) ([English](PRIVACY.md#privacy-policy-for-savium-drive)).
 
 ## Créditos
 
