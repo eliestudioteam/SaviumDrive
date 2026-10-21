@@ -28,7 +28,7 @@
                 </Border>
 
                 <Border Background="{ThemeResource ActionBackground}" CornerRadius="4" Padding="8,4">
-                    <TextBlock Text="Elie Studio" FontSize="12" Foreground="{ThemeResource ActionText}" />
+                    <TextBlock Text="Eliestudio" FontSize="12" Foreground="{ThemeResource ActionText}" />
                 </Border>
             </StackPanel>
 
@@ -105,7 +105,7 @@
                 </Border>
             </StackPanel>
 
-            <TextBlock Text="© 2025 Elie Studio™. All rights reserved." FontSize="10" Foreground="{ThemeResource TextTertiary}" HorizontalAlignment="Center" Margin="0,30,0,0"/>
+            <TextBlock x:Name="TxtCopyright" FontSize="10" Foreground="{ThemeResource TextTertiary}" HorizontalAlignment="Center" Margin="0,30,0,0"/>
         </StackPanel>
     </Grid>
 </Page>

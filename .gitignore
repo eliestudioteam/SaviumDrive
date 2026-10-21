@@ -20,3 +20,7 @@ token.json
 credential.json
 # Claves de API locales (plantilla: SaviumDrive/Secrets.props.example)
 Secrets.props
+
+## Carpeta Properties de Visual Studio (perfiles de publicación y de depuración locales) ##
+# Los perfiles win-x64 y win-x86 ya subidos siguen en el repositorio: el .csproj los usa para publicar.
+Properties/
