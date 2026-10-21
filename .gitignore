@@ -22,5 +22,5 @@ credential.json
 Secrets.props
 
 ## Carpeta Properties de Visual Studio (perfiles de publicación y de depuración locales) ##
-# Los perfiles win-x64 y win-x86 ya subidos siguen en el repositorio: el .csproj los usa para publicar.
+# Son de cada uno: quien clone el repositorio publica con su propio perfil.
 Properties/
