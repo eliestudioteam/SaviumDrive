@@ -1,0 +1,106 @@
+/* Página de Savium Drive (GitHub Pages). Tema claro u oscuro según el sistema. */
+:root {
+  --accent: #1a8cff;
+  --accent-strong: #0a6fd6;
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --border: rgba(0, 0, 0, 0.08);
+  --text: #1b1d21;
+  --muted: #5d6470;
+  --shadow: 0 10px 30px rgba(15, 30, 60, 0.08);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --accent: #3d9eff;
+    --accent-strong: #66b3ff;
+    --bg: #141518;
+    --surface: #1d1f23;
+    --border: rgba(255, 255, 255, 0.08);
+    --text: #eceef1;
+    --muted: #a3a9b4;
+    --shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+  }
+}
+
+* { box-sizing: border-box; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, Roboto, sans-serif;
+  font-size: 17px;
+  line-height: 1.6;
+}
+
+a { color: var(--accent); }
+a:hover { color: var(--accent-strong); }
+
+.wrap { max-width: 1040px; margin: 0 auto; padding: 0 24px; }
+
+/* Barra superior */
+header.top { border-bottom: 1px solid var(--border); background: var(--surface); }
+header.top .wrap { display: flex; align-items: center; justify-content: space-between; height: 64px; }
+.brand { display: flex; align-items: center; gap: 10px; white-space: nowrap; color: var(--text); text-decoration: none; font-weight: 700; letter-spacing: 0.02em; }
+.brand img { width: 30px; height: 30px; border-radius: 7px; }
+nav.links { display: flex; gap: 22px; font-size: 15px; }
+nav.links a { color: var(--muted); text-decoration: none; }
+nav.links a:hover { color: var(--text); }
+
+/* Portada */
+.hero { text-align: center; padding-top: 72px; padding-bottom: 40px; }
+.hero .logo { width: 260px; max-width: 70%; }
+.hero h1 { font-size: clamp(28px, 4.2vw, 42px); line-height: 1.2; margin: 18px 0 14px; }
+.hero p.lead { color: var(--muted); font-size: 19px; max-width: 680px; margin: 0 auto; }
+.actions { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; margin-top: 30px; }
+.button { display: inline-flex; align-items: center; gap: 8px; padding: 12px 22px; border-radius: 10px; font-weight: 600; text-decoration: none; }
+.button.primary { background: var(--accent); color: #fff; }
+.button.primary:hover { background: var(--accent-strong); color: #fff; }
+.button.secondary { border: 1px solid var(--border); background: var(--surface); color: var(--text); }
+.button.secondary:hover { color: var(--text); border-color: var(--muted); }
+.note { color: var(--muted); font-size: 14px; margin-top: 14px; }
+
+.screenshot { margin: 30px auto 0; border-radius: 14px; overflow: hidden; border: 1px solid var(--border); box-shadow: var(--shadow); }
+.screenshot img { display: block; width: 100%; height: auto; }
+
+/* Funciones */
+section { padding: 56px 0; }
+section h2 { font-size: 28px; margin: 0 0 8px; text-align: center; }
+section .intro { color: var(--muted); text-align: center; max-width: 640px; margin: 0 auto 34px; }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 18px; }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 22px; }
+.card h3 { margin: 0 0 6px; font-size: 18px; }
+.card p { margin: 0; color: var(--muted); font-size: 15.5px; }
+.card .icon { font-size: 24px; margin-bottom: 8px; }
+
+.gallery { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px; }
+@media (max-width: 720px) { .gallery { grid-template-columns: minmax(0, 1fr); } }
+.gallery figure { margin: 0; min-width: 0; }
+.gallery img { display: block; width: 100%; height: auto; margin: 0; }
+.gallery figcaption { color: var(--muted); font-size: 14px; margin-top: 8px; text-align: center; }
+
+.privacy-box { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 26px; max-width: 760px; margin: 0 auto; text-align: center; }
+
+/* Texto largo (política de privacidad) */
+.doc { max-width: 780px; margin: 0 auto; padding: 48px 24px 64px; }
+.doc h1 { font-size: 34px; line-height: 1.2; margin-bottom: 4px; }
+.doc .updated { color: var(--muted); margin-top: 0; }
+.doc h2 { font-size: 22px; margin-top: 34px; }
+.doc table { width: 100%; border-collapse: collapse; font-size: 15px; margin: 12px 0; }
+.doc th, .doc td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
+.doc th { color: var(--muted); font-weight: 600; }
+.doc code { background: var(--surface); border: 1px solid var(--border); border-radius: 5px; padding: 1px 6px; font-size: 14px; }
+.doc .summary { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 6px 22px; }
+
+footer { border-top: 1px solid var(--border); padding: 26px 0 40px; color: var(--muted); font-size: 14px; }
+footer .wrap { display: flex; flex-wrap: wrap; gap: 10px 22px; justify-content: space-between; }
+footer a { color: var(--muted); }
+
+@media (max-width: 640px) {
+  nav.links { gap: 14px; font-size: 14px; }
+  nav.links .optional { display: none; }
+  .hero { padding-top: 48px; }
+}

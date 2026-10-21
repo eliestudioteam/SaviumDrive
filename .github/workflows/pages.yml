@@ -1,0 +1,49 @@
+# Publica la página de Savium Drive (carpeta site/) en GitHub Pages:
+# https://eliestudioteam.github.io/SaviumDrive/
+# Es la página principal y la política de privacidad que se indican en la pantalla de consentimiento de Google.
+name: Página web
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'site/**'
+      - 'docs/capturas/**'
+      - 'SaviumDrive/Assets/logo-about.png'
+      - 'SaviumDrive/Assets/StoreLogo.png'
+      - '.github/workflows/pages.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Una sola publicación a la vez; la última gana
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  publicar:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Preparar la página
+        run: |
+          mkdir -p _site/capturas
+          cp -r site/. _site/
+          cp docs/capturas/*.png _site/capturas/
+          cp SaviumDrive/Assets/logo-about.png _site/logo.png
+          cp SaviumDrive/Assets/StoreLogo.png _site/icon.png
+          # Sin Jekyll: la página es HTML tal cual
+          touch _site/.nojekyll
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+      - id: deployment
+        uses: actions/deploy-pages@v4
