@@ -72,7 +72,7 @@ namespace SaviumDrive.Services
 
         /// <summary>
         /// Versión de esta compilación ("1.2.3"), tomada de &lt;Version&gt; en SaviumDrive.csproj.
-        /// Es la que se compara con la etiqueta de la release (v1.2.3).
+        /// Es la que se compara con la etiqueta de la release (1.2.3).
         /// </summary>
         public static string NumericVersion(Assembly assembly)
         {

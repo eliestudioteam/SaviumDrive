@@ -38,7 +38,7 @@ namespace SaviumDrive.Services
 
         /// <summary>
         /// Versión de esta compilación ("1.2.3"). Sale de &lt;Version&gt; en SaviumDrive.csproj, que debe
-        /// coincidir con la etiqueta de la release (v1.2.3).
+        /// coincidir con la etiqueta de la release (1.2.3, sin "v").
         /// </summary>
         public static string CurrentVersion { get; } = UpdateRelease.NumericVersion(typeof(UpdateService).Assembly);
 
@@ -47,9 +47,12 @@ namespace SaviumDrive.Services
             typeof(UpdateService).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion
             ?? CurrentVersion);
 
-        /// <summary>Página de la versión en GitHub (notas completas, descargas).</summary>
+        /// <summary>
+        /// Página de la versión en GitHub (notas completas, descargas). Las etiquetas de las releases son la
+        /// versión sin prefijo: 1.2.3, no v1.2.3.
+        /// </summary>
         public static string PaginaDeVersion(string version) =>
-            $"https://github.com/eliestudioteam/SaviumDrive/releases/tag/v{(version ?? "").TrimStart('v')}";
+            $"https://github.com/eliestudioteam/SaviumDrive/releases/tag/{(version ?? "").TrimStart('v')}";
 
         // Las cabeceras se configuran una sola vez: el cliente es estático y compartido
         private static HttpClient CreateHttpClient()
@@ -75,7 +78,7 @@ namespace SaviumDrive.Services
                 using var doc = JsonDocument.Parse(json);
                 var root = doc.RootElement;
 
-                // La etiqueta de la release es la versión con prefijo "v" (v1.2.0)
+                // La etiqueta de la release es la versión (1.2.0); se admite también con "v" (v1.2.0)
                 string tagName = root.GetProperty("tag_name").GetString();
                 string version = tagName.TrimStart('v');
 
@@ -124,7 +127,8 @@ namespace SaviumDrive.Services
         /// </summary>
         public async Task<string> GetReleaseNotesAsync(string version)
         {
-            foreach (string tag in new[] { "v" + version, version })
+            // Primero la etiqueta sin prefijo (la que se usa ahora) y luego con "v", por si alguna antigua la lleva
+            foreach (string tag in new[] { version, "v" + version })
             {
                 try
                 {
