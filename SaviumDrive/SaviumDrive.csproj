@@ -148,4 +148,14 @@
 			                                     Exclude="$(MicrosoftWindowsAppSDKMsixContent)\es*\**;$(MicrosoftWindowsAppSDKMsixContent)\en*\**" />
 		</ItemGroup>
 	</Target>
+
+	<!-- SaviumDrive.pri (las páginas XAML compiladas y los textos .resw) se genera al compilar, pero en una app
+	     sin empaquetar "Publicar" no lo copia a la carpeta de publicación. Sin él, la app se cierra al arrancar
+	     (0xC000027B) porque no encuentra MainWindow ni sus recursos. -->
+	<Target Name="PublicarArchivoPri" AfterTargets="ComputeResolvedFilesToPublishList">
+		<ItemGroup>
+			<ResolvedFileToPublish Include="$(OutDir)$(TargetName).pri" RelativePath="$(TargetName).pri"
+			                       CopyToPublishDirectory="PreserveNewest" Condition="Exists('$(OutDir)$(TargetName).pri')" />
+		</ItemGroup>
+	</Target>
 </Project>
