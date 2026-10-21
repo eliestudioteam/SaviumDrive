@@ -34,7 +34,7 @@ namespace SaviumDrive.Views
             // Mostrar versión actual
             TxtVersion.Text = $"v{GetCurrentVersion()}";
 
-            // "© 2025-<año actual> Savium Drive...", en el idioma de la app; el año se actualiza solo
+            // "© 2025-<año actual> Eliestudio...", en el idioma de la app; el año se actualiza solo
             TxtCopyright.Text = ResourceHelper.GetString("AbtCopyright", CopyrightYears(DateTime.Now.Year));
 
             // Texto inicial del botón con el color del tema

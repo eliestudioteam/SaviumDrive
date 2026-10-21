@@ -92,7 +92,7 @@
 	<data name="SetAboutLink.Text" xml:space="preserve"><value>About Savium Drive</value></data>
 	<data name="AbtBack.Text" xml:space="preserve"><value>Back</value></data>
 	<data name="AbtDesc.Text" xml:space="preserve"><value>Created to protect your backups.</value></data>
-	<data name="AbtCopyright" xml:space="preserve"><value>© {0} Savium Drive. All rights reserved.</value></data>
+	<data name="AbtCopyright" xml:space="preserve"><value>© {0} Eliestudio. All rights reserved.</value></data>
 	<data name="AbtUpdate" xml:space="preserve"><value>Check for Updates</value></data>
 	<data name="AbtSearching" xml:space="preserve"><value>Searching...</value></data>
 	<data name="AbtUpToDate" xml:space="preserve"><value>You are up to date!</value></data>
