@@ -115,4 +115,4 @@ Tus partidas se guardan únicamente en tu cuenta de Google Drive, en la carpeta 
 
 Distribuido bajo la licencia MIT. Consulta [LICENSE](LICENSE).
 
-<p align="center">Desarrollado por <b>Elie Studio</b></p>
+<p align="center">Desarrollado por <b>Eliestudio</b></p>
