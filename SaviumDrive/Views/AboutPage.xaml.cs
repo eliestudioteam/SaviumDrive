@@ -16,6 +16,13 @@ namespace SaviumDrive.Views
         private UpdateInfo _currentUpdate;
         private Brush _originalTextBrush; // Guardar el color original
 
+        /// <summary>Años del copyright: "2025" el primer año y "2025-2027" (por ejemplo) los siguientes.</summary>
+        public static string CopyrightYears(int currentYear) =>
+            currentYear > FirstYear ? $"{FirstYear}-{currentYear}" : $"{FirstYear}";
+
+        // Año del primer lanzamiento de Savium Drive
+        private const int FirstYear = 2025;
+
         public AboutPage()
         {
             this.InitializeComponent();
@@ -26,6 +33,9 @@ namespace SaviumDrive.Views
 
             // Mostrar versión actual
             TxtVersion.Text = $"v{GetCurrentVersion()}";
+
+            // "© 2025-<año actual> Eliestudio...", en el idioma de la app; el año se actualiza solo
+            TxtCopyright.Text = ResourceHelper.GetString("AbtCopyright", CopyrightYears(DateTime.Now.Year));
 
             // Texto inicial del botón con el color del tema
             TxtUpdate.Text = ResourceHelper.GetString("AbtUpdate");
