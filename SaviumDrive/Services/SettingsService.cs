@@ -69,7 +69,14 @@ namespace SaviumDrive.Services
                 }
                 catch { Current = new AppConfig(); }
             }
-            else { Current = new AppConfig(); }
+            else
+            {
+                // Primera vez que se abre: el idioma que el usuario eligió en el instalador, si la app lo tiene.
+                // Después manda siempre lo que elija en Configuración (una actualización no lo cambia).
+                Current = new AppConfig();
+                string idiomaInstalador = InstallerLanguage.Read(AppContext.BaseDirectory);
+                if (idiomaInstalador != null) Current.Language = idiomaInstalador;
+            }
         }
 
         public static void Save()

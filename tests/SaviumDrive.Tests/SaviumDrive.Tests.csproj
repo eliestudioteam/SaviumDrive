@@ -17,6 +17,7 @@
 		<Compile Include="..\..\SaviumDrive\Services\DriveManager.cs" Link="App\DriveManager.cs" />
 		<Compile Include="..\..\SaviumDrive\Services\UpdateVersioning.cs" Link="App\UpdateVersioning.cs" />
 		<Compile Include="..\..\SaviumDrive\Services\UpdateRelease.cs" Link="App\UpdateRelease.cs" />
+		<Compile Include="..\..\SaviumDrive\Services\InstallerLanguage.cs" Link="App\InstallerLanguage.cs" />
 		<Compile Include="..\..\SaviumDrive\Services\LibraryMerge.cs" Link="App\LibraryMerge.cs" />
 		<Compile Include="..\..\SaviumDrive\Models\GameConfig.cs" Link="App\GameConfig.cs" />
 		<Compile Include="..\..\SaviumDrive\Services\GameStores.cs" Link="App\GameStores.cs" />
