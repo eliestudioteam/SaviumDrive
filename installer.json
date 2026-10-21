@@ -1,0 +1,26 @@
+{
+  // Configuración del instalador (Instalator-setup: https://github.com/eliestudioteam/Instalator-setup).
+  // appId identifica la instalación en Windows: se generó una vez y NO debe cambiar nunca.
+  "appId": "{0435AA71-C363-470A-AAFB-0DF8AF2038C6}",
+
+  // "SaviumDrive" sin espacio: es el mismo nombre que usa la app para "Iniciar con Windows",
+  // así el desinstalador también limpia esa entrada.
+  "name": "SaviumDrive",
+  "publisher": "Elie Studio",
+  // Debe coincidir con <Version> de SaviumDrive.csproj (sin el sufijo -beta) y con la etiqueta de la release.
+  "version": "1.0.0",
+  "mainExe": "SaviumDrive.exe",
+  "url": "https://github.com/eliestudioteam/SaviumDrive",
+
+  "startMenuShortcut": true,
+  "desktopShortcut": true,
+
+  // La app ya ofrece "Iniciar con Windows" en su configuración
+  "startupOption": false,
+
+  // Solo se borran si el usuario marca "Borrar también mis datos" al desinstalar
+  "userDataPaths": [ "%APPDATA%\\SaviumDrive", "%LOCALAPPDATA%\\SaviumDrive" ],
+
+  "icon": "SaviumDrive/Assets/tray-icon1024x1024.ico",
+  "licenseFile": "LICENSE"
+}
