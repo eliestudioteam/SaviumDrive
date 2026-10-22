@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Savium Drive · Copias de seguridad de tus partidas en Google Drive</title>
+  <meta name="description" content="Savium Drive es una aplicación gratuita y de código abierto para Windows que guarda las partidas de tus juegos en tu propia cuenta de Google Drive.">
+  <link rel="icon" href="icon.png">
+  <link rel="alternate" hreflang="en" href="en/">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="top">
+    <div class="wrap">
+      <a class="brand" href="./"><img src="icon.png" alt="">Savium Drive</a>
+      <nav class="links">
+        <a class="optional" href="#funciones">Funciones</a>
+        <a href="privacidad.html">Privacidad</a>
+        <a href="https://github.com/eliestudioteam/SaviumDrive">GitHub</a>
+        <a href="en/" lang="en">English</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <div class="wrap hero">
+      <img class="logo" src="logo.png" alt="Savium Drive">
+      <h1>Tus partidas, a salvo en tu Google Drive</h1>
+      <p class="lead">Savium Drive es una aplicación gratuita y de código abierto para Windows que guarda las partidas de tus
+        juegos en <strong>tu propia cuenta de Google Drive</strong>. Así no pierdes tu progreso al formatear, cambiar de
+        equipo o jugar a un juego sin guardado en la nube.</p>
+      <div class="actions">
+        <a class="button primary" href="https://github.com/eliestudioteam/SaviumDrive/releases/latest">Descargar para Windows</a>
+        <a class="button secondary" href="https://github.com/eliestudioteam/SaviumDrive">Ver el código en GitHub</a>
+      </div>
+      <p class="note">Windows 10 y 11 · Español e inglés · Licencia MIT</p>
+      <div class="screenshot"><img src="capturas/biblioteca.png" alt="Biblioteca de juegos de Savium Drive" loading="lazy"></div>
+    </div>
+
+    <section id="funciones">
+      <div class="wrap">
+        <h2>Funciones</h2>
+        <p class="intro">Todo lo necesario para no volver a perder una partida.</p>
+        <div class="grid">
+          <div class="card"><div class="icon">🎮</div><h3>Biblioteca</h3><p>Todos tus juegos en un solo lugar, con su portada. Búscalos por nombre y ordénalos por nombre o por la fecha del último guardado.</p></div>
+          <div class="card"><div class="icon">➕</div><h3>Agregar un juego</h3><p>Escribe su nombre: Savium Drive busca la portada y la carpeta donde el juego guarda las partidas.</p></div>
+          <div class="card"><div class="icon">☁️</div><h3>Copias de seguridad</h3><p>Progreso en tiempo real. Al actualizar una copia solo se suben los archivos que cambiaron, y puedes cancelar cuando quieras.</p></div>
+          <div class="card"><div class="icon">🗂️</div><h3>Versiones</h3><p>Varias partidas independientes por juego (V1, V2, V3…), cada una con su descripción e historial.</p></div>
+          <div class="card"><div class="icon">♻️</div><h3>Restaurar</h3><p>Recupera cualquier versión. Si tus partidas locales son más recientes, Savium Drive te avisa antes de reemplazarlas.</p></div>
+          <div class="card"><div class="icon">💻</div><h3>Varios equipos</h3><p>Inicia sesión en otro PC y tendrás tu biblioteca disponible. Cada equipo recuerda su propia carpeta de partidas.</p></div>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <div class="wrap">
+        <h2>Así se ve</h2>
+        <p class="intro">Una interfaz sencilla, con tema claro u oscuro.</p>
+        <div class="gallery">
+          <figure><img class="screenshot" src="capturas/agregar-juego.png" alt="Agregar un juego" loading="lazy"><figcaption>Agregar un juego</figcaption></figure>
+          <figure><img class="screenshot" src="capturas/copia-de-seguridad.png" alt="Copia de seguridad en curso" loading="lazy"><figcaption>Copia de seguridad en curso</figcaption></figure>
+          <figure><img class="screenshot" src="capturas/versiones.png" alt="Historial de versiones" loading="lazy"><figcaption>Historial de versiones</figcaption></figure>
+          <figure><img class="screenshot" src="capturas/configuracion.png" alt="Configuración" loading="lazy"><figcaption>Configuración</figcaption></figure>
+        </div>
+      </div>
+    </section>
+
+    <section id="privacidad">
+      <div class="wrap">
+        <div class="privacy-box">
+          <h2>Tu privacidad</h2>
+          <p>Tus partidas se guardan <strong>solo en tu Google Drive</strong>. Savium Drive únicamente puede ver los archivos
+            que ella misma crea, no el resto de tu Drive. No tiene servidores propios, ni publicidad, ni telemetría.</p>
+          <p><a href="privacidad.html">Leer la política de privacidad</a></p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap">
+      <span>© <span id="year">2026</span> Eliestudio · Savium Drive</span>
+      <span><a href="privacidad.html">Política de privacidad</a> · <a href="https://github.com/eliestudioteam/SaviumDrive/issues">Contacto</a> · <a href="en/" lang="en">English</a></span>
+    </div>
+  </footer>
+  <script>document.getElementById('year').textContent = '2025-' + new Date().getFullYear();</script>
+</body>
+</html>

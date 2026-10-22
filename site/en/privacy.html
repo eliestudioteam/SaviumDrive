@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Privacy Policy · Savium Drive</title>
+  <meta name="description" content="What data Savium Drive uses and why.">
+  <link rel="icon" href="../icon.png">
+  <link rel="alternate" hreflang="es" href="../privacidad.html">
+  <link rel="stylesheet" href="../style.css">
+</head>
+<body>
+  <header class="top">
+    <div class="wrap">
+      <a class="brand" href="./"><img src="../icon.png" alt="">Savium Drive</a>
+      <nav class="links">
+        <a href="./">Home</a>
+        <a href="https://github.com/eliestudioteam/SaviumDrive">GitHub</a>
+        <a href="../privacidad.html" lang="es">Español</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="doc">
+    <h1>Privacy Policy for Savium Drive</h1>
+    <p class="updated">Last updated: October 21, 2026</p>
+
+    <p>Savium Drive is an open-source Windows desktop app made by Eliestudio. It backs up your games' save files to
+      <strong>your own Google Drive account</strong>. This policy explains what data the app uses and why.</p>
+
+    <div class="summary">
+      <h2>Summary</h2>
+      <ul>
+        <li>Your saves are stored <strong>only in your Google Drive</strong>. Savium Drive has no servers of its own, and
+          nobody else (including Eliestudio) can see your files.</li>
+        <li>The app <strong>can only see the files it creates</strong> in your Drive, nothing else.</li>
+        <li><strong>There is no telemetry, advertising or usage analytics</strong>, and your data is never sold or shared.</li>
+      </ul>
+    </div>
+
+    <h2>Your Google account data</h2>
+    <p>To connect to Google Drive, Savium Drive asks for your permission through Google sign-in (OAuth). It only
+      requests the <code>drive.file</code> scope: access to files and folders created by the app itself (the
+      <code>SaviumBackups</code> folder and the <code>savium_config.json</code> file). <strong>It cannot see, open or
+      change any other file in your Drive.</strong></p>
+    <p>With that permission, the app:</p>
+    <ul>
+      <li>creates, uploads, downloads, copies, renames and moves to the trash its own backups;</li>
+      <li>reads your account name and your available Drive storage, to show them in the app.</li>
+    </ul>
+    <p>Savium Drive's use of information received from Google APIs adheres to the
+      <a href="https://developers.google.com/terms/api-services-user-data-policy">Google API Services User Data
+      Policy</a>, including the Limited Use requirements.</p>
+    <p>Your session is stored <strong>only on your computer</strong>, in <code>%LOCALAPPDATA%\SaviumDrive</code>. Signing
+      out from the app revokes the permission with Google and deletes that data. You can also remove access at any time
+      from <a href="https://myaccount.google.com/permissions">your Google Account settings</a>.</p>
+
+    <h2>Data on your computer</h2>
+    <p>To find your games and their saves, Savium Drive looks <strong>on your computer</strong> at the usual game and
+      launcher folders (for example Steam or Epic Games) and at save-file locations. That information is only used inside
+      the app and is never sent anywhere.</p>
+    <p>Your preferences (language, theme, added games…) are stored on your computer, in <code>%APPDATA%\SaviumDrive</code>.</p>
+
+    <h2>Third-party services</h2>
+    <p>Besides Google Drive, the app connects to these services. None of them receives your Google account data or your
+      saves:</p>
+    <table>
+      <tr><th>Service</th><th>Purpose</th><th>What is sent</th></tr>
+      <tr><td><a href="https://www.steamgriddb.com">SteamGridDB</a></td><td>Showing each game's cover art</td><td>The <strong>name of the game</strong> being searched</td></tr>
+      <tr><td>GitHub (<code>api.github.com</code>)</td><td>Checking for and downloading Savium Drive updates</td><td>Nothing personal: it only asks for the latest release</td></tr>
+      <tr><td>GitHub (<code>raw.githubusercontent.com</code>)</td><td>Downloading the public <a href="https://github.com/mtkennerly/ludusavi-manifest">Ludusavi</a> game list, which says where each game stores its saves</td><td>Nothing personal</td></tr>
+    </table>
+    <p>As with any internet connection, these services may log your IP address under their own privacy policies.</p>
+
+    <h2>Children</h2>
+    <p>Savium Drive is not directed at children under 13 and does not knowingly collect data from them.</p>
+
+    <h2>Changes to this policy</h2>
+    <p>If this policy changes, the new version will be published here with its new date. Significant changes will also
+      be mentioned in the notes of the corresponding release.</p>
+
+    <h2>Contact</h2>
+    <p>For any question about this policy or your data, open an issue on
+      <a href="https://github.com/eliestudioteam/SaviumDrive/issues">GitHub</a>.</p>
+  </main>
+
+  <footer>
+    <div class="wrap">
+      <span>© <span id="year">2026</span> Eliestudio · Savium Drive</span>
+      <span><a href="./">Home</a> · <a href="../privacidad.html" lang="es">Español</a></span>
+    </div>
+  </footer>
+  <script>document.getElementById('year').textContent = '2025-' + new Date().getFullYear();</script>
+</body>
+</html>
