@@ -147,6 +147,49 @@ namespace SaviumDrive.Services
             return null;
         }
 
+        // La actualización encontrada y su descarga son de la app, no de la página "Acerca de": la descarga
+        // sigue aunque se cambie de sección y, al volver, la página nueva retoma su estado.
+        private static Task<string> _download;
+
+        /// <summary>Última actualización encontrada en esta sesión (null si no se buscó o no había).</summary>
+        public static UpdateInfo AvailableUpdate { get; set; }
+
+        /// <summary>Porcentaje de la descarga en curso o terminada.</summary>
+        public static int DownloadPercent { get; private set; }
+
+        /// <summary>Avisa del porcentaje (desde cualquier hilo).</summary>
+        public static event Action<int> DownloadProgressChanged;
+
+        /// <summary>True mientras se descarga o cuando el instalador ya está descargado y verificado.</summary>
+        public static bool IsDownloadStarted =>
+            _download != null && !_download.IsFaulted && !_download.IsCanceled;
+
+        /// <summary>
+        /// Empieza la descarga de <see cref="AvailableUpdate"/> o, si ya está en marcha o terminada, devuelve
+        /// esa misma (nunca dos a la vez sobre el mismo archivo). Tras un fallo, empieza de nuevo.
+        /// </summary>
+        public Task<string> StartOrResumeDownload()
+        {
+            if (!IsDownloadStarted)
+            {
+                DownloadPercent = 0;
+                _download = DownloadUpdateAsync(AvailableUpdate, new Progress(percent =>
+                {
+                    DownloadPercent = percent;
+                    DownloadProgressChanged?.Invoke(percent);
+                }));
+            }
+            return _download;
+        }
+
+        // IProgress síncrono: Progress<T> publicaría en el hilo de la página que empezó la descarga
+        private sealed class Progress : IProgress<int>
+        {
+            private readonly Action<int> _report;
+            public Progress(Action<int> report) => _report = report;
+            public void Report(int value) => _report(value);
+        }
+
         /// <summary>
         /// Descarga el instalador a %TEMP%\SaviumDrive informando del porcentaje y comprueba que no llegó
         /// dañado ni alterado (tamaño y, si la release trae SHA256SUMS.txt, su SHA-256). Devuelve la ruta.
@@ -166,6 +209,7 @@ namespace SaviumDrive.Services
                     var totalBytes = response.Content.Headers.ContentLength ?? -1L;
                     var buffer = new byte[8192];
                     long totalRead = 0;
+                    int lastPercentage = -1;
 
                     using var contentStream = await response.Content.ReadAsStreamAsync();
                     using var fileStream = new FileStream(filePath, FileMode.Create, FileAccess.Write, FileShare.None, 8192, true);
@@ -176,9 +220,11 @@ namespace SaviumDrive.Services
                         await fileStream.WriteAsync(buffer, 0, bytesRead);
                         totalRead += bytesRead;
 
-                        if (totalBytes > 0)
+                        // Solo cuando cambia el porcentaje, no en cada bloque de 8 KB
+                        int percentage = totalBytes > 0 ? (int)((totalRead * 100) / totalBytes) : -1;
+                        if (percentage > lastPercentage)
                         {
-                            int percentage = (int)((totalRead * 100) / totalBytes);
+                            lastPercentage = percentage;
                             progress?.Report(percentage);
                         }
                     }

@@ -52,6 +52,14 @@ namespace SaviumDrive.Tests
         }
 
         [Fact]
+        public void FindSha256_ConNombreRenombradoPorGitHub()
+        {
+            // GitHub publica "Savium Drive-Setup-1.0.1.exe" como "Savium.Drive-Setup-1.0.1.exe"
+            string hash = new string('c', 64);
+            Assert.Equal(hash, UpdateRelease.FindSha256($"{hash}  Savium Drive-Setup-1.0.1.exe", "Savium.Drive-Setup-1.0.1.exe"));
+        }
+
+        [Fact]
         public void FindSha256_ArchivoAusente_DevuelveNull()
         {
             Assert.Null(UpdateRelease.FindSha256($"{new string('a', 64)}  otro.exe", "SaviumDrive-Setup-1.1.0.exe"));

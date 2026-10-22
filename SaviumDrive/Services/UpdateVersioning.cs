@@ -40,8 +40,9 @@ namespace SaviumDrive.Services
         /// <param name="currentVersion">Versión de este ejecutable.</param>
         public static bool IsFirstRunAfterUpdate(string lastRunVersion, string lastUpdateVersion, string currentVersion)
         {
+            // Solo al subir de versión: volver a una anterior (o reinstalar la misma) no es una actualización
             if (!string.IsNullOrEmpty(lastRunVersion))
-                return lastRunVersion != currentVersion;
+                return IsNewerVersion(currentVersion, lastRunVersion);
 
             // Sin registro de la última versión ejecutada: o es una instalación nueva (no mostrar nada)
             // o viene de una versión antigua que no guardaba ese dato pero sí instaló con el actualizador.

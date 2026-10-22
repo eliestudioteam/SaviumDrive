@@ -618,10 +618,14 @@ namespace SaviumDrive
         /// <summary>Muestra la ventana de novedades la primera vez que se abre una versión nueva.</summary>
         private async void CheckFirstRunAfterUpdate()
         {
-            await Task.Delay(1500); // Esperar a que cargue la UI
-
+            // Se comprueba (y se anota la versión) antes de esperar: si la app se cerrara en ese rato, las
+            // novedades saldrían otra vez en el siguiente arranque
             var updateService = new UpdateService();
             var (isFirstRun, version, changelog) = updateService.CheckFirstRunAfterUpdate();
+            if (!isFirstRun)
+                return;
+
+            await Task.Delay(1500); // Esperar a que cargue la UI
 
             // Instalación manual: no hay changelog guardado, pedirlo a GitHub
             if (isFirstRun && string.IsNullOrEmpty(changelog))
