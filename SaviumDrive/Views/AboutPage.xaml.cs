@@ -42,6 +42,32 @@ namespace SaviumDrive.Views
 
             // Aplicar colores iniciales
             ApplyThemeColors();
+
+            // Si ya se encontró una actualización (o se está descargando) antes de cambiar de sección, retomarla
+            Loaded += AboutPage_Loaded;
+            Unloaded += (_, _) => UpdateService.DownloadProgressChanged -= OnDownloadProgress;
+        }
+
+        private async void AboutPage_Loaded(object sender, RoutedEventArgs e)
+        {
+            _currentUpdate = UpdateService.AvailableUpdate;
+            if (_currentUpdate == null)
+                return;
+
+            ShowUpdateAvailable();
+            if (UpdateService.IsDownloadStarted)
+                await DownloadAndInstallAsync();
+        }
+
+        private void OnDownloadProgress(int percent) =>
+            DispatcherQueue.TryEnqueue(() => ShowProgress(percent));
+
+        private void ShowProgress(int percent)
+        {
+            // -1: el servidor no dijo el tamaño; la barra se queda en movimiento
+            ProgressBar.IsIndeterminate = percent < 0;
+            ProgressBar.Value = Math.Max(percent, 0);
+            TxtProgress.Text = percent < 0 ? "" : $"{percent}%";
         }
 
         private void ApplyThemeColors()
@@ -90,6 +116,7 @@ namespace SaviumDrive.Views
             try
             {
                 _currentUpdate = await _updateService.CheckForUpdatesAsync();
+                UpdateService.AvailableUpdate = _currentUpdate;
 
                 if (_currentUpdate == null)
                 {
@@ -147,35 +174,29 @@ namespace SaviumDrive.Views
         private async void BtnDownload_Click(object sender, RoutedEventArgs e)
         {
             if (_currentUpdate == null) return;
+            await DownloadAndInstallAsync();
+        }
 
+        /// <summary>
+        /// Empieza la descarga o se engancha a la que ya está en marcha (p. ej. tras volver de otra sección),
+        /// y al terminar ofrece instalar.
+        /// </summary>
+        private async Task DownloadAndInstallAsync()
+        {
             BtnDownload.IsEnabled = false;
             DownloadProgress.Visibility = Visibility.Visible;
+            ShowProgress(UpdateService.DownloadPercent);
+            UpdateService.DownloadProgressChanged -= OnDownloadProgress;
+            UpdateService.DownloadProgressChanged += OnDownloadProgress;
 
+            string installerPath;
             try
             {
-                var progress = new Progress<int>(percent =>
-                {
-                    this.DispatcherQueue.TryEnqueue(() =>
-                    {
-                        ProgressBar.Value = percent;
-                        TxtProgress.Text = $"{percent}%";
-                    });
-                });
-
-                string installerPath = await _updateService.DownloadUpdateAsync(_currentUpdate, progress);
-
-                await ShowSuccessDialog(
-                    ResourceHelper.GetString("UpdateDownloadComplete"),
-                    ResourceHelper.GetString("UpdateInstallPrompt")
-                );
-
-                _updateService.SaveUpdateInfo(_currentUpdate);
-                _updateService.InstallUpdate(installerPath);
-                // El instalador espera a que la app se cierre del todo y luego la vuelve a abrir
-                App.SalirAplicacion();
+                installerPath = await _updateService.StartOrResumeDownload();
             }
-            catch (Exception ex)
+            catch (Exception)
             {
+                if (!IsLoaded) return; // ya se avisará al volver a la página
                 await ShowErrorDialog(
                     ResourceHelper.GetString("AlertError"),
                     ResourceHelper.GetString("UpdateDownloadError")
@@ -183,7 +204,32 @@ namespace SaviumDrive.Views
 
                 DownloadProgress.Visibility = Visibility.Collapsed;
                 BtnDownload.IsEnabled = true;
+                return;
             }
+            finally
+            {
+                UpdateService.DownloadProgressChanged -= OnDownloadProgress;
+            }
+
+            // Si se terminó mientras se estaba en otra sección, se pregunta al volver a "Acerca de"
+            if (!IsLoaded) return;
+            ShowProgress(100);
+
+            bool install = await ShowSuccessDialog(
+                ResourceHelper.GetString("UpdateDownloadComplete"),
+                ResourceHelper.GetString("UpdateInstallPrompt")
+            );
+            if (!install)
+            {
+                // Ya descargado: el botón vuelve a ofrecer instalarlo sin descargar otra vez
+                BtnDownload.IsEnabled = true;
+                return;
+            }
+
+            _updateService.SaveUpdateInfo(_currentUpdate);
+            _updateService.InstallUpdate(installerPath);
+            // El instalador espera a que la app se cierre del todo y luego la vuelve a abrir
+            App.SalirAplicacion();
         }
 
         private void RestoreCheckButton()

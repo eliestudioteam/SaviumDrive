@@ -38,6 +38,14 @@ namespace SaviumDrive.Tests
         }
 
         [Fact]
+        public void VolverAUnaVersionAnterior_NoMuestraChangelog()
+        {
+            // Se probó la 1.0.1 y luego se reinstaló la 1.0.0: no es una actualización
+            Assert.False(UpdateVersioning.IsFirstRunAfterUpdate("1.0.1", "1.0.1", "1.0.0"));
+            Assert.False(UpdateVersioning.IsFirstRunAfterUpdate("1.0.1", null, "1.0.0"));
+        }
+
+        [Fact]
         public void InstalacionNueva_NoMuestraChangelog()
         {
             Assert.False(UpdateVersioning.IsFirstRunAfterUpdate(null, null, "1.0.0"));

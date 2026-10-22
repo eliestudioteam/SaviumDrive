@@ -44,6 +44,14 @@ namespace SaviumDrive.Services
             assets.FirstOrDefault(a => string.Equals(a.Name, ChecksumsFileName, StringComparison.OrdinalIgnoreCase));
 
         /// <summary>
+        /// GitHub cambia los espacios del nombre por puntos al subir un archivo a una release
+        /// ("Savium Drive-Setup.exe" se publica como "Savium.Drive-Setup.exe"), pero SHA256SUMS.txt lleva el
+        /// nombre original: se consideran el mismo archivo.
+        /// </summary>
+        public static bool SameAssetName(string a, string b) =>
+            string.Equals(a.Replace(' ', '.'), b.Replace(' ', '.'), StringComparison.OrdinalIgnoreCase);
+
+        /// <summary>
         /// Busca el hash de un archivo en un SHA256SUMS.txt (formato de sha256sum: "hash  nombre" o "hash *nombre").
         /// Devuelve el hash en minúsculas, o null si el archivo no aparece.
         /// </summary>
@@ -57,7 +65,7 @@ namespace SaviumDrive.Services
                     continue;
 
                 string name = line.Substring(space).Trim().TrimStart('*');
-                if (string.Equals(name, fileName, StringComparison.OrdinalIgnoreCase))
+                if (SameAssetName(name, fileName))
                     return line.Substring(0, 64).ToLowerInvariant();
             }
             return null;
