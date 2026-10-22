@@ -70,9 +70,16 @@ Tu biblioteca se sincroniza con Google Drive: inicia sesión en otro equipo y te
 
 Inicio con Windows, minimizar a la bandeja del sistema, tema claro u oscuro, idioma (español e inglés) y el recordatorio de juegos.
 
-## Instalación
+## Descarga
 
-Por ahora la aplicación se compila desde el código fuente.
+Descarga el instalador desde la [última versión](https://github.com/eliestudioteam/SaviumDrive/releases/latest)
+o desde la [página web](https://eliestudioteam.github.io/SaviumDrive/). Funciona en Windows 10 (1809) y Windows 11.
+
+Windows puede mostrar un aviso de SmartScreen porque la app aún es nueva: pulsa **Más información → Ejecutar de todas formas**.
+
+¿Encontraste un fallo o tienes una idea? Abre un [issue](https://github.com/eliestudioteam/SaviumDrive/issues).
+
+## Compilar desde el código
 
 **Requisitos**
 

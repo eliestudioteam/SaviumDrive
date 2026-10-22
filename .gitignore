@@ -24,3 +24,6 @@ Secrets.props
 ## Carpeta Properties de Visual Studio (perfiles de publicación y de depuración locales) ##
 # Son de cada uno: quien clone el repositorio publica con su propio perfil.
 Properties/
+
+## Instaladores generados (se publican en Releases, no en el repositorio) ##
+SaviumDriveReleasesSetup/
