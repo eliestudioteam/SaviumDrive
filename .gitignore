@@ -27,3 +27,5 @@ Properties/
 
 ## Instaladores generados (se publican en Releases, no en el repositorio) ##
 SaviumDriveReleasesSetup/
+# Logo solo para el icono del instalador (no lo usa la app)
+SaviumDrive/Assets/sdlogo.png
